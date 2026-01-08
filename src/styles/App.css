@@ -1,0 +1,60 @@
+@import "tailwindcss";
+@import "./fonts.css";
+
+@theme {
+  --font-heading: "Inter", "Mukta", sans-serif;
+  --font-body: "Atkinson Hyperlegible", "Mukta", "ui-sans-serif", "system-ui",
+    "sans-serif";
+
+  --color-default-bg: #f3f1ec; /* warm bone */
+  --color-alt-bg: #eef1ec; /* fog + sage hint */
+  --color-surface: #f7f6f2; /* The cards */
+  --color-surface2: #eceae3; /* Secondary elements */
+  --color-border: #d9d6cc; /* crucial for low-contrast separation */
+  --color-text: #2a2a28; /* Soft black */
+  --color-muted: #6b6a64; /* Grey text */
+  --color-sage: #9aa896; /* primary brand */
+  --color-sage2: #7f907d; /* darker sage */
+  --color-gold: #c9b27a; /* celebratory gold */
+  --color-danger: #b36b5e; /* anxiety/error (muted) */
+
+  --radius-xl: 1rem;
+  --radius-2xl: 1.25rem;
+  --radius-3xl: 1.75rem; /* for the main floating panels */
+
+  --shadow-calm: 0 1px 2px rgba(0, 0, 0, 0.06), 0 8px 24px rgba(0, 0, 0, 0.06);
+  --shadow-calm-sm: 0 1px 2px rgba(0, 0, 0, 0.05);
+  --inset-shadow-calm: inset 0 2px 4px 0 rgba(0, 0, 0, 0.06);
+
+  /* for focus pulse or page transitions */
+  --animate-fade-in: fade-in 0.3s ease-out forwards;
+
+  @keyframes fade-in {
+    0% {
+      opacity: 0;
+      transform: translateY(10px);
+    }
+    ,
+    100% {
+      opacity: 1;
+      transform: translateY(0);
+    }
+  }
+}
+
+@utility no-scrollbar {
+  &::-webkit-scrollbar {
+    display: none;
+  } /* Chrome, Safari, Opera */
+  -ms-overflow-style: none; /* IE and Edge */
+  scrollbar-width: none; /* Firefox */
+}
+
+@layer base {
+  body {
+    @apply bg-default-bg text-text font-body;
+    margin: 0;
+    padding: 0;
+    box-sizing: border-box;
+  }
+}
