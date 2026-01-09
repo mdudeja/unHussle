@@ -6,6 +6,6 @@ export class TaskRepository extends BaseWithSupportersRepository<
   TaskWithTagsAndUrls
 > {
   protected tableName = 'tasks'
-  protected tagsJunctionTable = 'tags'
-  protected urlsJunctionTable = 'entity_urls'
+  protected tagsJunctionTable = 'junction_tags'
+  protected urlsJunctionTable = 'junction_urls'
 }

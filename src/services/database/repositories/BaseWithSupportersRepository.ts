@@ -130,11 +130,12 @@ export abstract class BaseWithSupportersRepository<
       return
     }
 
-    const values = tagIds.map((tagId) => [entityId, tagId])
-    await execute(
-      `INSERT INTO ${this.tagsJunctionTable} (entity_id, tag_id) VALUES (?, ?)`,
-      values,
-    )
+    for (const tagId of tagIds) {
+      await execute(
+        `INSERT INTO ${this.tagsJunctionTable} (entity_id, tag_id) VALUES (?, ?)`,
+        [entityId, tagId],
+      )
+    }
   }
 
   private async _createUrlJunction(
@@ -145,11 +146,12 @@ export abstract class BaseWithSupportersRepository<
       return
     }
 
-    const values = urlIds.map((urlId) => [entityId, urlId])
-    await execute(
-      `INSERT INTO ${this.urlsJunctionTable} (entity_id, entity_url_id) VALUES (?, ?)`,
-      values,
-    )
+    for (const urlId of urlIds) {
+      await execute(
+        `INSERT INTO ${this.urlsJunctionTable} (entity_id, entity_url_id) VALUES (?, ?)`,
+        [entityId, urlId],
+      )
+    }
   }
 
   private async _deleteTagJunction(

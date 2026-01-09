@@ -1,14 +1,20 @@
-import Database from '@tauri-apps/plugin-sql'
+import { IDatabaseAdapter } from './adapters/IDatabaseAdapter'
+import { TauriSqlAdapter } from './adapters/TauriSqlAdapter'
 
-let dbInstance: Database | null = null
+// Singleton instance
+let adapterInstance: IDatabaseAdapter | null = null
+let adapterFactory: () => IDatabaseAdapter = () => new TauriSqlAdapter()
 
-export const getDb = async (): Promise<Database> => {
-  if (dbInstance) {
-    return dbInstance
-  }
+// Method to override factory (used by tests)
+export const setAdapterFactory = (factory: () => IDatabaseAdapter) => {
+  adapterFactory = factory
+  adapterInstance = null // Reset instance
+}
 
-  dbInstance = await Database.load('sqlite:unhussle.db')
-  return dbInstance
+export const getDb = async (): Promise<IDatabaseAdapter> => {
+  if (adapterInstance) return adapterInstance
+  adapterInstance = adapterFactory()
+  return adapterInstance
 }
 
 // Generic CRUD helpers
@@ -25,12 +31,12 @@ export const select = async <T>(
   bindValues?: unknown[],
 ): Promise<T[]> => {
   const db = await getDb()
-  return await db.select<T[]>(query, bindValues)
+  return await db.select<T>(query, bindValues)
 }
 
 export const close = async () => {
-  if (dbInstance) {
-    await dbInstance.close()
-    dbInstance = null
+  if (adapterInstance) {
+    await adapterInstance.close()
+    adapterInstance = null
   }
 }
