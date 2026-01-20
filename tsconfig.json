@@ -19,7 +19,6 @@
     "paths": {
       "@/*": ["src/*"]
     },
-    "types": ["bun-types", "vite/client", "react", "react-dom", "uuid", "better-sqlite3"],
 
     /* Linting */
     "strict": true,

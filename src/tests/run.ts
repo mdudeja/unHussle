@@ -1,4 +1,4 @@
-import { setAdapterFactory } from '@/services/database/db'
+import { setAdapterFactory } from '@/services/database/UnHussleDB'
 import { BunSqliteAdapter } from '@/services/database/adapters/BunSqliteAdapter'
 import { runDataLayerTests } from './dataLayerTest'
 
