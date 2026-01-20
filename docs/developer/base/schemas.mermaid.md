@@ -73,6 +73,7 @@ classDiagram
         +number stack_order
         +number scheduled_for?
         +number completed_at?
+        +string[] time_entry_ids
     }
 
     class Resource {
