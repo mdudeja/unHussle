@@ -13,6 +13,9 @@ export interface Entity {
   area_id?: Area['Parent']['id']
   goal_id?: Goal['Parent']['id']
 
+  tag_ids: string[]
+  url_ids: string[]
+
   created_at: number
   updated_at: number
 }

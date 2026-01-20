@@ -1,31 +1,43 @@
 # unHussle Type System Overview
 
+## Architecture: Database-First Type Inference
+
+This project follows a **database-first approach** where types are inferred from Drizzle ORM schemas using the `InferTableTypes` utility:
+
+```typescript
+type InferTableTypes<B, T> = {
+  Parent: B              // Base interface contract
+  Read: T['$inferSelect']    // Type for reading from DB
+  Write: T['$inferInsert']   // Type for inserting to DB
+  Update: Partial<T['$inferInsert']> // Type for updates
+}
+```
+
+**Benefits:**
+- Single source of truth (schema files)
+- Changes propagate automatically through type inference
+- Type-safe CRUD operations with distinct Read/Write/Update types
+- Shared schema fragments reduce duplication
+
 ```mermaid
 classDiagram
-    %% Base Interfaces
-    class EntitySupporter {
-        <<interface>>
-        +string id
-        +string description?
-        +number created_at
-        +number updated_at
-    }
-    
+    %% Base Parent Interfaces (Contracts)
     class Entity {
-        <<interface>>
+        <<interface - parent>>
         +string id
         +string title
-        +Priority priority
         +string description?
         +string project_id?
         +string area_id?
         +string goal_id?
+        +string[] tag_ids
+        +string[] url_ids
         +number created_at
         +number updated_at
     }
 
     class EntityCollection {
-        <<interface>>
+        <<interface - parent>>
         +string id
         +string title
         +ProgressStatus status
@@ -36,13 +48,23 @@ classDiagram
         +number created_at
         +number updated_at
     }
+    
+    class EntitySupporter {
+        <<interface - parent>>
+        +string id
+        +string description?
+        +number created_at
+        +number updated_at
+    }
 
-    %% Entity Extensions
+    %% Inferred Types from Schemas
     class Task {
-        <<interface>>
+        <<inferred from tasksSchema>>
+        ...Entity fields
         +ProgressStatus status
-        +number estimated_duration?
-        +number time_spent
+        +Priority priority
+        +number estimated_minutes?
+        +number spent_minutes
         +number due_date?
         +boolean is_recurring
         +string recurring_rule?
@@ -54,36 +76,40 @@ classDiagram
     }
 
     class Resource {
-        <<interface>>
+        <<inferred from resourcesSchema>>
+        ...Entity fields
     }
 
-    %% EntityCollection Extensions
     class Goal {
-        <<interface>>
+        <<inferred from goalsSchema>>
+        ...EntityCollection fields
         +number due_date?
         +number progress
     }
 
     class Area {
-        <<interface>>
+        <<inferred from areasSchema>>
+        ...EntityCollection fields
     }
 
     class Project {
-        <<interface>>
+        <<inferred from projectsSchema>>
+        ...EntityCollection fields
         +string area_id?
         +string goal_id?
         +number due_date?
     }
 
-    %% EntitySupporter Extensions
-    class EntityTag {
-        <<interface>>
+    class Tag {
+        <<inferred from entityTagsSchema>>
+        ...EntitySupporter fields
         +string title
         +string color?
     }
 
     class EntityUrl {
-        <<interface>>
+        <<inferred from entityUrlsSchema>>
+        ...EntitySupporter fields
         +string title?
         +string url
         +string protocol
@@ -94,46 +120,48 @@ classDiagram
     }
 
     class TimeEntry {
-        <<interface>>
-        +string id
+        <<inferred from timeEntriesSchema>>
+        ...EntitySupporter fields
         +number start_time
         +number end_time?
         +number duration
     }
 
-    %% Join Tables
-    class JunctionTag {
-        <<interface>>
-        +string entity_id
-        +string tag_id
+    %% Schema Fragments (Reusable)
+    class entitySchema {
+        <<schema fragment>>
+        id, title, description
+        project_id, area_id, goal_id
+        tag_ids[], url_ids[]
+        timestamps
     }
 
-    class JunctionTimeEntry {
-        <<interface>>
-        +string entity_id
-        +string time_entry_id
+    class entityCollectionSchema {
+        <<schema fragment>>
+        id, title, status, priority
+        icon, color, description
+        timestamps
     }
 
-    class JunctionUrl {
-        <<interface>>
-        +string entity_id
-        +string entity_url_id
+    class entitySupporterSchema {
+        <<schema fragment>>
+        id, description
+        timestamps
     }
 
-    %% Generic Types
-    class EntityWithTagsAndUrls~T~ {
-        <<type>>
-        +T extends Entity
-        +Array~EntityTag~ tags
-        +Array~EntityUrl~ urls
+    class statusSchema {
+        <<schema fragment>>
+        status: ProgressStatus
     }
 
-    class TaskWithTagsAndUrls {
-        <<type>>
+    class prioritySchema {
+        <<schema fragment>>
+        priority: Priority
     }
 
-    class ResourceWithTagsAndUrls {
-        <<type>>
+    class timestampsSchema {
+        <<schema fragment>>
+        created_at, updated_at
     }
 
     %% Enums
@@ -156,40 +184,70 @@ classDiagram
         HIGH
     }
 
-    %% Relationships
-    Entity <|-- Task : extends
-    Entity <|-- Resource : extends
-    EntityCollection <|-- Goal : extends
-    EntityCollection <|-- Area : extends
-    EntityCollection <|-- Project : extends
-    EntitySupporter <|-- EntityTag : extends
-    EntitySupporter <|-- EntityUrl : extends
-    EntitySupporter <|-- TimeEntry : extends
+    %% Type Inference Utility
+    class InferTableTypes~B_T~ {
+        <<generic utility>>
+        +Parent: B
+        +Read: T$inferSelect
+        +Write: T$inferInsert
+        +Update: PartialT$inferInsert
+    }
 
+    %% Relationships - Parent Contracts
+    Entity ..> Task : Parent contract
+    Entity ..> Resource : Parent contract
+    EntityCollection ..> Goal : Parent contract
+    EntityCollection ..> Area : Parent contract
+    EntityCollection ..> Project : Parent contract
+    EntitySupporter ..> Tag : Parent contract
+    EntitySupporter ..> EntityUrl : Parent contract
+    EntitySupporter ..> TimeEntry : Parent contract
+
+    %% Schema Composition
+    entitySchema ..> timestampsSchema : includes
+    entityCollectionSchema ..> statusSchema : includes
+    entityCollectionSchema ..> prioritySchema : includes
+    entityCollectionSchema ..> timestampsSchema : includes
+    entitySupporterSchema ..> timestampsSchema : includes
+
+    %% Type Inference
+    Task --> entitySchema : inferred from
+    Task --> statusSchema : inferred from
+    Task --> prioritySchema : inferred from
+    Resource --> entitySchema : inferred from
+    Goal --> entityCollectionSchema : inferred from
+    Area --> entityCollectionSchema : inferred from
+    Project --> entityCollectionSchema : inferred from
+    Tag --> entitySupporterSchema : inferred from
+    EntityUrl --> entitySupporterSchema : inferred from
+    TimeEntry --> entitySupporterSchema : inferred from
+
+    %% Enum Usage
     Task ..> ProgressStatus : uses
     Task ..> Priority : uses
     EntityCollection ..> ProgressStatus : uses
     EntityCollection ..> Priority : uses
 
+    %% Foreign Key Relationships
     Entity --> Project : project_id
     Entity --> Area : area_id
     Entity --> Goal : goal_id
     Project --> Area : area_id
     Project --> Goal : goal_id
 
-    JunctionTag --> Entity : entity_id
-    JunctionTag --> EntityTag : tag_id
-    JunctionUrl --> Entity : entity_id
-    JunctionUrl --> EntityUrl : entity_url_id
-    JunctionTimeEntry --> Entity : entity_id
-    JunctionTimeEntry --> TimeEntry : time_entry_id
+    %% Array References (embedded IDs)
+    Entity --> Tag : tag_ids[]
+    Entity --> EntityUrl : url_ids[]
 
-    EntityWithTagsAndUrls~T~ ..> Entity : T extends
-    EntityWithTagsAndUrls~T~ --> EntityTag : has many
-    EntityWithTagsAndUrls~T~ --> EntityUrl : has many
-
-    TaskWithTagsAndUrls --|> EntityWithTagsAndUrls~T~ : Task
-    ResourceWithTagsAndUrls --|> EntityWithTagsAndUrls~T~ : Resource
+    %% Type Utility Usage
+    InferTableTypes~B_T~ ..> Task : generates types
+    InferTableTypes~B_T~ ..> Resource : generates types
+    InferTableTypes~B_T~ ..> Goal : generates types
+    InferTableTypes~B_T~ ..> Area : generates types
+    InferTableTypes~B_T~ ..> Project : generates types
+    InferTableTypes~B_T~ ..> Tag : generates types
+    InferTableTypes~B_T~ ..> EntityUrl : generates types
+    InferTableTypes~B_T~ ..> TimeEntry : generates types
 ```
 
 
