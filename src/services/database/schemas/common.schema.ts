@@ -1,11 +1,6 @@
 import { Priority, ProgressStatus } from '@/types'
 import { sql } from 'drizzle-orm'
 import * as t from 'drizzle-orm/sqlite-core'
-import { entityTagsSchema } from './entity_tags.schema'
-import { entityUrlsSchema } from './entity_urls.schema'
-import { projectsSchema } from './projects.schema'
-import { areasSchema } from './areas.schema'
-import { goalsSchema } from './goals.schema'
 
 // Enums
 const customEnum = <T>(name: string) =>
@@ -44,29 +39,17 @@ export const entitySchema = {
   id: t.text().primaryKey(),
   title: t.text().notNull(),
   description: t.text(),
-  project_id: t.text('project_id').references(() => projectsSchema.id, {
-    onDelete: 'set null',
-  }),
-  area_id: t.text('area_id').references(() => areasSchema.id, {
-    onDelete: 'set null',
-  }),
-  goal_id: t.text('goal_id').references(() => goalsSchema.id, {
-    onDelete: 'set null',
-  }),
+  project_id: t.text('project_id'),
+  area_id: t.text('area_id'),
+  goal_id: t.text('goal_id'),
   tag_ids: t
     .text({ mode: 'json' })
     .$type<string[]>()
-    .references(() => entityTagsSchema.id, {
-      onDelete: 'set null',
-    })
-    .default([]),
+    .$default(() => []),
   url_ids: t
     .text({ mode: 'json' })
     .$type<string[]>()
-    .references(() => entityUrlsSchema.id, {
-      onDelete: 'set null',
-    })
-    .default([]),
+    .$default(() => []),
   ...timestampsSchema,
 }
 
