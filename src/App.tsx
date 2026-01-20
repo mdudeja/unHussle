@@ -2,14 +2,35 @@ import { useState } from 'react'
 import reactLogo from './assets/react.svg'
 import { invoke } from '@tauri-apps/api/core'
 import '@/styles/App.css'
+import { useDatabaseStatus } from '@/hooks/useDatabaseStatus'
 
 function App() {
   const [greetMsg, setGreetMsg] = useState('')
   const [name, setName] = useState('')
+  const { isReady, error } = useDatabaseStatus()
 
   async function greet() {
     // Learn more about Tauri commands at https://tauri.app/develop/calling-rust/
     setGreetMsg(await invoke('greet', { name }))
+  }
+
+  if (error) {
+    return (
+      <main className="container">
+        <h1>Database Error</h1>
+        <p style={{ color: 'red' }}>{error}</p>
+        <p>Please restart the application.</p>
+      </main>
+    )
+  }
+
+  if (!isReady) {
+    return (
+      <main className="container">
+        <h1>Loading...</h1>
+        <p>Initializing database...</p>
+      </main>
+    )
   }
 
   return (

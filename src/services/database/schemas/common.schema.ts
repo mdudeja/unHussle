@@ -1,3 +1,4 @@
+import { createId } from '@paralleldrive/cuid2'
 import { Priority, ProgressStatus } from '@/types'
 import { sql } from 'drizzle-orm'
 import * as t from 'drizzle-orm/sqlite-core'
@@ -36,7 +37,10 @@ export const statusSchema = {
 
 // Parent Schemas
 export const entitySchema = {
-  id: t.text().primaryKey(),
+  id: t
+    .text()
+    .primaryKey()
+    .$defaultFn(() => createId()),
   title: t.text().notNull(),
   description: t.text(),
   project_id: t.text('project_id'),
@@ -54,7 +58,10 @@ export const entitySchema = {
 }
 
 export const entityCollectionSchema = {
-  id: t.text().primaryKey(),
+  id: t
+    .text()
+    .primaryKey()
+    .$defaultFn(() => createId()),
   title: t.text().notNull(),
   ...statusSchema,
   ...prioritySchema,
@@ -65,7 +72,10 @@ export const entityCollectionSchema = {
 }
 
 export const entitySupporterSchema = {
-  id: t.text().primaryKey(),
+  id: t
+    .text()
+    .primaryKey()
+    .$defaultFn(() => createId()),
   description: t.text(),
   ...timestampsSchema,
 }
