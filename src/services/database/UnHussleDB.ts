@@ -1,4 +1,3 @@
-import 'dotenv/config'
 import { drizzle, type BunSQLiteDatabase } from 'drizzle-orm/bun-sqlite'
 import { Database } from 'bun:sqlite'
 import * as schema from './schemas'

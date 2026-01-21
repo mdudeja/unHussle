@@ -1,11 +1,11 @@
 import { createContext, useEffect, useState, ReactNode } from 'react'
 import type { BunSQLiteDatabase } from 'drizzle-orm/bun-sqlite'
 import * as schema from '@/services/database/schemas'
-import { UnHussleDB } from '@/services/database/UnHussleDB'
-import { migrate } from 'drizzle-orm/bun-sqlite/migrator'
+import { DatabaseAdapter } from '@/services/database/DatabaseAdapter'
 
 type DatabaseContextType = {
   db: BunSQLiteDatabase<typeof schema> | null
+  adapter: DatabaseAdapter | null
   isReady: boolean
   error: string | null
 }
@@ -16,6 +16,7 @@ export const DatabaseContext = createContext<DatabaseContextType | undefined>(
 
 export function DatabaseProvider({ children }: { children: ReactNode }) {
   const [db, setDb] = useState<BunSQLiteDatabase<typeof schema> | null>(null)
+  const [adapter, setAdapter] = useState<DatabaseAdapter | null>(null)
   const [isReady, setIsReady] = useState(false)
   const [error, setError] = useState<string | null>(null)
 
@@ -23,13 +24,17 @@ export function DatabaseProvider({ children }: { children: ReactNode }) {
     async function initializeDatabase() {
       try {
         console.log('Initializing database...')
-        const database = await UnHussleDB.getInstance().getDb()
+        const dbAdapter = new DatabaseAdapter()
+        await dbAdapter.initialize()
 
-        console.log('Running database migrations...')
-        await migrate(database, { migrationsFolder: './drizzle_migrations' })
+        setAdapter(dbAdapter)
+        
+        // Only set db if not in server mode
+        if (!dbAdapter.isServerMode()) {
+          setDb(dbAdapter.getDb())
+        }
 
         console.log('Database ready!')
-        setDb(database)
         setIsReady(true)
       } catch (err) {
         console.error('Database initialization failed:', err)
@@ -41,7 +46,7 @@ export function DatabaseProvider({ children }: { children: ReactNode }) {
   }, [])
 
   return (
-    <DatabaseContext.Provider value={{ db, isReady, error }}>
+    <DatabaseContext.Provider value={{ db, adapter, isReady, error }}>
       {children}
     </DatabaseContext.Provider>
   )

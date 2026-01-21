@@ -8,6 +8,8 @@
     "build": "tsc && vite build",
     "preview": "vite preview",
     "tauri": "tauri",
+    "server": "bun run server.ts",
+    "build:server": "bun build --compile --minify ./server.ts --outfile ./src-tauri/binaries/db-server",
     "test": "bun test src/tests"
   },
   "dependencies": {
@@ -17,7 +19,6 @@
     "@tauri-apps/plugin-fs": "^2.4.4",
     "@tauri-apps/plugin-opener": "^2",
     "@tauri-apps/plugin-sql": "^2.3.1",
-    "dotenv": "^17.2.3",
     "drizzle-orm": "^0.45.1",
     "react": "^19.1.0",
     "react-dom": "^19.1.0",
