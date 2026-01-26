@@ -1,50 +1,34 @@
-import { UnHussleDB } from './database/UnHussleDB'
-import { BunRequest } from 'bun'
+import { Elysia } from 'elysia'
+import { swagger } from '@elysiajs/swagger'
+import { cors } from '@elysiajs/cors'
+import { UnHussleDB } from '@d/database/UnHussleDB'
+import { tasksRoutes } from './routes/tasks'
+
+console.log('Initializing Database...')
+const uDB = UnHussleDB.getInstance()
+await uDB.getDb()
+console.log('Database Initialized.')
 
 const PORT = parseInt(process.env.VITE_DB_SERVER_PORT || '3456', 10)
-const headers = {
-  'Access-Control-Allow-Origin': '*',
-  'Access-Control-Allow-Methods': 'GET, POST, PUT, DELETE, OPTIONS',
-  'Access-Control-Allow-Headers': 'Content-Type',
-  'Content-Type': 'application/json',
-}
 
-const uDB = UnHussleDB.getInstance()
-const db = await uDB.getDb()
-
-console.log(`env: ${process.env.NODE_ENV}`)
-console.log(`port: ${process.env.VITE_DB_SERVER_PORT}`)
-
-Bun.serve({
-  development: process.env.NODE_ENV !== 'production',
-  port: PORT,
-  routes: {
-    '/health': {
-      GET: (_req: BunRequest) => {
-        if (!uDB) {
-          return new Response('Database not initialized', {
-            status: 500,
-            headers,
-          })
-        }
-
-        if (!uDB.isReady()) {
-          return new Response('Database not ready', {
-            status: 500,
-            headers,
-          })
-        }
-
-        return new Response('OK', { headers })
+const app = new Elysia()
+  .use(
+    swagger({
+      documentation: {
+        info: {
+          title: 'unHussle API',
+          version: '1.0.0',
+        },
       },
-    },
-  },
-  fetch(_req: BunRequest) {
-    return new Response('URL Not Found. Use /health endpoint to check status', {
-      status: 404,
-      headers,
-    })
-  },
-})
+    }),
+  )
+  .use(cors())
+  .get('/health', () => 'OK')
+  .use(tasksRoutes)
+  .listen(PORT)
 
-console.log(`Database server running on http://localhost:${PORT}`)
+console.log(
+  `🦊 Elysia is running at ${app.server?.hostname}:${app.server?.port}`,
+)
+
+export type App = typeof app
