@@ -51,6 +51,7 @@ export class UnHussleDB {
 
     // Ensure the parent directory exists
     const dbDir = dirname(this.dbFilePath!)
+
     if (!existsSync(dbDir)) {
       console.log(`Creating database directory: ${dbDir}`)
       mkdirSync(dbDir, { recursive: true })

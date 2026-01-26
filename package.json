@@ -10,7 +10,7 @@
     "tauri": "tauri",
     "build:server": "bun src-db-server/build.ts",
     "server": "bun run src-db-server/server.ts",
-    "test": "bun test src/tests"
+    "test": "bun test **/__tests__"
   },
   "dependencies": {
     "@paralleldrive/cuid2": "^3.0.6",

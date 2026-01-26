@@ -1,6 +1,6 @@
 import { describe, test, expect, beforeAll, afterAll } from 'bun:test'
-import { UnHussleDB } from '@/services/database/UnHussleDB'
-import { Priority, ProgressStatus } from '@/types'
+import { UnHussleDB } from '@d/database/UnHussleDB'
+import { Priority, ProgressStatus } from '@c/index'
 import { tasksSchema } from 'src-db-server/database/schemas/tasks.schema'
 import { areasSchema } from 'src-db-server/database/schemas/areas.schema'
 import { projectsSchema } from 'src-db-server/database/schemas/projects.schema'
@@ -11,7 +11,6 @@ import * as schema from 'src-db-server/database/schemas'
 import { unlink } from 'fs/promises'
 import { tmpdir } from 'os'
 import { join } from 'path'
-import { migrate } from 'drizzle-orm/bun-sqlite/migrator'
 
 describe('Data Layer Tests', () => {
   let db: BunSQLiteDatabase<typeof schema>
@@ -22,10 +21,10 @@ describe('Data Layer Tests', () => {
   const testDbPath = join(tmpdir(), `unhussle-test-${Date.now()}.db`)
 
   beforeAll(async () => {
-    db = await UnHussleDB.getInstance(testDbPath).getDb()
+    process.env.DB_MIGRATIONS_DIR = join(__dirname, '../../drizzle_migrations')
+    process.env.DB_FILE_URL = testDbPath
 
-    // Run migrations to create tables
-    migrate(db, { migrationsFolder: './drizzle_migrations' })
+    db = await UnHussleDB.getInstance(testDbPath).getDb()
   })
 
   afterAll(async () => {
