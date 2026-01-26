@@ -3,7 +3,7 @@ import { relations } from 'drizzle-orm'
 import { entityCollectionSchema } from './common.schema'
 import { goalsSchema } from './goals.schema'
 import { areasSchema } from './areas.schema'
-import { EntityCollection, InferTableTypes } from '@/types'
+import { EntityCollection, InferTableTypes } from '@c/index'
 import { tasksSchema } from './tasks.schema'
 import { resourcesSchema } from './resources.schema'
 

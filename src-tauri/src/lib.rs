@@ -1,6 +1,9 @@
-use tauri::{Manager, AppHandle};
-use std::process::{Command, Child};
 use std::sync::Mutex;
+use std::thread;
+use std::time::Duration;
+use tauri::{AppHandle, Manager};
+use tauri_plugin_shell::process::CommandChild;
+use tauri_plugin_shell::ShellExt;
 
 // Learn more about Tauri commands at https://tauri.app/develop/calling-rust/
 #[tauri::command]
@@ -8,51 +11,87 @@ fn greet(name: &str) -> String {
     format!("Hello, {}! You've been greeted from Rust!", name)
 }
 
-struct DbServer(Mutex<Option<Child>>);
+struct DbServer(Mutex<Option<CommandChild>>);
 
-fn start_db_server(_app: &AppHandle) -> Result<Child, String> {
-    let manifest_dir = std::env::var("CARGO_MANIFEST_DIR")
-        .map_err(|e| format!("Failed to get manifest dir: {}", e))?;
-    
-    let sidecar_path = std::path::PathBuf::from(manifest_dir)
-        .join("binaries")
-        .join("db-server");
-    
-    println!("Starting database server from: {:?}", sidecar_path);
-    
-    if !sidecar_path.exists() {
-        return Err(format!("Database server binary not found. Run: bun run build:server"));
-    }
-    
-    let child = Command::new(sidecar_path)
+fn start_db_server(app: &AppHandle) -> Result<CommandChild, String> {
+    let sidecar_command = app.shell().sidecar("db-server").unwrap();
+    let (_rx, child) = sidecar_command
         .spawn()
-        .map_err(|e| format!("Failed to start database server: {}", e))?;
-    
-    println!("Database server started with PID: {}", child.id());
+        .map_err(|e| format!("Failed to spawn database server sidecar: {}", e))?;
     Ok(child)
+}
+
+fn shutdown_db_server(child: CommandChild) {
+    let pid = child.pid();
+    println!("Initiating database server shutdown (PID: {})...", pid);
+
+    // First, try graceful shutdown with SIGTERM
+    #[cfg(unix)]
+    {
+        use std::process::Command;
+        let sigterm_result = Command::new("kill")
+            .arg("-TERM")
+            .arg(pid.to_string())
+            .status();
+
+        match sigterm_result {
+            Ok(_) => {
+                println!("Sent SIGTERM to database server, waiting for graceful shutdown...");
+                // Wait up to 5 seconds for graceful shutdown
+                for i in 0..10 {
+                    thread::sleep(Duration::from_millis(500));
+                    // Check if process is still running
+                    let check = Command::new("kill").arg("-0").arg(pid.to_string()).status();
+
+                    if check.is_err() || !check.unwrap().success() {
+                        println!("Database server shut down gracefully.");
+                        return;
+                    }
+
+                    if i == 9 {
+                        println!("Database server did not respond to SIGTERM, forcing shutdown...");
+                    }
+                }
+            }
+            Err(e) => {
+                println!("Failed to send SIGTERM: {}, forcing shutdown...", e);
+            }
+        }
+    }
+
+    // Force kill if graceful shutdown failed or on non-Unix systems
+    match child.kill() {
+        Ok(_) => println!("Database server terminated successfully (PID: {}).", pid),
+        Err(e) => eprintln!("Failed to kill database server (PID: {}): {}", pid, e),
+    }
 }
 
 #[cfg_attr(mobile, tauri::mobile_entry_point)]
 pub fn run() {
     tauri::Builder::default()
+        .plugin(tauri_plugin_shell::init())
         .plugin(tauri_plugin_fs::init())
         .plugin(tauri_plugin_opener::init())
         .manage(DbServer(Mutex::new(None)))
         .setup(|app| {
             let handle = app.handle();
-            
+
             // Start the database server sidecar
             match start_db_server(&handle) {
                 Ok(child) => {
+                    let pid = child.pid();
                     let state = handle.state::<DbServer>();
                     *state.0.lock().unwrap() = Some(child);
-                    println!("Database server initialized successfully");
+                    println!(
+                        "Database server initialized successfully. Process id {}",
+                        pid
+                    );
                 }
                 Err(e) => {
                     eprintln!("Warning: Failed to start database server: {}", e);
                 }
             }
-            
+
             Ok(())
         })
         .on_window_event(|_window, event| {
@@ -66,15 +105,21 @@ pub fn run() {
         .run(|app_handle, event| {
             if let tauri::RunEvent::Exit = event {
                 // Kill the database server when the app exits
+                println!("Application exit detected, cleaning up...");
                 if let Some(state) = app_handle.try_state::<DbServer>() {
                     if let Ok(mut child_lock) = state.0.lock() {
-                        if let Some(mut child) = child_lock.take() {
-                            println!("Shutting down database server...");
-                            let _ = child.kill();
-                            let _ = child.wait();
+                        if let Some(child) = child_lock.take() {
+                            shutdown_db_server(child);
+                        } else {
+                            println!("Database server was not running.");
                         }
+                    } else {
+                        eprintln!("Failed to acquire lock for database server cleanup.");
                     }
+                } else {
+                    eprintln!("Database server state not found during cleanup.");
                 }
+                println!("Cleanup completed.");
             }
         });
 }

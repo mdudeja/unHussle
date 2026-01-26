@@ -24,6 +24,6 @@ export type InferTableTypes<B, T extends SQLiteTableWithColumns<any>> = {
   Update: Partial<T['$inferInsert']>
 }
 
-export * from '@/types/Entity.type'
-export * from '@/types/EntityCollection.type'
-export * from '@/types/EntitySupporter.type'
+export * from '@c/types/Entity.type'
+export * from '@c/types/EntityCollection.type'
+export * from '@c/types/EntitySupporter.type'

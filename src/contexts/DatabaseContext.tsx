@@ -1,6 +1,6 @@
 import { createContext, useEffect, useState, ReactNode } from 'react'
 import type { BunSQLiteDatabase } from 'drizzle-orm/bun-sqlite'
-import * as schema from '@/services/database/schemas'
+import * as schema from 'src-db-server/database/schemas'
 import { DatabaseAdapter } from '@/services/database/DatabaseAdapter'
 
 type DatabaseContextType = {
@@ -28,7 +28,7 @@ export function DatabaseProvider({ children }: { children: ReactNode }) {
         await dbAdapter.initialize()
 
         setAdapter(dbAdapter)
-        
+
         // Only set db if not in server mode
         if (!dbAdapter.isServerMode()) {
           setDb(dbAdapter.getDb())

@@ -1,7 +1,7 @@
-import { Project, Area, Goal } from '@/types/EntityCollection.type'
+import { Project, Area, Goal } from '@c/types/EntityCollection.type'
 
-export { type Task } from '@/services/database/schemas/tasks.schema'
-export { type Resource } from '@/services/database/schemas/resources.schema'
+export { type Task } from '@d/database/schemas/tasks.schema'
+export { type Resource } from '@d/database/schemas/resources.schema'
 
 export interface Entity {
   id: string

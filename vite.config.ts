@@ -34,6 +34,8 @@ export default defineConfig(async () => ({
   resolve: {
     alias: {
       '@': `${fileURLToPath(new URL('./src', import.meta.url))}`,
+      '@d': `${fileURLToPath(new URL('./src-db-server', import.meta.url))}`,
+      '@c': `${fileURLToPath(new URL('./common', import.meta.url))}`,
     },
   },
 

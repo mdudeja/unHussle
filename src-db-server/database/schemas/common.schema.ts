@@ -1,5 +1,5 @@
 import { createId } from '@paralleldrive/cuid2'
-import { Priority, ProgressStatus } from '@/types'
+import { Priority, ProgressStatus } from '@c/index'
 import { sql } from 'drizzle-orm'
 import * as t from 'drizzle-orm/sqlite-core'
 
