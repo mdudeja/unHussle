@@ -15,7 +15,7 @@ try {
 
   // Linux
   await Bun.build({
-    env: 'inline',
+    env: 'VITE_*',
     entrypoints: [entrypointPath],
     compile: {
       target: 'bun-linux-x64',

@@ -16,5 +16,5 @@ export function useDatabase() {
     throw new Error(`Database error: ${context.error}`)
   }
 
-  return context.db!
+  return context.adapter!
 }

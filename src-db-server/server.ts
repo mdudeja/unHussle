@@ -1,7 +1,7 @@
 import { UnHussleDB } from './database/UnHussleDB'
 import { BunRequest } from 'bun'
 
-const PORT = parseInt(process.env.DB_SERVER_PORT || '3456', 10)
+const PORT = parseInt(process.env.VITE_DB_SERVER_PORT || '3456', 10)
 const headers = {
   'Access-Control-Allow-Origin': '*',
   'Access-Control-Allow-Methods': 'GET, POST, PUT, DELETE, OPTIONS',
@@ -9,7 +9,11 @@ const headers = {
   'Content-Type': 'application/json',
 }
 
-const db = await UnHussleDB.getInstance()
+const uDB = UnHussleDB.getInstance()
+const db = await uDB.getDb()
+
+console.log(`env: ${process.env.NODE_ENV}`)
+console.log(`port: ${process.env.VITE_DB_SERVER_PORT}`)
 
 Bun.serve({
   development: process.env.NODE_ENV !== 'production',
@@ -17,14 +21,14 @@ Bun.serve({
   routes: {
     '/health': {
       GET: (_req: BunRequest) => {
-        if (!db) {
+        if (!uDB) {
           return new Response('Database not initialized', {
             status: 500,
             headers,
           })
         }
 
-        if (!db.isReady()) {
+        if (!uDB.isReady()) {
           return new Response('Database not ready', {
             status: 500,
             headers,

@@ -31,6 +31,9 @@
       "icons/icon.icns",
       "icons/icon.ico"
     ],
+    "resources": {
+      "../drizzle_migrations/": "resources/drizzle_migrations"
+    },
     "externalBin": ["../binaries/db-server"]
   }
 }

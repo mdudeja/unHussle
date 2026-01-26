@@ -1,6 +1,7 @@
 use std::sync::Mutex;
 use std::thread;
 use std::time::Duration;
+use tauri::path::BaseDirectory;
 use tauri::{AppHandle, Manager};
 use tauri_plugin_shell::process::CommandChild;
 use tauri_plugin_shell::ShellExt;
@@ -14,10 +15,62 @@ fn greet(name: &str) -> String {
 struct DbServer(Mutex<Option<CommandChild>>);
 
 fn start_db_server(app: &AppHandle) -> Result<CommandChild, String> {
-    let sidecar_command = app.shell().sidecar("db-server").unwrap();
-    let (_rx, child) = sidecar_command
+    use tauri::Manager;
+
+    // Get app data directory and resource directory
+    let db_path = app
+        .path()
+        .resolve("db/ecn.unhussle.sqlite", BaseDirectory::AppData)
+        .map_err(|e| format!("Failed to get app data directory: {}", e))?;
+    let migrations_path = app
+        .path()
+        .resolve("resources/drizzle_migrations", BaseDirectory::Resource)
+        .map_err(|e| format!("Failed to get resource directory: {}", e))?;
+
+    // Ensure app data directory exists
+    std::fs::create_dir_all(&db_path.parent().unwrap())
+        .map_err(|e| format!("Failed to create app data directory: {}", e))?;
+
+    println!("Database path: {:?}", db_path.to_str().unwrap());
+    println!("Migrations path: {:?}", migrations_path.to_str().unwrap());
+
+    let sidecar_command = app
+        .shell()
+        .sidecar("db-server")
+        .unwrap()
+        .env("DB_FILE_URL", db_path.to_str().unwrap())
+        .env("DB_MIGRATIONS_DIR", migrations_path.to_str().unwrap());
+
+    let (mut rx, child) = sidecar_command
         .spawn()
         .map_err(|e| format!("Failed to spawn database server sidecar: {}", e))?;
+
+    // Spawn an async task to read and print sidecar output
+    tauri::async_runtime::spawn(async move {
+        use tauri_plugin_shell::process::CommandEvent;
+        while let Some(event) = rx.recv().await {
+            match event {
+                CommandEvent::Stdout(line) => {
+                    print!("[DB Server] {}", String::from_utf8_lossy(&line));
+                }
+                CommandEvent::Stderr(line) => {
+                    eprint!("[DB Server ERROR] {}", String::from_utf8_lossy(&line));
+                }
+                CommandEvent::Error(err) => {
+                    eprintln!("[DB Server] Error: {}", err);
+                }
+                CommandEvent::Terminated(payload) => {
+                    println!(
+                        "[DB Server] Process terminated with code: {:?}",
+                        payload.code
+                    );
+                    break;
+                }
+                _ => {}
+            }
+        }
+    });
+
     Ok(child)
 }
 
