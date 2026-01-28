@@ -1,4 +1,4 @@
-import { makeJSONRequest } from '@/utils/server'
+import { makeJSONRequest } from '@/lib/server'
 import { Task } from '@c/index'
 
 const dbUrl = `http://localhost:${import.meta.env.VITE_DB_SERVER_PORT}`

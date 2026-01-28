@@ -15,11 +15,11 @@
   - [x] 10. Create data migration utilities for future schema updates
   - [x] 11. Write basic unit tests for data layer
 
-- [ ] Phase 2.5: Sidecar & API Implementation
+- [x] Phase 2.5: Sidecar & API Implementation
   - [x] 12a. Install Elysia in `src-db-server`
   - [x] 12b. Implement API endpoints in `src-db-server` using Elysia (Tasks CRUD)
 
-- [ ] Phase 3: UI Components Library
+- [x] Phase 3: UI Components Library
   - [x] 13. Build reusable Card component with calm shadow styling
   - [x] 14. Create Button component variants (primary, secondary, danger)
   - [x] 15. Build Input/Textarea components with calm styling
@@ -27,6 +27,16 @@
   - [x] 17. Build Modal/Dialog component
   - [x] 18. Create Progress meter component
   - [x] 19. Build Timer/Duration display component
+
+- [ ] Phase 3.1: State Management
+  - [ ] 19a. Set up Zustand store for global state management
+  - [ ] 19b. Create slices for tasks, projects, areas, goals, and UI state
+  - [ ] 19c. Implement actions for loading/saving tasks from the database
+
+- [ ] Phase 3.5: Home View Components
+  - [ ] 20a. Build Brain Dump Input component with rapid entry features
+  - [ ] 20b. Create Next Task Card component with Start button and timer display
+  - [ ] 20c. Bring them together in Home View layout
 
 - [ ] Phase 4: Brain Dump Inbox
   - [ ] 21. Create Brain Dump Inbox view with quick task entry

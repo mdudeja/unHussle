@@ -44,6 +44,9 @@
 - `compilerOptions.paths` in `tsconfig.json`
 - `resolve.alias` in `vite.config.ts`
 
+## UI Component Library
+- shadcn/ui
+
 
 
 

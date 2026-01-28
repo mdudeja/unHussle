@@ -14,7 +14,7 @@ import {
   Repeat,
   Tag,
 } from 'lucide-react'
-import { cn } from '@/utils/cn'
+import { cn } from '@/lib/utils'
 
 interface TaskFormProps {
   initialData?: Task['Read']
@@ -27,7 +27,6 @@ export const TaskForm: React.FC<TaskFormProps> = ({
   initialData,
   onSubmit,
   onCancel,
-  isLoading,
 }) => {
   const [formData, setFormData] = useState<
     Partial<Task['Write'] | Task['Update']>

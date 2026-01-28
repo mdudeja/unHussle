@@ -1,6 +1,6 @@
 import React from 'react'
-import { cn } from '@/utils/cn'
-import { formatDuration } from '@/utils/timeUtils'
+import { cn } from '@/lib/utils'
+import { formatDuration } from '@/lib/timeUtils'
 
 interface TimerDisplayProps extends React.HTMLAttributes<HTMLDivElement> {
   seconds: number

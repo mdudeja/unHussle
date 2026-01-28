@@ -35,7 +35,8 @@
     "react-dom": "^19.1.0",
     "tailwind-merge": "^3.4.0",
     "tailwindcss": "^4.1.18",
-    "uuid": "^13.0.0"
+    "uuid": "^13.0.0",
+    "zustand": "^5.0.10"
   },
   "devDependencies": {
     "@tauri-apps/cli": "^2",

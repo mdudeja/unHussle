@@ -8,6 +8,13 @@
       "when": 1768930389465,
       "tag": "20260120173309_gigantic_alice",
       "breakpoints": true
+    },
+    {
+      "idx": 1,
+      "version": "6",
+      "when": 1769624759198,
+      "tag": "20260128182559_thin_alex_power",
+      "breakpoints": true
     }
   ]
 }

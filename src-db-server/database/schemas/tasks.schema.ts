@@ -29,6 +29,7 @@ export const tasksSchema = sqliteTable(
     recurring_rule: text(),
     is_fun: integer({ mode: 'boolean' }).notNull().default(false),
     is_chore: integer({ mode: 'boolean' }).notNull().default(false),
+    is_quick: integer({ mode: 'boolean' }).notNull().default(false),
     stack_order: integer({ mode: 'number' }).notNull().default(0),
     scheduled_for: integer({ mode: 'timestamp_ms' }),
     completed_at: integer({ mode: 'timestamp_ms' }),

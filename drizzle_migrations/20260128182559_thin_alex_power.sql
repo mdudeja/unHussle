@@ -1,0 +1,1 @@
+ALTER TABLE `tasks` ADD `is_quick` integer DEFAULT false NOT NULL;
