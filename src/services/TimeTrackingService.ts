@@ -36,11 +36,11 @@ export class TimeTrackingService {
 
     // Better strategy: Fetch current task, add delta.
     try {
-      const task = await TasksService.fetchTaskById(active.taskId)
+      const task = await TasksService.getInstance().fetchById(active.taskId)
       if (task) {
         const minutesToAdd = Math.ceil(durationMs / 1000 / 60)
 
-        await TasksService.updateTask(active.taskId, {
+        await TasksService.getInstance().update(active.taskId, {
           spent_minutes: (task.spent_minutes || 0) + minutesToAdd,
         })
       }

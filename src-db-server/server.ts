@@ -24,6 +24,13 @@ const app = new Elysia()
     }),
   )
   .use(cors())
+  .onError(({ error, code }) => {
+    console.error(error)
+    if (code === 'VALIDATION') {
+      return error.detail(error.message)
+    }
+    return error
+  })
   .get('/health', () => 'OK')
   .use(tasksRoutes)
   .listen(PORT)

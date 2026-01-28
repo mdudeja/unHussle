@@ -13,18 +13,36 @@ const db = await uDB.getDb()
 
 export const tasksRoutes = new Elysia({ prefix: '/tasks' })
   .get('/', async () => {
-    return await db.select().from(tasksSchema)
+    try {
+      console.log('Get all Tasks')
+      return await db.select().from(tasksSchema)
+    } catch (error) {
+      console.error('Failed to get tasks', error)
+      return null
+    }
   })
 
   .get('/:id', async ({ params: { id } }) => {
-    return await db.select().from(tasksSchema).where(eq(tasksSchema.id, id))
+    try {
+      console.log('Get Task with id: ', id)
+      return await db.select().from(tasksSchema).where(eq(tasksSchema.id, id))
+    } catch (error) {
+      console.error('Failed to get task', error)
+      return null
+    }
   })
 
   .post(
     '/',
     async ({ body }) => {
-      const result = await db.insert(tasksSchema).values(body).returning()
-      return result[0]
+      try {
+        console.log('Add Task with id: ', body.id)
+        const result = await db.insert(tasksSchema).values(body).returning()
+        return result[0]
+      } catch (error) {
+        console.error('Failed to add task', error)
+        return null
+      }
     },
     {
       body: insertTaskSchema,
@@ -34,12 +52,18 @@ export const tasksRoutes = new Elysia({ prefix: '/tasks' })
   .patch(
     '/:id',
     async ({ params: { id }, body }) => {
-      const result = await db
-        .update(tasksSchema)
-        .set(body)
-        .where(eq(tasksSchema.id, id))
-        .returning()
-      return result[0]
+      try {
+        console.log('Update Task with id: ', id)
+        const result = await db
+          .update(tasksSchema)
+          .set(body)
+          .where(eq(tasksSchema.id, id))
+          .returning()
+        return result[0]
+      } catch (error) {
+        console.error('Failed to update task', error)
+        return null
+      }
     },
     {
       body: updateTaskSchema,
@@ -47,9 +71,15 @@ export const tasksRoutes = new Elysia({ prefix: '/tasks' })
   )
 
   .delete('/:id', async ({ params: { id } }) => {
-    const result = await db
-      .delete(tasksSchema)
-      .where(eq(tasksSchema.id, id))
-      .returning()
-    return result[0]
+    try {
+      console.log('Delete Task with id: ', id)
+      const result = await db
+        .delete(tasksSchema)
+        .where(eq(tasksSchema.id, id))
+        .returning()
+      return result[0]
+    } catch (error) {
+      console.error('Failed to delete task', error)
+      return null
+    }
   })

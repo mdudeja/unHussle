@@ -1,13 +1,23 @@
 import { useDatabaseStatus } from '@/hooks/useDatabaseStatus'
-import { TaskTimer } from '@/components/tasks/TaskTimer'
-import { TaskForm } from '@/components/tasks/TaskForm'
+import { HomeView } from '@/components/home/HomeView'
 import '@/styles/App.css'
+import { useStore } from '@/store'
+import { useEffect } from 'react'
 
 function App() {
   const { isReady, error } = useDatabaseStatus()
+  const { tasks } = useStore()
+
+  useEffect(() => {
+    if (!isReady) {
+      return
+    }
+
+    tasks.fetch()
+  }, [isReady])
 
   return (
-    <main className="min-h-screen bg-default-bg text-text font-body p-4">
+    <main className="min-h-screen bg-default-bg text-text font-body p-4 flex flex-col">
       {/* Database Status Indicator (Top Right) */}
       <div className="fixed top-4 right-4 z-50">
         {error ? (
@@ -25,35 +35,7 @@ function App() {
         )}
       </div>
 
-      {/* Task Management */}
-      <section className="space-y-4">
-        <h2 className="text-xl font-semibold border-b border-border pb-2">
-          Task Management
-        </h2>
-
-        <div className="grid grid-cols-1 md:grid-cols-2 gap-8">
-          <div className="space-y-4">
-            <h3 className="font-medium text-muted">Task Timer</h3>
-            <div className="p-4 border border-border rounded-xl bg-surface flex items-center justify-between">
-              <span>Task: Implement Timer</span>
-              <TaskTimer taskId="demo-task-123" initialSpentMinutes={15} />
-            </div>
-          </div>
-
-          <div className="space-y-4">
-            <h3 className="font-medium text-muted">Task Form</h3>
-            <div className="p-4 border border-border rounded-xl bg-surface">
-              <TaskForm
-                onCancel={() => console.log('Cancel')}
-                onSubmit={async (data) => {
-                  console.log('Submit', data)
-                  await new Promise((r) => setTimeout(r, 1000))
-                }}
-              />
-            </div>
-          </div>
-        </div>
-      </section>
+      <HomeView />
     </main>
   )
 }

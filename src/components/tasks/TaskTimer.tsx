@@ -3,7 +3,7 @@ import { Button } from '@/components/ui/button'
 import { TimerDisplay } from '@/components/ui/custom/TimerDisplay'
 import { timeTrackingService } from '@/services/TimeTrackingService'
 import { Play, Square } from 'lucide-react'
-import { cn } from '@/utils/cn'
+import { cn } from '@/lib/utils'
 
 interface TaskTimerProps {
   taskId: string
