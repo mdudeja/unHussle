@@ -16,6 +16,10 @@ export const tasksRoutes = new Elysia({ prefix: '/tasks' })
     return await db.select().from(tasksSchema)
   })
 
+  .get('/:id', async ({ params: { id } }) => {
+    return await db.select().from(tasksSchema).where(eq(tasksSchema.id, id))
+  })
+
   .post(
     '/',
     async ({ body }) => {

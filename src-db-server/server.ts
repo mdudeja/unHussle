@@ -14,6 +14,7 @@ const PORT = parseInt(process.env.VITE_DB_SERVER_PORT || '3456', 10)
 const app = new Elysia()
   .use(
     swagger({
+      path: '/api',
       documentation: {
         info: {
           title: 'unHussle API',

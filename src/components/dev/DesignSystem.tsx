@@ -1,5 +1,5 @@
 import { useState } from 'react'
-import { Button } from '@/components/ui/Button'
+import { Button } from '@/components/ui/button'
 import {
   Card,
   CardContent,
@@ -7,16 +7,22 @@ import {
   CardFooter,
   CardHeader,
   CardTitle,
-} from '@/components/ui/Card'
-import { Input } from '@/components/ui/Input'
-import { Textarea } from '@/components/ui/Textarea'
-import { Badge } from '@/components/ui/Badge'
-import { Progress } from '@/components/ui/Progress'
-import { TimerDisplay } from '@/components/ui/TimerDisplay'
-import { Modal } from '@/components/ui/Modal'
+} from '@/components/ui/card'
+import { Input } from '@/components/ui/input'
+import { Textarea } from '@/components/ui/textarea'
+import { Badge } from '@/components/ui/badge'
+import { Progress } from '@/components/ui/progress'
+import { TimerDisplay } from '@/components/ui/custom/TimerDisplay'
+import {
+  Dialog,
+  DialogContent,
+  DialogDescription,
+  DialogHeader,
+  DialogTitle,
+  DialogTrigger,
+} from '@/components/ui/dialog'
 
 export function DesignSystem() {
-  const [isModalOpen, setIsModalOpen] = useState(false)
   const [timerValue, setTimerValue] = useState(0)
 
   // Simple timer effect
@@ -33,7 +39,9 @@ export function DesignSystem() {
         <h1 className="text-3xl font-heading font-bold text-text mb-2">
           Design System
         </h1>
-        <p className="text-muted">Visual verification of UI components.</p>
+        <p className="text-muted-foreground">
+          Visual verification of UI components.
+        </p>
       </header>
 
       {/* Buttons */}
@@ -42,17 +50,15 @@ export function DesignSystem() {
           Buttons
         </h2>
         <div className="flex flex-wrap gap-4 items-center">
-          <Button variant="primary">Primary</Button>
+          <Button variant="default">Primary</Button>
           <Button variant="secondary">Secondary</Button>
           <Button variant="ghost">Ghost</Button>
-          <Button variant="danger">Danger</Button>
+          <Button variant="destructive">Destructive</Button>
           <Button variant="link">Link Button</Button>
           <Button disabled>Disabled</Button>
-          <Button isLoading>Loading</Button>
         </div>
         <div className="flex flex-wrap gap-4 items-center">
           <Button size="sm">Small</Button>
-          <Button size="md">Medium</Button>
           <Button size="lg">Large</Button>
           <Button size="icon">Icon</Button>
         </div>
@@ -67,7 +73,7 @@ export function DesignSystem() {
           <Badge variant="default">Default</Badge>
           <Badge variant="secondary">Secondary</Badge>
           <Badge variant="outline">Outline</Badge>
-          <Badge variant="danger">Danger</Badge>
+          <Badge variant="destructive">Destructive</Badge>
         </div>
       </section>
 
@@ -78,7 +84,7 @@ export function DesignSystem() {
         </h2>
         <div className="grid gap-4 max-w-md">
           <Input placeholder="Default Input" />
-          <Input placeholder="Error Input" error />
+          <Input placeholder="Error Input" aria-invalid />
           <Input placeholder="Disabled Input" disabled />
           <Textarea placeholder="Type your notes here..." />
         </div>
@@ -104,18 +110,6 @@ export function DesignSystem() {
               <Button size="sm">Action</Button>
             </CardFooter>
           </Card>
-
-          <Card variant="flat">
-            <CardHeader>
-              <CardTitle>Flat Card</CardTitle>
-              <CardDescription>
-                Used for secondary content areas
-              </CardDescription>
-            </CardHeader>
-            <CardContent>
-              <p>This card has no shadow and uses a secondary background.</p>
-            </CardContent>
-          </Card>
         </div>
       </section>
 
@@ -137,29 +131,21 @@ export function DesignSystem() {
               <TimerDisplay seconds={timerValue} size="md" variant="muted" />
             </div>
           </div>
-
-          <div>
-            <Button onClick={() => setIsModalOpen(true)}>Open Modal</Button>
-          </div>
         </div>
       </section>
 
-      <Modal
-        isOpen={isModalOpen}
-        onClose={() => setIsModalOpen(false)}
-        title="Example Modal"
-        description="This is how the modal component looks."
-      >
-        <div className="space-y-4">
-          <p>You can put any content here. It overlays the rest of the app.</p>
-          <div className="flex justify-end gap-2">
-            <Button variant="ghost" onClick={() => setIsModalOpen(false)}>
-              Cancel
-            </Button>
-            <Button onClick={() => setIsModalOpen(false)}>Confirm</Button>
-          </div>
-        </div>
-      </Modal>
+      <Dialog>
+        <DialogTrigger>Open</DialogTrigger>
+        <DialogContent>
+          <DialogHeader>
+            <DialogTitle>Are you absolutely sure?</DialogTitle>
+            <DialogDescription>
+              This action cannot be undone. This will permanently delete your
+              account and remove your data from our servers.
+            </DialogDescription>
+          </DialogHeader>
+        </DialogContent>
+      </Dialog>
     </div>
   )
 }

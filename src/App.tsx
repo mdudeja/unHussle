@@ -1,12 +1,10 @@
-import { DesignSystem } from '@/components/dev/DesignSystem'
-import '@/styles/App.css'
 import { useDatabaseStatus } from '@/hooks/useDatabaseStatus'
+import { TaskTimer } from '@/components/tasks/TaskTimer'
+import { TaskForm } from '@/components/tasks/TaskForm'
+import '@/styles/App.css'
 
 function App() {
   const { isReady, error } = useDatabaseStatus()
-
-  // For verifying components, we can render the DesignSystem even if DB is loading
-  // But we'll show a small status indicator
 
   return (
     <main className="min-h-screen bg-default-bg text-text font-body p-4">
@@ -27,7 +25,35 @@ function App() {
         )}
       </div>
 
-      <DesignSystem />
+      {/* Task Management */}
+      <section className="space-y-4">
+        <h2 className="text-xl font-semibold border-b border-border pb-2">
+          Task Management
+        </h2>
+
+        <div className="grid grid-cols-1 md:grid-cols-2 gap-8">
+          <div className="space-y-4">
+            <h3 className="font-medium text-muted">Task Timer</h3>
+            <div className="p-4 border border-border rounded-xl bg-surface flex items-center justify-between">
+              <span>Task: Implement Timer</span>
+              <TaskTimer taskId="demo-task-123" initialSpentMinutes={15} />
+            </div>
+          </div>
+
+          <div className="space-y-4">
+            <h3 className="font-medium text-muted">Task Form</h3>
+            <div className="p-4 border border-border rounded-xl bg-surface">
+              <TaskForm
+                onCancel={() => console.log('Cancel')}
+                onSubmit={async (data) => {
+                  console.log('Submit', data)
+                  await new Promise((r) => setTimeout(r, 1000))
+                }}
+              />
+            </div>
+          </div>
+        </div>
+      </section>
     </main>
   )
 }

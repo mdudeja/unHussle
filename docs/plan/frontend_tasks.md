@@ -35,10 +35,10 @@
   - [ ] 24. Build inbox list with edit/delete actions
 
 - [ ] Phase 5: Task Management
-  - [ ] 25. Create task detail form (recurring, time-sensitive, is_fun flags)
+  - [x] 25. Create task detail form (recurring, time-sensitive, is_fun flags)
   - [ ] 26. Build task breakdown feature (split large tasks into chunks)
-  - [ ] 27. Implement task categorization (goals, projects, areas)
-  - [ ] 28. Create task timer controls (start/pause/stop)
+  - [x] 27. Implement task categorization (goals, projects, areas)
+  - [x] 28. Create task timer controls (start/pause/stop)
   - [ ] 29. Build time tracking history per task
 
 - [ ] Phase 6: Today View (Core Feature)

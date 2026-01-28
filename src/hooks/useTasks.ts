@@ -1,16 +1,16 @@
 import { useState, useEffect, useCallback } from 'react'
-import { Task } from '../types'
-import { dbService } from '../services/dbService'
+import { Task } from '@c/index'
+import { TasksService } from '@/services/TasksService'
 
 export const useTasks = () => {
-  const [tasks, setTasks] = useState<Task[]>([])
+  const [tasks, setTasks] = useState<Task['Read'][]>([])
   const [loading, setLoading] = useState(true)
   const [error, setError] = useState<Error | null>(null)
 
   const fetchTasks = useCallback(async () => {
     try {
       setLoading(true)
-      const data = await dbService.tasks.findAll()
+      const data = await TasksService.fetchTasks()
       setTasks(data)
       setError(null)
     } catch (err) {
@@ -20,9 +20,9 @@ export const useTasks = () => {
     }
   }, [])
 
-  const createTask = async (task: Partial<Task>) => {
+  const createTask = async (task: Task['Write']) => {
     try {
-      const newTask = await dbService.tasks.create(task as any) // Type assertion needed for partial
+      const newTask = await TasksService.createTask(task)
       setTasks((prev) => [...prev, newTask])
       return newTask
     } catch (err) {
@@ -31,9 +31,9 @@ export const useTasks = () => {
     }
   }
 
-  const updateTask = async (id: string, updates: Partial<Task>) => {
+  const updateTask = async (id: string, updates: Task['Update']) => {
     try {
-      const updated = await dbService.tasks.update(id, updates)
+      const updated = await TasksService.updateTask(id, updates)
       if (updated) {
         setTasks((prev) => prev.map((t) => (t.id === id ? updated : t)))
       }
@@ -46,7 +46,7 @@ export const useTasks = () => {
 
   const deleteTask = async (id: string) => {
     try {
-      await dbService.tasks.delete(id)
+      await TasksService.deleteTask(id)
       setTasks((prev) => prev.filter((t) => t.id !== id))
     } catch (err) {
       setError(err as Error)
