@@ -6,14 +6,15 @@ This project follows a **database-first approach** where types are inferred from
 
 ```typescript
 type InferTableTypes<B, T> = {
-  Parent: B              // Base interface contract
-  Read: T['$inferSelect']    // Type for reading from DB
-  Write: T['$inferInsert']   // Type for inserting to DB
+  Parent: B // Base interface contract
+  Read: T['$inferSelect'] // Type for reading from DB
+  Write: T['$inferInsert'] // Type for inserting to DB
   Update: Partial<T['$inferInsert']> // Type for updates
 }
 ```
 
 **Benefits:**
+
 - Single source of truth (schema files)
 - Changes propagate automatically through type inference
 - Type-safe CRUD operations with distinct Read/Write/Update types
@@ -48,7 +49,7 @@ classDiagram
         +number created_at
         +number updated_at
     }
-    
+
     class EntitySupporter {
         <<interface - parent>>
         +string id
@@ -70,8 +71,10 @@ classDiagram
         +string recurring_rule?
         +boolean is_fun
         +boolean is_chore
+        +boolean is_quick
         +number stack_order
         +number scheduled_for?
+        +number started_at?
         +number completed_at?
         +string[] time_entry_ids
     }
@@ -250,5 +253,3 @@ classDiagram
     InferTableTypes~B_T~ ..> EntityUrl : generates types
     InferTableTypes~B_T~ ..> TimeEntry : generates types
 ```
-
-

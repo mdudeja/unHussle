@@ -32,6 +32,7 @@ export const tasksSchema = sqliteTable(
     is_quick: integer({ mode: 'boolean' }).notNull().default(false),
     stack_order: integer({ mode: 'number' }).notNull().default(0),
     scheduled_for: integer({ mode: 'timestamp_ms' }),
+    started_at: integer({ mode: 'timestamp_ms' }),
     completed_at: integer({ mode: 'timestamp_ms' }),
     time_entry_ids: text({ mode: 'json' })
       .$type<string[]>()

@@ -1,8 +1,8 @@
 {
   "version": "6",
   "dialect": "sqlite",
-  "id": "b1e47ca8-0e60-4882-8741-41f4b772a104",
-  "prevId": "78b1dd90-3bfb-454f-bcdd-18bd20901f77",
+  "id": "a2f435d6-b6fb-4a31-8436-632b7534c5ef",
+  "prevId": "00000000-0000-0000-0000-000000000000",
   "tables": {
     "areas": {
       "name": "areas",
@@ -468,6 +468,13 @@
         },
         "scheduled_for": {
           "name": "scheduled_for",
+          "type": "integer",
+          "primaryKey": false,
+          "notNull": false,
+          "autoincrement": false
+        },
+        "started_at": {
+          "name": "started_at",
           "type": "integer",
           "primaryKey": false,
           "notNull": false,
