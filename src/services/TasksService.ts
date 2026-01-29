@@ -5,6 +5,7 @@ export class TasksService extends DbService<Task> {
   private static instance: TasksService
   constructor() {
     super('tasks')
+    this.fetchAll()
   }
 
   static getInstance() {

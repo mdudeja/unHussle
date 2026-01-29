@@ -7,23 +7,32 @@ import {
 } from '@/store/slices/createProjectsSlice'
 import { createAreasSlice, AreasSlice } from '@/store/slices/createAreasSlice'
 import { createGoalsSlice, GoalsSlice } from '@/store/slices/createGoalsSlice'
-import { createTagsSlice, TagsSlice } from '@/store/slices/createTagsSlice'
+import {
+  createEntityTagsSlice,
+  EntityTagsSlice,
+} from '@/store/slices/createEntityTagsSlice'
 import { createUISlice, UISlice } from '@/store/slices/createUISlice'
 
 export type StoreState = TasksSlice &
   ProjectsSlice &
   AreasSlice &
   GoalsSlice &
-  TagsSlice &
+  EntityTagsSlice &
   UISlice
 
 export const useStore = create<StoreState>()(
-  devtools((...a) => ({
-    ...createTasksSlice(...a),
-    ...createProjectsSlice(...a),
-    ...createAreasSlice(...a),
-    ...createGoalsSlice(...a),
-    ...createTagsSlice(...a),
-    ...createUISlice(...a),
-  })),
+  devtools(
+    (...a) => ({
+      ...createTasksSlice(...a),
+      ...createProjectsSlice(...a),
+      ...createAreasSlice(...a),
+      ...createGoalsSlice(...a),
+      ...createEntityTagsSlice(...a),
+      ...createUISlice(...a),
+    }),
+    {
+      name: 'unHussle Store', // Optional: custom name in devtools
+      enabled: process.env.NODE_ENV !== 'production', // Disable in production
+    },
+  ),
 )

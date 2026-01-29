@@ -1,20 +1,9 @@
 import { useDatabaseStatus } from '@/hooks/useDatabaseStatus'
 import { HomeView } from '@/components/home/HomeView'
 import '@/styles/App.css'
-import { useStore } from '@/store'
-import { useEffect } from 'react'
 
 function App() {
   const { isReady, error } = useDatabaseStatus()
-  const { tasks } = useStore()
-
-  useEffect(() => {
-    if (!isReady) {
-      return
-    }
-
-    tasks.fetch()
-  }, [isReady])
 
   return (
     <main className="min-h-screen bg-default-bg text-text font-body p-4 flex flex-col">
