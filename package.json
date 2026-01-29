@@ -5,6 +5,7 @@
   "type": "module",
   "scripts": {
     "dev": "bun run build:server && vite",
+    "debug": "bun run vite",
     "build": "tsc && bun run build:server && vite build",
     "preview": "vite preview",
     "tauri": "tauri",
