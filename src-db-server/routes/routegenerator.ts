@@ -105,7 +105,7 @@ export const routeGenerator = (config: RouteGeneratorConfig) => {
       console.error('Error occurred:', { code, status, error })
 
       if (code === 'NOT_FOUND') {
-        return status(404, 'Task not found')
+        return status(404, `${config.name} not found`)
       }
 
       return status(500, 'Internal Server Error')

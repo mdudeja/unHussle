@@ -52,6 +52,8 @@ export const tasksSchema = sqliteTable(
     index('tasks_due_date_idx').on(table.due_date),
     index('tasks_scheduled_for_idx').on(table.scheduled_for),
     index('tasks_title_idx').on(table.title),
+    index('tasks_created_at_idx').on(table.created_at),
+    index('tasks_updated_at_idx').on(table.updated_at),
   ],
 )
 

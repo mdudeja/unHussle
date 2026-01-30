@@ -20,25 +20,32 @@ type InferTableTypes<B, T> = {
 - Type-safe CRUD operations with distinct Read/Write/Update types
 - Shared schema fragments reduce duplication
 
+** Color Legend: **
+- 🔵 = Entity family
+- 🟢 = EntityCollection family
+- 🟣 = EntitySupporter family
+- 🟠 = JunctionTable family
+- ⚙️ = Schema fragments
+- 📊 = Enumerations
+- 🔧 = Utilities
+
 ```mermaid
 classDiagram
     %% Base Parent Interfaces (Contracts)
     class Entity {
-        <<interface - parent>>
+        <<🔵 interface - parent>>
         +string id
         +string title
         +string description?
         +string project_id?
         +string area_id?
         +string goal_id?
-        +string[] tag_ids
-        +string[] url_ids
         +number created_at
         +number updated_at
     }
 
     class EntityCollection {
-        <<interface - parent>>
+        <<🟢 interface - parent>>
         +string id
         +string title
         +ProgressStatus status
@@ -51,16 +58,25 @@ classDiagram
     }
 
     class EntitySupporter {
-        <<interface - parent>>
+        <<🟣 interface - parent>>
         +string id
         +string description?
         +number created_at
         +number updated_at
     }
 
+    class JunctionTable {
+        <<🟠 interface - parent>>
+        +string id
+        +string attachedToId
+        +string refId
+        +number created_at
+        +number updated_at
+    }
+
     %% Inferred Types from Schemas
     class Task {
-        <<inferred from tasksSchema>>
+        <<🔵 inferred from tasksSchema>>
         ...Entity fields
         +ProgressStatus status
         +Priority priority
@@ -76,28 +92,27 @@ classDiagram
         +number scheduled_for?
         +number started_at?
         +number completed_at?
-        +string[] time_entry_ids
     }
 
     class Resource {
-        <<inferred from resourcesSchema>>
+        <<🔵 inferred from resourcesSchema>>
         ...Entity fields
     }
 
     class Goal {
-        <<inferred from goalsSchema>>
+        <<🟢 inferred from goalsSchema>>
         ...EntityCollection fields
         +number due_date?
         +number progress
     }
 
     class Area {
-        <<inferred from areasSchema>>
+        <<🟢 inferred from areasSchema>>
         ...EntityCollection fields
     }
 
     class Project {
-        <<inferred from projectsSchema>>
+        <<🟢 inferred from projectsSchema>>
         ...EntityCollection fields
         +string area_id?
         +string goal_id?
@@ -105,72 +120,95 @@ classDiagram
     }
 
     class Tag {
-        <<inferred from entityTagsSchema>>
+        <<🟣 inferred from tagsSchema>>
         ...EntitySupporter fields
         +string title
         +string color?
     }
 
-    class EntityUrl {
-        <<inferred from entityUrlsSchema>>
+    class Url {
+        <<🟣 inferred from urlsSchema>>
         ...EntitySupporter fields
         +string title?
         +string url
-        +string protocol
-        +string domain
-        +string path
-        +string query
-        +string fragment
+        +json parts
     }
 
     class TimeEntry {
-        <<inferred from timeEntriesSchema>>
+        <<🟣 inferred from timeEntriesSchema>>
         ...EntitySupporter fields
+        +string task_id
         +number start_time
         +number end_time?
         +number duration
     }
 
+    class JunctionTags {
+        <<🟠 inferred from junctionTagsSchema>>
+        ...JunctionTable fields
+        +string attachedToId
+        +string refId (FK to Tag)
+    }
+
+    class JunctionUrls {
+        <<🟠 inferred from junctionUrlsSchema>>
+        ...JunctionTable fields
+        +string attachedToId
+        +string refId (FK to Url)
+    }
+
+    class JunctionTimeEntries {
+        <<🟠 inferred from junctionTimeEntriesSchema>>
+        ...JunctionTable fields
+        +string attachedToId (FK to Task)
+        +string refId (FK to TimeEntry)
+    }
+
     %% Schema Fragments (Reusable)
     class entitySchema {
-        <<schema fragment>>
+        <<⚙️ schema fragment>>
         id, title, description
         project_id, area_id, goal_id
-        tag_ids[], url_ids[]
         timestamps
     }
 
     class entityCollectionSchema {
-        <<schema fragment>>
+        <<⚙️ schema fragment>>
         id, title, status, priority
         icon, color, description
         timestamps
     }
 
     class entitySupporterSchema {
-        <<schema fragment>>
+        <<⚙️ schema fragment>>
         id, description
         timestamps
     }
 
+    class junctionTableSchema {
+        <<⚙️ schema fragment>>
+        id, attachedToId, refId
+        timestamps
+    }
+
     class statusSchema {
-        <<schema fragment>>
+        <<⚙️ schema fragment>>
         status: ProgressStatus
     }
 
     class prioritySchema {
-        <<schema fragment>>
+        <<⚙️ schema fragment>>
         priority: Priority
     }
 
     class timestampsSchema {
-        <<schema fragment>>
+        <<⚙️ schema fragment>>
         created_at, updated_at
     }
 
     %% Enums
     class ProgressStatus {
-        <<enumeration>>
+        <<📊 enumeration>>
         PLANNED
         IN_PROGRESS
         COMPLETED
@@ -182,7 +220,7 @@ classDiagram
     }
 
     class Priority {
-        <<enumeration>>
+        <<📊 enumeration>>
         LOW
         MEDIUM
         HIGH
@@ -190,7 +228,7 @@ classDiagram
 
     %% Type Inference Utility
     class InferTableTypes~B_T~ {
-        <<generic utility>>
+        <<🔧 generic utility>>
         +Parent: B
         +Read: T$inferSelect
         +Write: T$inferInsert
@@ -204,8 +242,11 @@ classDiagram
     EntityCollection ..> Area : Parent contract
     EntityCollection ..> Project : Parent contract
     EntitySupporter ..> Tag : Parent contract
-    EntitySupporter ..> EntityUrl : Parent contract
+    EntitySupporter ..> Url : Parent contract
     EntitySupporter ..> TimeEntry : Parent contract
+    JunctionTable ..> JunctionTags : Parent contract
+    JunctionTable ..> JunctionUrls : Parent contract
+    JunctionTable ..> JunctionTimeEntries : Parent contract
 
     %% Schema Composition
     entitySchema ..> timestampsSchema : includes
@@ -213,6 +254,7 @@ classDiagram
     entityCollectionSchema ..> prioritySchema : includes
     entityCollectionSchema ..> timestampsSchema : includes
     entitySupporterSchema ..> timestampsSchema : includes
+    junctionTableSchema ..> timestampsSchema : includes
 
     %% Type Inference
     Task --> entitySchema : inferred from
@@ -223,8 +265,11 @@ classDiagram
     Area --> entityCollectionSchema : inferred from
     Project --> entityCollectionSchema : inferred from
     Tag --> entitySupporterSchema : inferred from
-    EntityUrl --> entitySupporterSchema : inferred from
+    Url --> entitySupporterSchema : inferred from
     TimeEntry --> entitySupporterSchema : inferred from
+    JunctionTags --> junctionTableSchema : inferred from
+    JunctionUrls --> junctionTableSchema : inferred from
+    JunctionTimeEntries --> junctionTableSchema : inferred from
 
     %% Enum Usage
     Task ..> ProgressStatus : uses
@@ -233,15 +278,36 @@ classDiagram
     EntityCollection ..> Priority : uses
 
     %% Foreign Key Relationships
-    Entity --> Project : project_id
-    Entity --> Area : area_id
-    Entity --> Goal : goal_id
-    Project --> Area : area_id
-    Project --> Goal : goal_id
+    Task --> Project : project_id (set null)
+    Task --> Area : area_id (set null)
+    Task --> Goal : goal_id (set null)
+    Resource --> Project : project_id (set null)
+    Resource --> Area : area_id (set null)
+    Resource --> Goal : goal_id (set null)
+    Project --> Area : area_id (set null)
+    Project --> Goal : goal_id (set null)
+    TimeEntry --> Task : task_id (cascade)
+    JunctionTags --> Tag : refId (cascade)
+    JunctionUrls --> Url : refId (cascade)
+    JunctionTimeEntries --> TimeEntry : refId (cascade)
 
-    %% Array References (embedded IDs)
-    Entity --> Tag : tag_ids[]
-    Entity --> EntityUrl : url_ids[]
+    %% Junction Table Relationships (Many-to-Many)
+    Task --> JunctionTags : has many
+    Resource --> JunctionTags : has many
+    Project --> JunctionTags : has many
+    Area --> JunctionTags : has many
+    Goal --> JunctionTags : has many
+    JunctionTags --> Tag : references
+
+    Task --> JunctionUrls : has many
+    Resource --> JunctionUrls : has many
+    Project --> JunctionUrls : has many
+    Area --> JunctionUrls : has many
+    Goal --> JunctionUrls : has many
+    JunctionUrls --> Url : references
+
+    Task --> JunctionTimeEntries : has many
+    JunctionTimeEntries --> TimeEntry : references
 
     %% Type Utility Usage
     InferTableTypes~B_T~ ..> Task : generates types
@@ -250,6 +316,11 @@ classDiagram
     InferTableTypes~B_T~ ..> Area : generates types
     InferTableTypes~B_T~ ..> Project : generates types
     InferTableTypes~B_T~ ..> Tag : generates types
-    InferTableTypes~B_T~ ..> EntityUrl : generates types
+    InferTableTypes~B_T~ ..> Url : generates types
     InferTableTypes~B_T~ ..> TimeEntry : generates types
+    InferTableTypes~B_T~ ..> JunctionTags : generates types
+    InferTableTypes~B_T~ ..> JunctionUrls : generates types
+    InferTableTypes~B_T~ ..> JunctionTimeEntries : generates types
+```
+```
 ```

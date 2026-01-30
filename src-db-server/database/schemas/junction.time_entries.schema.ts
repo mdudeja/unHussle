@@ -1,4 +1,10 @@
-import { index, sqliteTable, unique } from 'drizzle-orm/sqlite-core'
+import {
+  index,
+  sqliteTable,
+  unique,
+  text,
+  primaryKey,
+} from 'drizzle-orm/sqlite-core'
 import { junctionTableSchema } from './common.schema'
 import { InferTableTypes, JunctionTable } from '@c/index'
 import { relations } from 'drizzle-orm'
@@ -8,8 +14,16 @@ export const junctionTimeEntriesSchema = sqliteTable(
   'junction_time_entries',
   {
     ...junctionTableSchema,
+    refId: text()
+      .notNull()
+      .references(() => timeEntriesSchema.id, {
+        onDelete: 'cascade',
+      }),
   },
   (table) => [
+    primaryKey({
+      columns: [table.attachedToId, table.refId],
+    }),
     index('junction_time_entries_attachedToId_refId_idx').on(
       table.attachedToId,
       table.refId,

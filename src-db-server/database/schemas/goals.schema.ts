@@ -26,6 +26,8 @@ export const goalsSchema = sqliteTable(
     index('goals_due_date_idx').on(table.due_date),
     index('goals_status_idx').on(table.status),
     index('goals_priority_idx').on(table.priority),
+    index('goals_created_at_idx').on(table.created_at),
+    index('goals_updated_at_idx').on(table.updated_at),
     unique('goals_title_unique').on(table.title),
   ],
 )

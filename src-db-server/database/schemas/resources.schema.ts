@@ -28,6 +28,8 @@ export const resourcesSchema = sqliteTable(
     index('resources_area_idx').on(table.area_id),
     index('resources_goal_idx').on(table.goal_id),
     index('resources_title_idx').on(table.title),
+    index('resources_created_at_idx').on(table.created_at),
+    index('resources_updated_at_idx').on(table.updated_at),
     unique('resources_title_unique').on(table.title),
   ],
 )

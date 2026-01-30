@@ -56,6 +56,11 @@ export class UnHussleDB {
     }
 
     const sqlite = new Database(this.dbFilePath)
+
+    sqlite.run('PRAGMA foreign_keys = ON;')
+    sqlite.run('PRAGMA journal_mode = WAL;')
+    sqlite.run('PRAGMA synchronous = NORMAL;')
+
     this.db = drizzle({ client: sqlite, schema })
 
     if (!this.dbReady) {

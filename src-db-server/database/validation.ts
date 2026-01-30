@@ -57,7 +57,9 @@ export const updateTagsSchema = t.Partial(insertTagsSchema)
 export const selectTagsSchema = createSelectSchema(tagsSchema)
 
 // URLs
-export const insertUrlsSchema = createInsertSchema(urlsSchema)
+export const insertUrlsSchema = createInsertSchema(urlsSchema, {
+  url: t.String({ format: 'uri' }),
+})
 export const updateUrlsSchema = t.Partial(insertUrlsSchema)
 export const selectUrlsSchema = createSelectSchema(urlsSchema)
 

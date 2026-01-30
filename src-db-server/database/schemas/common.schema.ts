@@ -1,6 +1,5 @@
 import { createId } from '@paralleldrive/cuid2'
 import { Priority, ProgressStatus } from '@c/index'
-import { sql } from 'drizzle-orm'
 import * as t from 'drizzle-orm/sqlite-core'
 
 // Enums
@@ -18,11 +17,11 @@ export const timestampsSchema = {
   created_at: t
     .integer({ mode: 'timestamp_ms' })
     .notNull()
-    .$default(() => sql`(CURRENT_TIMESTAMP)`),
+    .$default(() => new Date()),
   updated_at: t
     .integer({ mode: 'timestamp_ms' })
     .notNull()
-    .$onUpdate(() => sql`(CURRENT_TIMESTAMP)`),
+    .$onUpdate(() => new Date()),
 }
 
 export const prioritySchema = {
@@ -71,10 +70,6 @@ export const entitySupporterSchema = {
 }
 
 export const junctionTableSchema = {
-  id: t
-    .text()
-    .primaryKey()
-    .$defaultFn(() => createId()),
   attachedToId: t.text().notNull(),
   refId: t.text().notNull(),
   ...timestampsSchema,
