@@ -1,4 +1,4 @@
-import { describe, it, expect, beforeEach } from 'bun:test'
+import { describe, test, expect, beforeEach } from 'bun:test'
 import { useStore } from '@/store'
 
 describe('Tags Store', () => {
@@ -13,12 +13,12 @@ describe('Tags Store', () => {
     }))
   })
 
-  it('should initialize with default state', () => {
+  test('initialize with default state', () => {
     const state = useStore.getState()
     expect(state.tags.data).toEqual([])
   })
 
-  it('should create a new entity tag', async () => {
+  test('create a new tag', async () => {
     const { add } = useStore.getState().tags
     const newEntityTagData = {
       title: 'New Entity Tag',
@@ -32,12 +32,12 @@ describe('Tags Store', () => {
     expect(state.tags.data).toHaveLength(1)
   })
 
-  it('should throw error when creating entity tag with missing fields', async () => {
+  test('throw error when creating tag with missing fields', async () => {
     const { add } = useStore.getState().tags
     expect(add({} as any)).rejects.toThrow()
   })
 
-  it('should fetch entity tags', async () => {
+  test('fetch tags', async () => {
     const { fetch } = useStore.getState().tags
     await fetch()
 
@@ -47,7 +47,7 @@ describe('Tags Store', () => {
     expect(state.tags.isLoading).toBe(false)
   })
 
-  it('should update an existing entity tag', async () => {
+  test('update an existing tag', async () => {
     const { add, update } = useStore.getState().tags
     const newEntityTagData = {
       title: 'Entity Tag to Update',
@@ -69,7 +69,7 @@ describe('Tags Store', () => {
     expect(updatedEntityTag!.title).toBe('Updated Entity Tag Title')
   })
 
-  it('should delete an existing entity tag', async () => {
+  test('delete an existing tag', async () => {
     const { add, remove: deleteEntityTag } = useStore.getState().tags
     const newEntityTagData = {
       title: 'Entity Tag to Delete',
@@ -92,7 +92,7 @@ describe('Tags Store', () => {
     expect(state.tags.data).toHaveLength(0)
   })
 
-  it('should throw error when deleting non-existent entity tag', async () => {
+  test('throw error when deleting non-existent tag', async () => {
     const { remove: deleteEntityTag } = useStore.getState().tags
     expect(deleteEntityTag('non-existent-id')).rejects.toThrow()
   })

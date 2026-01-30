@@ -1,7 +1,7 @@
 {
   "version": "6",
   "dialect": "sqlite",
-  "id": "76525679-272f-4d93-af4d-6cb0154ce926",
+  "id": "93d0418b-f8f8-4b1c-88a2-9717f87e2ba0",
   "prevId": "00000000-0000-0000-0000-000000000000",
   "tables": {
     "areas": {
@@ -923,40 +923,13 @@
           "notNull": true,
           "autoincrement": false
         },
-        "protocol": {
-          "name": "protocol",
+        "parts": {
+          "name": "parts",
           "type": "text",
           "primaryKey": false,
-          "notNull": true,
-          "autoincrement": false
-        },
-        "domain": {
-          "name": "domain",
-          "type": "text",
-          "primaryKey": false,
-          "notNull": true,
-          "autoincrement": false
-        },
-        "path": {
-          "name": "path",
-          "type": "text",
-          "primaryKey": false,
-          "notNull": true,
-          "autoincrement": false
-        },
-        "query": {
-          "name": "query",
-          "type": "text",
-          "primaryKey": false,
-          "notNull": true,
-          "autoincrement": false
-        },
-        "fragment": {
-          "name": "fragment",
-          "type": "text",
-          "primaryKey": false,
-          "notNull": true,
-          "autoincrement": false
+          "notNull": false,
+          "autoincrement": false,
+          "default": "'{\"protocol\":\"\",\"hostname\":\"\",\"pathname\":\"\"}'"
         }
       },
       "indexes": {
@@ -967,17 +940,17 @@
           ],
           "isUnique": false
         },
-        "urls_domain_idx": {
-          "name": "urls_domain_idx",
+        "urls_url_idx": {
+          "name": "urls_url_idx",
           "columns": [
-            "domain"
+            "url"
           ],
           "isUnique": false
         },
-        "urls_path_idx": {
-          "name": "urls_path_idx",
+        "urls_parts_idx": {
+          "name": "urls_parts_idx",
           "columns": [
-            "path"
+            "parts"
           ],
           "isUnique": false
         },

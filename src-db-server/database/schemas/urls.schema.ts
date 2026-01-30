@@ -8,18 +8,27 @@ export const urlsSchema = sqliteTable(
     ...entitySupporterSchema,
     title: text(),
     url: text().notNull(),
-    protocol: text().notNull(),
-    domain: text().notNull(),
-    path: text().notNull(),
-    query: text().notNull(),
-    fragment: text().notNull(),
+    parts: text({ mode: 'json' })
+      .$type<{
+        protocol: string
+        hostname: string
+        pathname: string
+        port?: string
+        search?: string
+        hash?: string
+      }>()
+      .default({
+        protocol: '',
+        hostname: '',
+        pathname: '',
+      }),
   },
   (table) => [
     index('urls_title_idx').on(table.title),
-    index('urls_domain_idx').on(table.domain),
-    index('urls_path_idx').on(table.path),
+    index('urls_url_idx').on(table.url),
+    index('urls_parts_idx').on(table.parts),
     unique('urls_url_unique').on(table.url),
   ],
 )
 
-export type EntityUrl = InferTableTypes<EntitySupporter, typeof urlsSchema>
+export type Url = InferTableTypes<EntitySupporter, typeof urlsSchema>

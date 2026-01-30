@@ -129,16 +129,12 @@ CREATE TABLE `urls` (
 	`updated_at` integer NOT NULL,
 	`title` text,
 	`url` text NOT NULL,
-	`protocol` text NOT NULL,
-	`domain` text NOT NULL,
-	`path` text NOT NULL,
-	`query` text NOT NULL,
-	`fragment` text NOT NULL
+	`parts` text DEFAULT '{"protocol":"","hostname":"","pathname":""}'
 );
 --> statement-breakpoint
 CREATE INDEX `urls_title_idx` ON `urls` (`title`);--> statement-breakpoint
-CREATE INDEX `urls_domain_idx` ON `urls` (`domain`);--> statement-breakpoint
-CREATE INDEX `urls_path_idx` ON `urls` (`path`);--> statement-breakpoint
+CREATE INDEX `urls_url_idx` ON `urls` (`url`);--> statement-breakpoint
+CREATE INDEX `urls_parts_idx` ON `urls` (`parts`);--> statement-breakpoint
 CREATE UNIQUE INDEX `urls_url_unique` ON `urls` (`url`);--> statement-breakpoint
 CREATE TABLE `time_entries` (
 	`id` text PRIMARY KEY NOT NULL,

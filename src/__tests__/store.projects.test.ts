@@ -1,4 +1,4 @@
-import { describe, it, expect, beforeEach } from 'bun:test'
+import { describe, test, expect, beforeEach } from 'bun:test'
 import { useStore } from '@/store'
 
 describe('Projects Store', () => {
@@ -13,12 +13,12 @@ describe('Projects Store', () => {
     }))
   })
 
-  it('should initialize with default state', () => {
+  test('initialize with default state', () => {
     const state = useStore.getState()
     expect(state.projects.data).toEqual([])
   })
 
-  it('should create a new project', async () => {
+  test('create a new project', async () => {
     const { add } = useStore.getState().projects
     const newProjectData = {
       title: 'New Project',
@@ -34,12 +34,12 @@ describe('Projects Store', () => {
     expect(state.projects.data).toHaveLength(1)
   })
 
-  it('should throw error when creating project with missing fields', async () => {
+  test('throw error when creating project with missing fields', async () => {
     const { add } = useStore.getState().projects
     expect(add({} as any)).rejects.toThrow()
   })
 
-  it('should fetch projects', async () => {
+  test('fetch projects', async () => {
     const { fetch } = useStore.getState().projects
     await fetch()
 
@@ -49,7 +49,7 @@ describe('Projects Store', () => {
     expect(state.projects.isLoading).toBe(false)
   })
 
-  it('should update an existing project', async () => {
+  test('update an existing project', async () => {
     const { fetch, update } = useStore.getState().projects
     await fetch()
 
@@ -67,14 +67,12 @@ describe('Projects Store', () => {
     expect(updatedProject?.title).toBe('Updated Project Title')
   })
 
-  it('should throw error when updating non-existent project', async () => {
+  test('throw error when updating non-existent project', async () => {
     const { update } = useStore.getState().projects
-    expect(
-      update('non-existent-id', { title: 'Should Fail' }),
-    ).rejects.toThrow()
+    expect(update('non-existent-id', { title: 'Fail' })).rejects.toThrow()
   })
 
-  it('should delete a project', async () => {
+  test('delete a project', async () => {
     const { fetch, remove: deleteProject } = useStore.getState().projects
     await fetch()
 
@@ -91,7 +89,7 @@ describe('Projects Store', () => {
     expect(state.projects.data).toHaveLength(0)
   })
 
-  it('should throw error when deleting non-existent project', async () => {
+  test('throw error when deleting non-existent project', async () => {
     const { remove: deleteProject } = useStore.getState().projects
     expect(deleteProject('non-existent-id')).rejects.toThrow()
   })

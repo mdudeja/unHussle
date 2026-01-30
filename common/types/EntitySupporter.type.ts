@@ -1,5 +1,5 @@
 export { type Tag } from '@d/database/schemas/tags.schema'
-export { type EntityUrl } from '@d/database/schemas/urls.schema'
+export { type Url as EntityUrl } from '@d/database/schemas/urls.schema'
 export { type TimeEntry } from '@d/database/schemas/time_entries.schema'
 
 export interface EntitySupporter {

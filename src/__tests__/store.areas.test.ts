@@ -1,4 +1,4 @@
-import { describe, it, expect, beforeEach } from 'bun:test'
+import { describe, test, expect, beforeEach } from 'bun:test'
 import { useStore } from '@/store'
 
 describe('Areas Store', () => {
@@ -13,12 +13,12 @@ describe('Areas Store', () => {
     }))
   })
 
-  it('should initialize with default state', () => {
+  test('initialize with default state', () => {
     const state = useStore.getState()
     expect(state.areas.data).toEqual([])
   })
 
-  it('should create a new area', async () => {
+  test('create a new area', async () => {
     const { add } = useStore.getState().areas
     const newAreaData = {
       title: 'New Area',
@@ -31,12 +31,12 @@ describe('Areas Store', () => {
     expect(state.areas.data).toHaveLength(1)
   })
 
-  it('should throw error when creating area with missing fields', async () => {
+  test('throw error when creating area with missing fields', async () => {
     const { add } = useStore.getState().areas
     expect(add({} as any)).rejects.toThrow()
   })
 
-  it('should fetch areas', async () => {
+  test('fetch areas', async () => {
     const { fetch } = useStore.getState().areas
     await fetch()
 
@@ -46,7 +46,7 @@ describe('Areas Store', () => {
     expect(state.areas.isLoading).toBe(false)
   })
 
-  it('should update an existing area', async () => {
+  test('update an existing area', async () => {
     const { add, update } = useStore.getState().areas
     const newAreaData = {
       title: 'Area to Update',
@@ -66,7 +66,7 @@ describe('Areas Store', () => {
     expect(updatedArea!.title).toBe('Updated Area Title')
   })
 
-  it('should delete an existing area', async () => {
+  test('delete an existing area', async () => {
     const { add, remove } = useStore.getState().areas
     const newAreaData = {
       title: 'Area to Delete',
@@ -87,7 +87,7 @@ describe('Areas Store', () => {
     expect(state.areas.data).toHaveLength(0)
   })
 
-  it('should throw error when deleting non-existent area', async () => {
+  test('throw error when deleting non-existent area', async () => {
     const { remove } = useStore.getState().areas
     expect(remove('non-existent-id')).rejects.toThrow()
   })

@@ -1,4 +1,4 @@
-import { describe, it, expect, beforeEach } from 'bun:test'
+import { describe, test, expect, beforeEach } from 'bun:test'
 import { useStore } from '@/store'
 
 describe('Resources Store', () => {
@@ -13,12 +13,12 @@ describe('Resources Store', () => {
     }))
   })
 
-  it('should initialize with default state', () => {
+  test('initialize with default state', () => {
     const state = useStore.getState()
     expect(state.resources.data).toEqual([])
   })
 
-  it('should create a new resource', async () => {
+  test('create a new resource', async () => {
     const { add } = useStore.getState().resources
     const newResourceData = {
       title: 'New Resource',
@@ -34,12 +34,12 @@ describe('Resources Store', () => {
     expect(state.resources.data).toHaveLength(1)
   })
 
-  it('should throw error when creating resource with missing fields', async () => {
+  test('throw error when creating resource with missing fields', async () => {
     const { add } = useStore.getState().resources
     expect(add({} as any)).rejects.toThrow()
   })
 
-  it('should fetch resources', async () => {
+  test('fetch resources', async () => {
     const { fetch } = useStore.getState().resources
     await fetch()
 
@@ -49,7 +49,7 @@ describe('Resources Store', () => {
     expect(state.resources.isLoading).toBe(false)
   })
 
-  it('should update an existing resource', async () => {
+  test('update an existing resource', async () => {
     const { fetch, update } = useStore.getState().resources
     await fetch()
 
@@ -67,14 +67,12 @@ describe('Resources Store', () => {
     expect(updatedResource!.title).toBe('Updated Resource Title')
   })
 
-  it('should throw error when updating non-existent resource', async () => {
+  test('throw error when updating non-existent resource', async () => {
     const { update } = useStore.getState().resources
-    expect(
-      update('non-existent-id', { title: 'Should Fail' }),
-    ).rejects.toThrow()
+    expect(update('non-existent-id', { title: 'Fail' })).rejects.toThrow()
   })
 
-  it('should delete a resource', async () => {
+  test('delete a resource', async () => {
     const { fetch, remove } = useStore.getState().resources
     await fetch()
 
@@ -92,7 +90,7 @@ describe('Resources Store', () => {
     expect(state.resources.data).toHaveLength(0)
   })
 
-  it('should throw error when deleting non-existent resource', async () => {
+  test('throw error when deleting non-existent resource', async () => {
     const { remove } = useStore.getState().resources
     expect(remove('non-existent-id')).rejects.toThrow()
   })

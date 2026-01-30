@@ -16,22 +16,13 @@ import { ProgressStatus, Priority } from '@c/index'
 export const insertTaskSchema = createInsertSchema(tasksSchema, {
   status: t.Optional(t.Enum(ProgressStatus)),
   priority: t.Optional(t.Enum(Priority)),
-
-  // Handle JSON arrays, drizzle-typebox sometimes misses these
-  tag_ids: t.Optional(t.Array(t.String())),
-  url_ids: t.Optional(t.Array(t.String())),
-  time_entry_ids: t.Optional(t.Array(t.String())),
 })
 
 export const updateTaskSchema = t.Partial(insertTaskSchema)
 export const selectTaskSchema = createSelectSchema(tasksSchema)
 
 // Resources
-export const insertResourceSchema = createInsertSchema(resourcesSchema, {
-  // Handle JSON arrays, drizzle-typebox sometimes misses these
-  tag_ids: t.Optional(t.Array(t.String())),
-  url_ids: t.Optional(t.Array(t.String())),
-})
+export const insertResourceSchema = createInsertSchema(resourcesSchema)
 
 export const updateResourceSchema = t.Partial(insertResourceSchema)
 export const selectResourceSchema = createSelectSchema(resourcesSchema)

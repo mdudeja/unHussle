@@ -1,5 +1,5 @@
 import { Tag } from '@c/index'
-import { EntityTagsService } from '@/services/EntityTagsService'
+import { TagsService } from '@/services/TagsService'
 import generateCreateDbConnectedStateSlice, {
   DbSlice,
 } from '@/store/slices/createDbConnectedStoreSlice'
@@ -9,6 +9,6 @@ export interface TagsSlice {
 }
 
 export const createTagsSlice = generateCreateDbConnectedStateSlice<Tag, 'tags'>(
-  EntityTagsService.getInstance(),
+  TagsService.getInstance(),
   'tags',
 )

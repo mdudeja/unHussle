@@ -1,4 +1,4 @@
-import { describe, it, expect, beforeEach } from 'bun:test'
+import { describe, test, expect, beforeEach } from 'bun:test'
 import { useStore } from '@/store'
 
 describe('Tasks Store', () => {
@@ -13,12 +13,12 @@ describe('Tasks Store', () => {
     }))
   })
 
-  it('should initialize with default state', () => {
+  test('initialize with default state', () => {
     const state = useStore.getState()
     expect(state.tasks.data).toEqual([])
   })
 
-  it('should add a task', async () => {
+  test('add a task', async () => {
     const { add } = useStore.getState().tasks
     await add({
       title: 'New Task',
@@ -31,12 +31,12 @@ describe('Tasks Store', () => {
     expect(state.tasks.data[0].title).toBe('New Task')
   })
 
-  it('should throw error when adding task with missing fields', async () => {
+  test('throw error when adding task with missing fields', async () => {
     const { add } = useStore.getState().tasks
     expect(add({} as any)).rejects.toThrow()
   })
 
-  it('should fetch tasks', async () => {
+  test('fetch tasks', async () => {
     const { fetch } = useStore.getState().tasks
     await fetch()
 
@@ -46,7 +46,7 @@ describe('Tasks Store', () => {
     expect(state.tasks.isLoading).toBe(false)
   })
 
-  it('should update an existing task', async () => {
+  test('update an existing task', async () => {
     const { fetch, update } = useStore.getState().tasks
     await fetch()
 
@@ -62,14 +62,14 @@ describe('Tasks Store', () => {
     expect(updatedTask!.title).toBe('Updated Task Title')
   })
 
-  it('should throw error when updating non-existent task', async () => {
+  test('throw error when updating non-existent task', async () => {
     const { update } = useStore.getState().tasks
     expect(
       update('non-existent-id', { title: 'Should Fail' } as any),
     ).rejects.toThrow()
   })
 
-  it('should delete a task', async () => {
+  test('delete a task', async () => {
     const { fetch, remove: deleteTask } = useStore.getState().tasks
     await fetch()
 
@@ -85,7 +85,7 @@ describe('Tasks Store', () => {
     expect(state.tasks.data).toHaveLength(0)
   })
 
-  it('should throw error when deleting non-existent task', async () => {
+  test('throw error when deleting non-existent task', async () => {
     const { remove: deleteTask } = useStore.getState().tasks
     expect(deleteTask('non-existent-id')).rejects.toThrow()
   })

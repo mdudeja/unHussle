@@ -1,15 +1,15 @@
 import { Tag } from '@c/index'
 import { DbService } from '@/services/DbService'
 
-export class EntityTagsService extends DbService<Tag> {
-  private static instance: EntityTagsService
+export class TagsService extends DbService<Tag> {
+  private static instance: TagsService
   constructor() {
     super('tags')
   }
 
   static getInstance() {
     if (!this.instance) {
-      this.instance = new EntityTagsService()
+      this.instance = new TagsService()
     }
     return this.instance
   }

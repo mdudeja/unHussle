@@ -13,6 +13,11 @@ import {
   createResourcesSlice,
   ResourcesSlice,
 } from '@/store/slices/createResourcesSlice'
+import { createUrlsSlice, UrlsSlice } from '@/store/slices/createUrlsSlice'
+import {
+  createTimeEntriesSlice,
+  TimeEntriesSlice,
+} from '@/store/slices/createTimeEntriesSlice'
 
 export type StoreState = TasksSlice &
   ResourcesSlice &
@@ -20,6 +25,8 @@ export type StoreState = TasksSlice &
   AreasSlice &
   GoalsSlice &
   TagsSlice &
+  UrlsSlice &
+  TimeEntriesSlice &
   UISlice
 
 export const useStore = create<StoreState>()(
@@ -31,6 +38,8 @@ export const useStore = create<StoreState>()(
       ...createAreasSlice(...a),
       ...createGoalsSlice(...a),
       ...createTagsSlice(...a),
+      ...createUrlsSlice(...a),
+      ...createTimeEntriesSlice(...a),
       ...createUISlice(...a),
     }),
     {

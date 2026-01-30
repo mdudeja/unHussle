@@ -88,17 +88,25 @@ describe('Data Layer Tests', () => {
       .values({
         title: 'Test URL',
         url: 'https://example.com/test',
-        protocol: 'https',
-        domain: 'example.com',
-        path: '/test',
-        query: '',
-        fragment: '',
       })
       .returning()
 
     expect(url.title).toBe('Test URL')
     expect(url.id).toBeTruthy()
     urlId = url.id
+  })
+
+  test('Create File URL', async () => {
+    const [url] = await db
+      .insert(schema.urlsSchema)
+      .values({
+        title: 'Test File URL',
+        url: 'file:///path/to/local/file',
+      })
+      .returning()
+
+    expect(url.title).toBe('Test File URL')
+    expect(url.id).toBeTruthy()
   })
 
   test('Create Goal', async () => {
