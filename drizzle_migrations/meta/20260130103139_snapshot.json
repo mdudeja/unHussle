@@ -1,7 +1,7 @@
 {
   "version": "6",
   "dialect": "sqlite",
-  "id": "a2f435d6-b6fb-4a31-8436-632b7534c5ef",
+  "id": "b5fd040f-4668-41ba-9e84-2f00274e8805",
   "prevId": "00000000-0000-0000-0000-000000000000",
   "tables": {
     "areas": {
@@ -25,7 +25,7 @@
           "name": "status",
           "type": "text",
           "primaryKey": false,
-          "notNull": true,
+          "notNull": false,
           "autoincrement": false,
           "default": "'planned'"
         },
@@ -33,7 +33,7 @@
           "name": "priority",
           "type": "text",
           "primaryKey": false,
-          "notNull": true,
+          "notNull": false,
           "autoincrement": false,
           "default": "'medium'"
         },
@@ -239,7 +239,7 @@
           "name": "status",
           "type": "text",
           "primaryKey": false,
-          "notNull": true,
+          "notNull": false,
           "autoincrement": false,
           "default": "'planned'"
         },
@@ -247,7 +247,7 @@
           "name": "priority",
           "type": "text",
           "primaryKey": false,
-          "notNull": true,
+          "notNull": false,
           "autoincrement": false,
           "default": "'medium'"
         },
@@ -385,7 +385,7 @@
           "name": "status",
           "type": "text",
           "primaryKey": false,
-          "notNull": true,
+          "notNull": false,
           "autoincrement": false,
           "default": "'planned'"
         },
@@ -393,7 +393,7 @@
           "name": "priority",
           "type": "text",
           "primaryKey": false,
-          "notNull": true,
+          "notNull": false,
           "autoincrement": false,
           "default": "'medium'"
         },
@@ -747,7 +747,7 @@
           "name": "status",
           "type": "text",
           "primaryKey": false,
-          "notNull": true,
+          "notNull": false,
           "autoincrement": false,
           "default": "'planned'"
         },
@@ -755,7 +755,7 @@
           "name": "priority",
           "type": "text",
           "primaryKey": false,
-          "notNull": true,
+          "notNull": false,
           "autoincrement": false,
           "default": "'medium'"
         },

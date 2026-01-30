@@ -46,7 +46,7 @@ const app = new Elysia()
   )
   .use(cors())
   .onError(({ error, code }) => {
-    console.error(error)
+    console.error((error as any).message)
     if (code === 'VALIDATION') {
       return error.detail(error.message)
     }

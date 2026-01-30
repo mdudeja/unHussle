@@ -13,6 +13,7 @@ export interface DbSlice<
   add: (data: T['Write']) => Promise<void>
   update: (id: string, data: T['Update']) => Promise<void>
   remove: (id: string) => Promise<void>
+  reset: () => Promise<void>
 }
 
 export default function generateCreateDbConnectedStateSlice<
@@ -56,7 +57,7 @@ export default function generateCreateDbConnectedStateSlice<
                   },
                 }) as any,
             )
-            console.error(error)
+            throw error
           }
         },
 
@@ -94,7 +95,7 @@ export default function generateCreateDbConnectedStateSlice<
                   },
                 }) as any,
             )
-            console.error(error)
+            throw error
           }
         },
 
@@ -134,7 +135,7 @@ export default function generateCreateDbConnectedStateSlice<
                   },
                 }) as any,
             )
-            console.error(error)
+            throw error
           }
         },
 
@@ -172,7 +173,36 @@ export default function generateCreateDbConnectedStateSlice<
                   },
                 }) as any,
             )
-            console.error(error)
+            throw error
+          }
+        },
+
+        reset: async () => {
+          set(
+            (state) =>
+              ({
+                [sliceName]: {
+                  ...state[sliceName],
+                  data: [],
+                  isLoading: false,
+                  error: null,
+                },
+              }) as any,
+          )
+          try {
+            await serviceInstance.reset()
+          } catch (error) {
+            set(
+              (state) =>
+                ({
+                  [sliceName]: {
+                    ...state[sliceName],
+                    error: 'Failed to reset data',
+                    isLoading: false,
+                  },
+                }) as any,
+            )
+            throw error
           }
         },
       },

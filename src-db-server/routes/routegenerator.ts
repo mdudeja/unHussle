@@ -84,7 +84,7 @@ export const routeGenerator = (config: RouteGeneratorConfig) => {
     .get(
       '/',
       async ({ db }) => {
-        console.log('Get all Tasks')
+        console.log(`Get All ${config.name}`)
         return await db.select().from(config.schemas.base)
       },
       {
@@ -95,7 +95,7 @@ export const routeGenerator = (config: RouteGeneratorConfig) => {
     .get(
       '/:id',
       async ({ params: { id }, db }) => {
-        console.log('Get Task with id: ', id)
+        console.log(`Get ${config.name} with id: `, id)
         const result = await db
           .select()
           .from(config.schemas.base)
@@ -116,7 +116,7 @@ export const routeGenerator = (config: RouteGeneratorConfig) => {
     .post(
       '/',
       async ({ body, set, db }) => {
-        console.log('Add Task with id: ', body.id)
+        console.log(`Add ${config.name} with id: `, body.id)
         const result = await db
           .insert(config.schemas.base)
           .values(body)
@@ -138,7 +138,7 @@ export const routeGenerator = (config: RouteGeneratorConfig) => {
     .patch(
       '/:id',
       async ({ params: { id }, body, set, db }) => {
-        console.log('Update Task with id: ', id)
+        console.log(`Update ${config.name} with id: `, id)
         const result = await db
           .update(config.schemas.base)
           .set(body)
@@ -156,10 +156,17 @@ export const routeGenerator = (config: RouteGeneratorConfig) => {
       },
     )
 
+    .delete('/all', async () => {
+      console.log(`Delete all ${config.name} `)
+      const result = await db.delete(config.schemas.base).returning()
+
+      return result
+    })
+
     .delete(
       '/:id',
       async ({ params: { id }, db }) => {
-        console.log('Delete Task with id: ', id)
+        console.log(`Delete ${config.name} with id: `, id)
         const result = await db
           .delete(config.schemas.base)
           .where(eq(config.schemas.base.id, id))

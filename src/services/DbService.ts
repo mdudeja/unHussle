@@ -13,21 +13,21 @@ export class DbService<
     this.baseEndpoint = baseEndpoint
   }
 
-  fetchAll() {
+  async fetchAll() {
     return makeJSONRequest<T['Read'][]>({
       url: `${this.dbUrl}/${this.baseEndpoint}`,
       method: 'GET',
     })
   }
 
-  fetchById(id: string) {
+  async fetchById(id: string) {
     return makeJSONRequest<T['Read']>({
       url: `${this.dbUrl}/${this.baseEndpoint}/${id}`,
       method: 'GET',
     })
   }
 
-  create(data: T['Write']) {
+  async create(data: T['Write']) {
     return makeJSONRequest<T['Read']>({
       url: `${this.dbUrl}/${this.baseEndpoint}`,
       method: 'POST',
@@ -35,7 +35,7 @@ export class DbService<
     })
   }
 
-  update(id: string, data: T['Update']) {
+  async update(id: string, data: T['Update']) {
     return makeJSONRequest<T['Read']>({
       url: `${this.dbUrl}/${this.baseEndpoint}/${id}`,
       method: 'PATCH',
@@ -43,9 +43,16 @@ export class DbService<
     })
   }
 
-  delete(id: string) {
+  async delete(id: string) {
     return makeJSONRequest<T['Read']>({
       url: `${this.dbUrl}/${this.baseEndpoint}/${id}`,
+      method: 'DELETE',
+    })
+  }
+
+  async reset() {
+    return makeJSONRequest<void>({
+      url: `${this.dbUrl}/${this.baseEndpoint}/all`,
       method: 'DELETE',
     })
   }

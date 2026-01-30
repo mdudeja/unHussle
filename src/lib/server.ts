@@ -23,8 +23,7 @@ export const makeJSONRequest = async <T>({
 
     return res.json() as T
   } catch (err) {
-    console.error(err)
-    throw err
+    return Promise.reject(err)
   }
 }
 
@@ -52,7 +51,6 @@ export const makeTextRequest = async ({
 
     return res.text()
   } catch (err) {
-    console.error(err)
-    throw err
+    return Promise.reject(err)
   }
 }

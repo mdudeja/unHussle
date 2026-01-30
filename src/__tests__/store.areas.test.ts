@@ -1,0 +1,94 @@
+import { describe, it, expect, beforeEach } from 'bun:test'
+import { useStore } from '@/store'
+
+describe('Areas Store', () => {
+  beforeEach(() => {
+    useStore.setState((state) => ({
+      areas: {
+        ...state.areas,
+        data: [],
+        isLoading: false,
+        error: null,
+      },
+    }))
+  })
+
+  it('should initialize with default state', () => {
+    const state = useStore.getState()
+    expect(state.areas.data).toEqual([])
+  })
+
+  it('should create a new area', async () => {
+    const { add } = useStore.getState().areas
+    const newAreaData = {
+      title: 'New Area',
+    }
+    await add(newAreaData)
+    const state = useStore.getState()
+    const newArea = state.areas.data.find((a) => a.title === 'New Area')
+
+    expect(newArea).toBeDefined()
+    expect(state.areas.data).toHaveLength(1)
+  })
+
+  it('should throw error when creating area with missing fields', async () => {
+    const { add } = useStore.getState().areas
+    expect(add({} as any)).rejects.toThrow()
+  })
+
+  it('should fetch areas', async () => {
+    const { fetch } = useStore.getState().areas
+    await fetch()
+
+    const state = useStore.getState()
+    expect(state.areas.data).toHaveLength(1)
+    expect(state.areas.data[0].title).toBe('New Area')
+    expect(state.areas.isLoading).toBe(false)
+  })
+
+  it('should update an existing area', async () => {
+    const { add, update } = useStore.getState().areas
+    const newAreaData = {
+      title: 'Area to Update',
+    }
+    await add(newAreaData)
+
+    let state = useStore.getState()
+    const areaToUpdate = state.areas.data.find(
+      (a) => a.title === 'Area to Update',
+    )
+    expect(areaToUpdate).toBeDefined()
+
+    await update(areaToUpdate!.id, { title: 'Updated Area Title' })
+
+    state = useStore.getState()
+    const updatedArea = state.areas.data.find((a) => a.id === areaToUpdate!.id)
+    expect(updatedArea!.title).toBe('Updated Area Title')
+  })
+
+  it('should delete an existing area', async () => {
+    const { add, remove } = useStore.getState().areas
+    const newAreaData = {
+      title: 'Area to Delete',
+    }
+    await add(newAreaData)
+
+    let state = useStore.getState()
+    const areaToDelete = state.areas.data.find(
+      (a) => a.title === 'Area to Delete',
+    )
+    expect(areaToDelete).toBeDefined()
+
+    await remove(areaToDelete!.id)
+
+    state = useStore.getState()
+    const deletedArea = state.areas.data.find((a) => a.id === areaToDelete!.id)
+    expect(deletedArea).toBeUndefined()
+    expect(state.areas.data).toHaveLength(0)
+  })
+
+  it('should throw error when deleting non-existent area', async () => {
+    const { remove } = useStore.getState().areas
+    expect(remove('non-existent-id')).rejects.toThrow()
+  })
+})

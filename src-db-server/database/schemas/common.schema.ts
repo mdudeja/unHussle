@@ -26,13 +26,11 @@ export const timestampsSchema = {
 }
 
 export const prioritySchema = {
-  priority: customEnum<Priority>('priority').notNull().default(Priority.MEDIUM),
+  priority: customEnum<Priority>('priority').default(Priority.MEDIUM),
 }
 
 export const statusSchema = {
-  status: customEnum<ProgressStatus>('status')
-    .notNull()
-    .default(ProgressStatus.PLANNED),
+  status: customEnum<ProgressStatus>('status').default(ProgressStatus.PLANNED),
 }
 
 // Parent Schemas

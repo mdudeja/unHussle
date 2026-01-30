@@ -1,0 +1,3 @@
+[test]
+preload = ["common/testing/test-setup.ts"]
+coverage = true
