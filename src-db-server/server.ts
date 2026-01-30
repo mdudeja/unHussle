@@ -6,7 +6,10 @@ import { taskRoutes } from '@d/routes/tasks'
 import { areaRoutes } from '@d/routes/areas'
 import { goalRoutes } from '@d/routes/goals'
 import { projectRoutes } from '@d/routes/projects'
-import { entityTagRoutes } from '@d/routes/entity_tags'
+import { tagRoutes } from '@d/routes/tags'
+import { resourcesRoutes } from './routes/resources'
+import { urlRoutes } from './routes/urls'
+import { timeEntriesRoutes } from './routes/time_entries'
 
 console.log('Initializing Database...')
 const uDB = UnHussleDB.getInstance()
@@ -53,11 +56,20 @@ const app = new Elysia()
     return error
   })
   .get('/health', () => 'OK')
+  // entities
   .use(taskRoutes)
+  .use(resourcesRoutes)
+
+  // collections
   .use(areaRoutes)
   .use(goalRoutes)
   .use(projectRoutes)
-  .use(entityTagRoutes)
+
+  // supporters
+  .use(tagRoutes)
+  .use(urlRoutes)
+  .use(timeEntriesRoutes)
+
   .listen(PORT)
 
 console.log(

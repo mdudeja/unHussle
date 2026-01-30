@@ -27,3 +27,4 @@ export type InferTableTypes<B, T extends SQLiteTableWithColumns<any>> = {
 export * from '@c/types/Entity.type'
 export * from '@c/types/EntityCollection.type'
 export * from '@c/types/EntitySupporter.type'
+export * from '@c/types/JunctionTable.type'

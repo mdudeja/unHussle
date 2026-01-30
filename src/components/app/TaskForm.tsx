@@ -16,18 +16,19 @@ import {
 } from 'lucide-react'
 import { cn } from '@/lib/utils'
 
-interface TaskFormProps {
+type TaskFormProps = React.ComponentProps<'form'> & {
   initialData?: Task['Read']
   onSubmit: (data: Task['Write'] | Task['Update']) => Promise<void>
   onCancel: () => void
   isLoading?: boolean
 }
 
-export const TaskForm: React.FC<TaskFormProps> = ({
+export const TaskFormComponent = ({
   initialData,
   onSubmit,
   onCancel,
-}) => {
+  ref,
+}: TaskFormProps) => {
   const [formData, setFormData] = useState<
     Partial<Task['Write'] | Task['Update']>
   >({
@@ -60,7 +61,7 @@ export const TaskForm: React.FC<TaskFormProps> = ({
   }
 
   return (
-    <form onSubmit={handleSubmit} className="space-y-6">
+    <form ref={ref} onSubmit={handleSubmit} className="space-y-6">
       <div className="space-y-4">
         {/* Title */}
         <div>

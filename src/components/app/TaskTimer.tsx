@@ -5,17 +5,18 @@ import { timeTrackingService } from '@/services/TimeTrackingService'
 import { Play, Square } from 'lucide-react'
 import { cn } from '@/lib/utils'
 
-interface TaskTimerProps {
+type TaskTimerProps = React.ComponentProps<'div'> & {
   taskId: string
   initialSpentMinutes?: number
   onTimerStop?: () => void
 }
 
-export const TaskTimer: React.FC<TaskTimerProps> = ({
+export const TaskTimerComponent = ({
   taskId,
   initialSpentMinutes = 0,
   onTimerStop,
-}) => {
+  ref,
+}: TaskTimerProps) => {
   const [isActive, setIsActive] = useState(false)
   const [sessionSeconds, setSessionSeconds] = useState(0)
 
@@ -62,7 +63,7 @@ export const TaskTimer: React.FC<TaskTimerProps> = ({
   const totalSeconds = initialSpentMinutes * 60 + sessionSeconds
 
   return (
-    <div className="flex items-center gap-3">
+    <div ref={ref} className="flex items-center gap-3">
       <TimerDisplay
         seconds={totalSeconds}
         size="sm"

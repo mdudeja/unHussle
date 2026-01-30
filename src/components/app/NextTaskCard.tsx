@@ -4,11 +4,11 @@ import { Button } from '@/components/ui/button'
 import { useStore } from '@/store'
 import { ProgressStatus, Priority } from '@c/index'
 import { Play, Coffee } from 'lucide-react'
-import { TaskTimer } from '@/components/tasks/TaskTimer'
+import { TaskTimerComponent } from '@/components/app/TaskTimer'
 import { Badge } from '@/components/ui/badge'
 import { cn } from '@/lib/utils'
 
-export const NextTaskCard: React.FC = () => {
+export const NextTaskCardComponent = ({ ref }: React.ComponentProps<'div'>) => {
   const { tasks, projects, areas } = useStore()
 
   const nextTask = useMemo(() => {
@@ -27,7 +27,7 @@ export const NextTaskCard: React.FC = () => {
     )
 
     // Map priority to numeric value for sorting
-    const getPriorityVal = (p: string) => {
+    const getPriorityVal = (p: Priority | null) => {
       if (p === Priority.HIGH) return 3
       if (p === Priority.MEDIUM) return 2
       return 1
@@ -87,6 +87,7 @@ export const NextTaskCard: React.FC = () => {
 
   return (
     <Card
+      ref={ref}
       className={cn(
         'w-full max-w-2xl mx-auto transition-all duration-300',
         isHighPriority
@@ -136,7 +137,7 @@ export const NextTaskCard: React.FC = () => {
         <div className="flex items-center gap-4">
           {nextTask.status === ProgressStatus.IN_PROGRESS ? (
             <div className="flex items-center gap-3 bg-accent/20 px-4 py-2 rounded-lg border border-border/50">
-              <TaskTimer
+              <TaskTimerComponent
                 taskId={nextTask.id}
                 initialSpentMinutes={nextTask.spent_minutes}
               />

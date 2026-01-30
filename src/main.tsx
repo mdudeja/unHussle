@@ -1,12 +1,13 @@
 import React from 'react'
 import ReactDOM from 'react-dom/client'
-import App from './App'
 import { DatabaseProvider } from '@/contexts/DatabaseContext'
+import { RouterProvider } from 'react-router'
+import { router } from './lib/router'
 
 ReactDOM.createRoot(document.getElementById('root') as HTMLElement).render(
   <React.StrictMode>
     <DatabaseProvider>
-      <App />
+      <RouterProvider router={router} />
     </DatabaseProvider>
   </React.StrictMode>,
 )

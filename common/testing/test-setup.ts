@@ -6,7 +6,7 @@ async function cleanupTestDatabase() {
 
   await state.projects.reset()
   await state.tasks.reset()
-  await state.entity_tags.reset()
+  await state.tags.reset()
   await state.areas.reset()
   await state.goals.reset()
 }

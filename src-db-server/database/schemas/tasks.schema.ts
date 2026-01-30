@@ -1,10 +1,19 @@
 import { integer, sqliteTable, text, index } from 'drizzle-orm/sqlite-core'
 import { relations } from 'drizzle-orm'
-import { entitySchema, prioritySchema, statusSchema } from './common.schema'
+import {
+  entitySchema,
+  junctionTimeEntriesSchema,
+  prioritySchema,
+  statusSchema,
+} from '@d/database/schemas/index'
 import { Entity, InferTableTypes } from '@c/index'
-import { projectsSchema } from './projects.schema'
-import { areasSchema } from './areas.schema'
-import { goalsSchema } from './goals.schema'
+import {
+  projectsSchema,
+  areasSchema,
+  goalsSchema,
+  junctionTagsSchema,
+  junctionUrlsSchema,
+} from '@d/database/schemas/index'
 
 export const tasksSchema = sqliteTable(
   'tasks',
@@ -34,9 +43,6 @@ export const tasksSchema = sqliteTable(
     scheduled_for: integer({ mode: 'timestamp_ms' }),
     started_at: integer({ mode: 'timestamp_ms' }),
     completed_at: integer({ mode: 'timestamp_ms' }),
-    time_entry_ids: text({ mode: 'json' })
-      .$type<string[]>()
-      .$default(() => []),
   },
   (table) => [
     index('tasks_project_idx').on(table.project_id),
@@ -45,10 +51,11 @@ export const tasksSchema = sqliteTable(
     index('tasks_status_idx').on(table.status),
     index('tasks_due_date_idx').on(table.due_date),
     index('tasks_scheduled_for_idx').on(table.scheduled_for),
+    index('tasks_title_idx').on(table.title),
   ],
 )
 
-export const tasksRelations = relations(tasksSchema, ({ one }) => ({
+export const tasksRelations = relations(tasksSchema, ({ one, many }) => ({
   project: one(projectsSchema, {
     fields: [tasksSchema.project_id],
     references: [projectsSchema.id],
@@ -61,6 +68,9 @@ export const tasksRelations = relations(tasksSchema, ({ one }) => ({
     fields: [tasksSchema.goal_id],
     references: [goalsSchema.id],
   }),
+  tags: many(junctionTagsSchema),
+  urls: many(junctionUrlsSchema),
+  timeEntries: many(junctionTimeEntriesSchema),
 }))
 
 export type Task = InferTableTypes<Entity, typeof tasksSchema>

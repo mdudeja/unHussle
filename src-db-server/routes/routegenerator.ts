@@ -1,26 +1,38 @@
 import {
   areasSchema,
-  entityTagsSchema,
+  tagsSchema,
+  urlsSchema,
   goalsSchema,
   projectsSchema,
+  resourcesSchema,
   tasksSchema,
+  timeEntriesSchema,
 } from '@d/database/schemas'
 import {
   insertAreaSchema,
-  insertEntityTagsSchema,
+  insertTagsSchema,
+  insertUrlsSchema,
   insertGoalSchema,
   insertProjectSchema,
+  insertResourceSchema,
   insertTaskSchema,
+  insertTimeEntriesSchema,
   selectAreaSchema,
-  selectEntityTagsSchema,
+  selectTagsSchema,
+  selectUrlsSchema,
   selectGoalSchema,
   selectProjectSchema,
+  selectResourceSchema,
   selectTaskSchema,
+  selectTimeEntriesSchema,
   updateAreaSchema,
-  updateEntityTagsSchema,
+  updateTagsSchema,
+  updateUrlsSchema,
   updateGoalSchema,
   updateProjectSchema,
+  updateResourceSchema,
   updateTaskSchema,
+  updateTimeEntriesSchema,
 } from '@d/database/validation'
 import { Elysia } from 'elysia'
 import { UnHussleDB } from '@d/database/UnHussleDB'
@@ -52,10 +64,28 @@ type RouteGeneratorSchemas =
       base: typeof projectsSchema
     }
   | {
-      insert: typeof insertEntityTagsSchema
-      select: typeof selectEntityTagsSchema
-      update: typeof updateEntityTagsSchema
-      base: typeof entityTagsSchema
+      insert: typeof insertTagsSchema
+      select: typeof selectTagsSchema
+      update: typeof updateTagsSchema
+      base: typeof tagsSchema
+    }
+  | {
+      insert: typeof insertResourceSchema
+      select: typeof selectResourceSchema
+      update: typeof updateResourceSchema
+      base: typeof resourcesSchema
+    }
+  | {
+      insert: typeof insertUrlsSchema
+      select: typeof selectUrlsSchema
+      update: typeof updateUrlsSchema
+      base: typeof urlsSchema
+    }
+  | {
+      insert: typeof insertTimeEntriesSchema
+      select: typeof selectTimeEntriesSchema
+      update: typeof updateTimeEntriesSchema
+      base: typeof timeEntriesSchema
     }
 
 export type RouteGeneratorConfig = {

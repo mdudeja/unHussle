@@ -47,8 +47,6 @@ export class UnHussleDB {
       return this.db
     }
 
-    console.log(`Database file path: ${this.dbFilePath}`)
-
     // Ensure the parent directory exists
     const dbDir = dirname(this.dbFilePath!)
 

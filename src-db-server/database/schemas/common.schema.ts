@@ -44,14 +44,6 @@ export const entitySchema = {
   project_id: t.text('project_id'),
   area_id: t.text('area_id'),
   goal_id: t.text('goal_id'),
-  tag_ids: t
-    .text({ mode: 'json' })
-    .$type<string[]>()
-    .$default(() => []),
-  url_ids: t
-    .text({ mode: 'json' })
-    .$type<string[]>()
-    .$default(() => []),
   ...timestampsSchema,
 }
 
@@ -75,5 +67,15 @@ export const entitySupporterSchema = {
     .primaryKey()
     .$defaultFn(() => createId()),
   description: t.text(),
+  ...timestampsSchema,
+}
+
+export const junctionTableSchema = {
+  id: t
+    .text()
+    .primaryKey()
+    .$defaultFn(() => createId()),
+  attachedToId: t.text().notNull(),
+  refId: t.text().notNull(),
   ...timestampsSchema,
 }

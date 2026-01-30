@@ -22,7 +22,7 @@ import {
   DialogTrigger,
 } from '@/components/ui/dialog'
 
-export function DesignSystem() {
+export function DesignSystemComponent({ ref }: React.ComponentProps<'div'>) {
   const [timerValue, setTimerValue] = useState(0)
 
   // Simple timer effect
@@ -34,7 +34,7 @@ export function DesignSystem() {
   })
 
   return (
-    <div className="p-8 space-y-10 max-w-4xl mx-auto pb-20">
+    <div ref={ref} className="p-8 space-y-10 max-w-4xl mx-auto pb-20">
       <header>
         <h1 className="text-3xl font-heading font-bold text-text mb-2">
           Design System

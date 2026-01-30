@@ -7,27 +7,30 @@ import {
 } from '@/store/slices/createProjectsSlice'
 import { createAreasSlice, AreasSlice } from '@/store/slices/createAreasSlice'
 import { createGoalsSlice, GoalsSlice } from '@/store/slices/createGoalsSlice'
-import {
-  createEntityTagsSlice,
-  EntityTagsSlice,
-} from '@/store/slices/createEntityTagsSlice'
+import { createTagsSlice, TagsSlice } from '@/store/slices/createTagsSlice'
 import { createUISlice, UISlice } from '@/store/slices/createUISlice'
+import {
+  createResourcesSlice,
+  ResourcesSlice,
+} from '@/store/slices/createResourcesSlice'
 
 export type StoreState = TasksSlice &
+  ResourcesSlice &
   ProjectsSlice &
   AreasSlice &
   GoalsSlice &
-  EntityTagsSlice &
+  TagsSlice &
   UISlice
 
 export const useStore = create<StoreState>()(
   devtools(
     (...a) => ({
       ...createTasksSlice(...a),
+      ...createResourcesSlice(...a),
       ...createProjectsSlice(...a),
       ...createAreasSlice(...a),
       ...createGoalsSlice(...a),
-      ...createEntityTagsSlice(...a),
+      ...createTagsSlice(...a),
       ...createUISlice(...a),
     }),
     {

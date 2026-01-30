@@ -6,14 +6,16 @@ import { useStore } from '@/store'
 import { Priority, ProgressStatus } from '@c/index'
 import { createId } from '@paralleldrive/cuid2'
 
-export const BrainDumpInput: React.FC = () => {
+export const BrainDumpInputComponent = ({
+  ref,
+}: React.ComponentProps<'div'>) => {
   const [inputValue, setInputValue] = useState('')
   const [selectedPriority, setSelectedPriority] = useState<Priority>(
     Priority.MEDIUM,
   )
   const inputRef = useRef<HTMLInputElement>(null)
 
-  const { tasks, tags } = useStore()
+  const { tasks, entity_tags } = useStore()
 
   const parseAndSubmit = async () => {
     if (!inputValue.trim()) return
@@ -56,7 +58,7 @@ export const BrainDumpInput: React.FC = () => {
         const tagName = match.substring(1) // remove #
 
         // Find existing tag or create new one
-        const existingTag = tags.data.find(
+        const existingTag = entity_tags.data.find(
           (t) => t.title.toLowerCase() === tagName.toLowerCase(),
         )
 
@@ -65,7 +67,7 @@ export const BrainDumpInput: React.FC = () => {
         } else {
           const newTagId = createId()
           try {
-            await tags.add({
+            await entity_tags.add({
               id: newTagId,
               title: tagName,
             })
@@ -111,7 +113,7 @@ export const BrainDumpInput: React.FC = () => {
   }
 
   return (
-    <div className="w-full max-w-2xl mx-auto space-y-2">
+    <div ref={ref} className="w-full max-w-2xl mx-auto space-y-2">
       <div className="relative">
         <Input
           ref={inputRef}

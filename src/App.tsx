@@ -1,6 +1,6 @@
 import { useDatabaseStatus } from '@/hooks/useDatabaseStatus'
-import { HomeView } from '@/components/home/HomeView'
 import '@/styles/App.css'
+import { Outlet } from 'react-router'
 
 function App() {
   const { isReady, error } = useDatabaseStatus()
@@ -24,7 +24,7 @@ function App() {
         )}
       </div>
 
-      <HomeView />
+      <Outlet />
     </main>
   )
 }

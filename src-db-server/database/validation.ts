@@ -4,7 +4,10 @@ import {
   areasSchema,
   goalsSchema,
   projectsSchema,
-  entityTagsSchema,
+  tagsSchema,
+  resourcesSchema,
+  urlsSchema,
+  timeEntriesSchema,
 } from '@d/database/schemas/index'
 import { t } from 'elysia'
 import { ProgressStatus, Priority } from '@c/index'
@@ -22,6 +25,16 @@ export const insertTaskSchema = createInsertSchema(tasksSchema, {
 
 export const updateTaskSchema = t.Partial(insertTaskSchema)
 export const selectTaskSchema = createSelectSchema(tasksSchema)
+
+// Resources
+export const insertResourceSchema = createInsertSchema(resourcesSchema, {
+  // Handle JSON arrays, drizzle-typebox sometimes misses these
+  tag_ids: t.Optional(t.Array(t.String())),
+  url_ids: t.Optional(t.Array(t.String())),
+})
+
+export const updateResourceSchema = t.Partial(insertResourceSchema)
+export const selectResourceSchema = createSelectSchema(resourcesSchema)
 
 // Areas
 export const insertAreaSchema = createInsertSchema(areasSchema, {
@@ -48,6 +61,16 @@ export const updateProjectSchema = t.Partial(insertProjectSchema)
 export const selectProjectSchema = createSelectSchema(projectsSchema)
 
 // Tags
-export const insertEntityTagsSchema = createInsertSchema(entityTagsSchema)
-export const updateEntityTagsSchema = t.Partial(insertEntityTagsSchema)
-export const selectEntityTagsSchema = createSelectSchema(entityTagsSchema)
+export const insertTagsSchema = createInsertSchema(tagsSchema)
+export const updateTagsSchema = t.Partial(insertTagsSchema)
+export const selectTagsSchema = createSelectSchema(tagsSchema)
+
+// URLs
+export const insertUrlsSchema = createInsertSchema(urlsSchema)
+export const updateUrlsSchema = t.Partial(insertUrlsSchema)
+export const selectUrlsSchema = createSelectSchema(urlsSchema)
+
+// Time entries
+export const insertTimeEntriesSchema = createInsertSchema(timeEntriesSchema)
+export const updateTimeEntriesSchema = t.Partial(insertTimeEntriesSchema)
+export const selectTimeEntriesSchema = createSelectSchema(timeEntriesSchema)

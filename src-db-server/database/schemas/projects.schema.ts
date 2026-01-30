@@ -1,4 +1,10 @@
-import { sqliteTable, text, integer } from 'drizzle-orm/sqlite-core'
+import {
+  sqliteTable,
+  text,
+  integer,
+  index,
+  unique,
+} from 'drizzle-orm/sqlite-core'
 import { relations } from 'drizzle-orm'
 import { entityCollectionSchema } from './common.schema'
 import { goalsSchema } from './goals.schema'
@@ -6,13 +12,27 @@ import { areasSchema } from './areas.schema'
 import { EntityCollection, InferTableTypes } from '@c/index'
 import { tasksSchema } from './tasks.schema'
 import { resourcesSchema } from './resources.schema'
+import { junctionTagsSchema } from './junction.tags.schema'
+import { junctionUrlsSchema } from './junction.urls.schema'
 
-export const projectsSchema = sqliteTable('projects', {
-  ...entityCollectionSchema,
-  area_id: text().references(() => areasSchema.id),
-  goal_id: text().references(() => goalsSchema.id),
-  due_date: integer({ mode: 'timestamp_ms' }),
-})
+export const projectsSchema = sqliteTable(
+  'projects',
+  {
+    ...entityCollectionSchema,
+    area_id: text().references(() => areasSchema.id),
+    goal_id: text().references(() => goalsSchema.id),
+    due_date: integer({ mode: 'timestamp_ms' }),
+  },
+  (table) => [
+    index('projects_title_idx').on(table.title),
+    index('projects_area_idx').on(table.area_id),
+    index('projects_goal_idx').on(table.goal_id),
+    index('projects_due_date_idx').on(table.due_date),
+    index('projects_status_idx').on(table.status),
+    index('projects_priority_idx').on(table.priority),
+    unique('projects_title_unique').on(table.title),
+  ],
+)
 
 export const projectsRelations = relations(projectsSchema, ({ one, many }) => ({
   area: one(areasSchema, {
@@ -25,6 +45,8 @@ export const projectsRelations = relations(projectsSchema, ({ one, many }) => ({
   }),
   tasks: many(tasksSchema),
   resources: many(resourcesSchema),
+  tags: many(junctionTagsSchema),
+  urls: many(junctionUrlsSchema),
 }))
 
 export type Project = InferTableTypes<EntityCollection, typeof projectsSchema>

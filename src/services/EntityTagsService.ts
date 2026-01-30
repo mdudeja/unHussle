@@ -1,10 +1,10 @@
-import { EntityTag } from '@c/index'
+import { Tag } from '@c/index'
 import { DbService } from '@/services/DbService'
 
-export class EntityTagsService extends DbService<EntityTag> {
+export class EntityTagsService extends DbService<Tag> {
   private static instance: EntityTagsService
   constructor() {
-    super('entity_tags')
+    super('tags')
   }
 
   static getInstance() {
