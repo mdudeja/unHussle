@@ -1,4 +1,4 @@
-import { timeEntriesSchema } from '@d/database/schemas'
+import { timeEntries } from '@d/database/schemas'
 import {
   insertTimeEntriesSchema,
   selectTimeEntriesSchema,
@@ -7,12 +7,12 @@ import {
 import { routeGenerator } from '@d/routes/routegenerator'
 
 export const timeEntriesRoutes = routeGenerator({
-  name: 'time_entries',
+  name: 'timeEntries',
   prefix: '/time_entries',
   schemas: {
     insert: insertTimeEntriesSchema,
     select: selectTimeEntriesSchema,
     update: updateTimeEntriesSchema,
-    base: timeEntriesSchema,
+    base: timeEntries,
   },
 })

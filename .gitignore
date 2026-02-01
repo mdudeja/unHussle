@@ -10,7 +10,9 @@ lerna-debug.log*
 node_modules
 dist
 dist-ssr
-*.local
+.env.*
+
+!.env.template
 
 # Editor directories and files
 .vscode/*
@@ -25,5 +27,6 @@ dist-ssr
 *.sw?
 
 db
+db_test
 
 docs/content/**/*

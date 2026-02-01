@@ -19,7 +19,10 @@ export class UnHussleDB {
   }
 
   public static getInstance(file_path?: string): UnHussleDB {
-    if (!this.instance) {
+    if (
+      !this.instance ||
+      (file_path && this.instance.dbFilePath !== file_path)
+    ) {
       this.instance = new UnHussleDB(file_path)
     }
     return this.instance

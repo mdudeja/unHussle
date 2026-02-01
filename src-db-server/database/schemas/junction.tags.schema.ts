@@ -8,22 +8,22 @@ import {
 import { relations } from 'drizzle-orm'
 import { junctionTableSchema } from '@d/database/schemas/common.schema'
 import {
-  tasksSchema,
-  tagsSchema,
-  resourcesSchema,
-  projectsSchema,
-  areasSchema,
-  goalsSchema,
+  tasks,
+  tags,
+  resources,
+  projects,
+  areas,
+  goals,
 } from '@d/database/schemas/index'
 import { InferTableTypes, JunctionTable } from '@c/index'
 
-export const junctionTagsSchema = sqliteTable(
+export const junctionTags = sqliteTable(
   'junction_tags',
   {
     ...junctionTableSchema,
     refId: text()
       .notNull()
-      .references(() => tagsSchema.id, {
+      .references(() => tags.id, {
         onDelete: 'cascade',
       }),
   },
@@ -42,37 +42,31 @@ export const junctionTagsSchema = sqliteTable(
   ],
 )
 
-export const junctionTagsRelations = relations(
-  junctionTagsSchema,
-  ({ one }) => ({
-    task: one(tasksSchema, {
-      fields: [junctionTagsSchema.attachedToId],
-      references: [tasksSchema.id],
-    }),
-    resource: one(resourcesSchema, {
-      fields: [junctionTagsSchema.attachedToId],
-      references: [resourcesSchema.id],
-    }),
-    project: one(projectsSchema, {
-      fields: [junctionTagsSchema.attachedToId],
-      references: [projectsSchema.id],
-    }),
-    area: one(areasSchema, {
-      fields: [junctionTagsSchema.attachedToId],
-      references: [areasSchema.id],
-    }),
-    goal: one(goalsSchema, {
-      fields: [junctionTagsSchema.attachedToId],
-      references: [goalsSchema.id],
-    }),
-    tag: one(tagsSchema, {
-      fields: [junctionTagsSchema.refId],
-      references: [tagsSchema.id],
-    }),
+export const junctionTagsRelations = relations(junctionTags, ({ one }) => ({
+  task: one(tasks, {
+    fields: [junctionTags.attachedToId],
+    references: [tasks.id],
   }),
-)
+  resource: one(resources, {
+    fields: [junctionTags.attachedToId],
+    references: [resources.id],
+  }),
+  project: one(projects, {
+    fields: [junctionTags.attachedToId],
+    references: [projects.id],
+  }),
+  area: one(areas, {
+    fields: [junctionTags.attachedToId],
+    references: [areas.id],
+  }),
+  goal: one(goals, {
+    fields: [junctionTags.attachedToId],
+    references: [goals.id],
+  }),
+  tag: one(tags, {
+    fields: [junctionTags.refId],
+    references: [tags.id],
+  }),
+}))
 
-export type JunctionTags = InferTableTypes<
-  JunctionTable,
-  typeof junctionTagsSchema
->
+export type JunctionTags = InferTableTypes<JunctionTable, typeof junctionTags>

@@ -4,7 +4,7 @@ import {
   updateAreaSchema,
 } from '@d/database/validation'
 import { routeGenerator } from '@d/routes/routegenerator'
-import { areasSchema } from '@d/database/schemas'
+import { areas } from '@d/database/schemas'
 
 export const areaRoutes = routeGenerator({
   name: 'areas',
@@ -13,6 +13,6 @@ export const areaRoutes = routeGenerator({
     insert: insertAreaSchema,
     select: selectAreaSchema,
     update: updateAreaSchema,
-    base: areasSchema,
+    base: areas,
   },
 })

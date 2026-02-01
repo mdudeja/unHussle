@@ -2,24 +2,24 @@ import { sqliteTable, text, index, unique } from 'drizzle-orm/sqlite-core'
 import { relations } from 'drizzle-orm'
 import { entitySchema } from './common.schema'
 import { Entity, InferTableTypes } from '@c/index'
-import { projectsSchema } from './projects.schema'
-import { areasSchema } from './areas.schema'
-import { goalsSchema } from './goals.schema'
-import { junctionTagsSchema } from './junction.tags.schema'
-import { junctionUrlsSchema } from './junction.urls.schema'
+import { projects } from './projects.schema'
+import { areas } from './areas.schema'
+import { goals } from './goals.schema'
+import { junctionTags } from './junction.tags.schema'
+import { junctionUrls } from './junction.urls.schema'
 
-export const resourcesSchema = sqliteTable(
+export const resources = sqliteTable(
   'resources',
   {
     ...entitySchema,
     // Override to add references
-    project_id: text('project_id').references(() => projectsSchema.id, {
+    project_id: text('project_id').references(() => projects.id, {
       onDelete: 'set null',
     }),
-    area_id: text('area_id').references(() => areasSchema.id, {
+    area_id: text('area_id').references(() => areas.id, {
       onDelete: 'set null',
     }),
-    goal_id: text('goal_id').references(() => goalsSchema.id, {
+    goal_id: text('goal_id').references(() => goals.id, {
       onDelete: 'set null',
     }),
   },
@@ -34,24 +34,21 @@ export const resourcesSchema = sqliteTable(
   ],
 )
 
-export const resourcesRelations = relations(
-  resourcesSchema,
-  ({ one, many }) => ({
-    project: one(projectsSchema, {
-      fields: [resourcesSchema.project_id],
-      references: [projectsSchema.id],
-    }),
-    area: one(areasSchema, {
-      fields: [resourcesSchema.area_id],
-      references: [areasSchema.id],
-    }),
-    goal: one(goalsSchema, {
-      fields: [resourcesSchema.goal_id],
-      references: [goalsSchema.id],
-    }),
-    tags: many(junctionTagsSchema),
-    urls: many(junctionUrlsSchema),
+export const resourcesRelations = relations(resources, ({ one, many }) => ({
+  project: one(projects, {
+    fields: [resources.project_id],
+    references: [projects.id],
   }),
-)
+  area: one(areas, {
+    fields: [resources.area_id],
+    references: [areas.id],
+  }),
+  goal: one(goals, {
+    fields: [resources.goal_id],
+    references: [goals.id],
+  }),
+  tags: many(junctionTags),
+  urls: many(junctionUrls),
+}))
 
-export type Resource = InferTableTypes<Entity, typeof resourcesSchema>
+export type Resource = InferTableTypes<Entity, typeof resources>

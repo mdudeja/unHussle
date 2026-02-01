@@ -1,4 +1,4 @@
-import { tagsSchema } from '@d/database/schemas'
+import { tags } from '@d/database/schemas'
 import {
   insertTagsSchema,
   selectTagsSchema,
@@ -13,6 +13,6 @@ export const tagRoutes = routeGenerator({
     insert: insertTagsSchema,
     select: selectTagsSchema,
     update: updateTagsSchema,
-    base: tagsSchema,
+    base: tags,
   },
 })

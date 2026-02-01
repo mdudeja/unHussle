@@ -1,13 +1,13 @@
 import { sqliteTable, integer, text, index } from 'drizzle-orm/sqlite-core'
 import { entitySupporterSchema } from './common.schema'
 import { EntitySupporter, InferTableTypes } from '@c/index'
-import { tasksSchema } from '.'
+import { tasks } from '.'
 
-export const timeEntriesSchema = sqliteTable(
+export const timeEntries = sqliteTable(
   'time_entries',
   {
     ...entitySupporterSchema,
-    task_id: text('task_id').references(() => tasksSchema.id, {
+    task_id: text('task_id').references(() => tasks.id, {
       onDelete: 'cascade',
     }),
     start_time: integer({ mode: 'timestamp_ms' }).notNull(),
@@ -17,7 +17,4 @@ export const timeEntriesSchema = sqliteTable(
   (table) => [index('time_entries_task_idx').on(table.task_id)],
 )
 
-export type TimeEntry = InferTableTypes<
-  EntitySupporter,
-  typeof timeEntriesSchema
->
+export type TimeEntry = InferTableTypes<EntitySupporter, typeof timeEntries>

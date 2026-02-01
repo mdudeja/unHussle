@@ -7,20 +7,20 @@ import {
 } from 'drizzle-orm/sqlite-core'
 import { relations } from 'drizzle-orm'
 import { entityCollectionSchema } from './common.schema'
-import { goalsSchema } from './goals.schema'
-import { areasSchema } from './areas.schema'
+import { goals } from './goals.schema'
+import { areas } from './areas.schema'
 import { EntityCollection, InferTableTypes } from '@c/index'
-import { tasksSchema } from './tasks.schema'
-import { resourcesSchema } from './resources.schema'
-import { junctionTagsSchema } from './junction.tags.schema'
-import { junctionUrlsSchema } from './junction.urls.schema'
+import { tasks } from './tasks.schema'
+import { resources } from './resources.schema'
+import { junctionTags } from './junction.tags.schema'
+import { junctionUrls } from './junction.urls.schema'
 
-export const projectsSchema = sqliteTable(
+export const projects = sqliteTable(
   'projects',
   {
     ...entityCollectionSchema,
-    area_id: text().references(() => areasSchema.id),
-    goal_id: text().references(() => goalsSchema.id),
+    area_id: text().references(() => areas.id),
+    goal_id: text().references(() => goals.id),
     due_date: integer({ mode: 'timestamp_ms' }),
   },
   (table) => [
@@ -36,19 +36,19 @@ export const projectsSchema = sqliteTable(
   ],
 )
 
-export const projectsRelations = relations(projectsSchema, ({ one, many }) => ({
-  area: one(areasSchema, {
-    fields: [projectsSchema.area_id],
-    references: [areasSchema.id],
+export const projectsRelations = relations(projects, ({ one, many }) => ({
+  area: one(areas, {
+    fields: [projects.area_id],
+    references: [areas.id],
   }),
-  goal: one(goalsSchema, {
-    fields: [projectsSchema.goal_id],
-    references: [goalsSchema.id],
+  goal: one(goals, {
+    fields: [projects.goal_id],
+    references: [goals.id],
   }),
-  tasks: many(tasksSchema),
-  resources: many(resourcesSchema),
-  tags: many(junctionTagsSchema),
-  urls: many(junctionUrlsSchema),
+  tasks: many(tasks),
+  resources: many(resources),
+  tags: many(junctionTags),
+  urls: many(junctionUrls),
 }))
 
-export type Project = InferTableTypes<EntityCollection, typeof projectsSchema>
+export type Project = InferTableTypes<EntityCollection, typeof projects>

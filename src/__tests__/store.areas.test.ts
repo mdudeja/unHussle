@@ -41,8 +41,8 @@ describe('Areas Store', () => {
     await fetch()
 
     const state = useStore.getState()
-    expect(state.areas.data).toHaveLength(1)
-    expect(state.areas.data[0].title).toBe('New Area')
+    expect(state.areas.data).toHaveLength(7) // seed data has 6 areas
+    expect(state.areas.data[state.areas.data.length - 1].title).toBe('New Area')
     expect(state.areas.isLoading).toBe(false)
   })
 

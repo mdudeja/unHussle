@@ -1,7 +1,7 @@
 {
   "version": "6",
   "dialect": "sqlite",
-  "id": "93d0418b-f8f8-4b1c-88a2-9717f87e2ba0",
+  "id": "79bcaac1-e0b7-409c-8ff4-e8bbc8689244",
   "prevId": "00000000-0000-0000-0000-000000000000",
   "tables": {
     "areas": {
@@ -95,6 +95,20 @@
           ],
           "isUnique": false
         },
+        "areas_created_at_idx": {
+          "name": "areas_created_at_idx",
+          "columns": [
+            "created_at"
+          ],
+          "isUnique": false
+        },
+        "areas_updated_at_idx": {
+          "name": "areas_updated_at_idx",
+          "columns": [
+            "updated_at"
+          ],
+          "isUnique": false
+        },
         "areas_title_unique": {
           "name": "areas_title_unique",
           "columns": [
@@ -176,6 +190,13 @@
           "notNull": true,
           "autoincrement": false
         },
+        "area_id": {
+          "name": "area_id",
+          "type": "text",
+          "primaryKey": false,
+          "notNull": false,
+          "autoincrement": false
+        },
         "due_date": {
           "name": "due_date",
           "type": "integer",
@@ -221,6 +242,20 @@
           ],
           "isUnique": false
         },
+        "goals_created_at_idx": {
+          "name": "goals_created_at_idx",
+          "columns": [
+            "created_at"
+          ],
+          "isUnique": false
+        },
+        "goals_updated_at_idx": {
+          "name": "goals_updated_at_idx",
+          "columns": [
+            "updated_at"
+          ],
+          "isUnique": false
+        },
         "goals_title_unique": {
           "name": "goals_title_unique",
           "columns": [
@@ -229,7 +264,21 @@
           "isUnique": true
         }
       },
-      "foreignKeys": {},
+      "foreignKeys": {
+        "goals_area_id_areas_id_fk": {
+          "name": "goals_area_id_areas_id_fk",
+          "tableFrom": "goals",
+          "tableTo": "areas",
+          "columnsFrom": [
+            "area_id"
+          ],
+          "columnsTo": [
+            "id"
+          ],
+          "onDelete": "set null",
+          "onUpdate": "no action"
+        }
+      },
       "compositePrimaryKeys": {},
       "uniqueConstraints": {},
       "checkConstraints": {}
@@ -449,6 +498,20 @@
             "title"
           ],
           "isUnique": false
+        },
+        "tasks_created_at_idx": {
+          "name": "tasks_created_at_idx",
+          "columns": [
+            "created_at"
+          ],
+          "isUnique": false
+        },
+        "tasks_updated_at_idx": {
+          "name": "tasks_updated_at_idx",
+          "columns": [
+            "updated_at"
+          ],
+          "isUnique": false
         }
       },
       "foreignKeys": {
@@ -582,6 +645,20 @@
           "name": "resources_title_idx",
           "columns": [
             "title"
+          ],
+          "isUnique": false
+        },
+        "resources_created_at_idx": {
+          "name": "resources_created_at_idx",
+          "columns": [
+            "created_at"
+          ],
+          "isUnique": false
+        },
+        "resources_updated_at_idx": {
+          "name": "resources_updated_at_idx",
+          "columns": [
+            "updated_at"
           ],
           "isUnique": false
         },
@@ -768,6 +845,20 @@
           "name": "projects_priority_idx",
           "columns": [
             "priority"
+          ],
+          "isUnique": false
+        },
+        "projects_created_at_idx": {
+          "name": "projects_created_at_idx",
+          "columns": [
+            "created_at"
+          ],
+          "isUnique": false
+        },
+        "projects_updated_at_idx": {
+          "name": "projects_updated_at_idx",
+          "columns": [
+            "updated_at"
           ],
           "isUnique": false
         },
@@ -1059,13 +1150,6 @@
     "junction_tags": {
       "name": "junction_tags",
       "columns": {
-        "id": {
-          "name": "id",
-          "type": "text",
-          "primaryKey": true,
-          "notNull": true,
-          "autoincrement": false
-        },
         "attachedToId": {
           "name": "attachedToId",
           "type": "text",
@@ -1113,21 +1197,36 @@
           "isUnique": true
         }
       },
-      "foreignKeys": {},
-      "compositePrimaryKeys": {},
+      "foreignKeys": {
+        "junction_tags_refId_tags_id_fk": {
+          "name": "junction_tags_refId_tags_id_fk",
+          "tableFrom": "junction_tags",
+          "tableTo": "tags",
+          "columnsFrom": [
+            "refId"
+          ],
+          "columnsTo": [
+            "id"
+          ],
+          "onDelete": "cascade",
+          "onUpdate": "no action"
+        }
+      },
+      "compositePrimaryKeys": {
+        "junction_tags_attachedToId_refId_pk": {
+          "columns": [
+            "attachedToId",
+            "refId"
+          ],
+          "name": "junction_tags_attachedToId_refId_pk"
+        }
+      },
       "uniqueConstraints": {},
       "checkConstraints": {}
     },
     "junction_urls": {
       "name": "junction_urls",
       "columns": {
-        "id": {
-          "name": "id",
-          "type": "text",
-          "primaryKey": true,
-          "notNull": true,
-          "autoincrement": false
-        },
         "attachedToId": {
           "name": "attachedToId",
           "type": "text",
@@ -1175,21 +1274,36 @@
           "isUnique": true
         }
       },
-      "foreignKeys": {},
-      "compositePrimaryKeys": {},
+      "foreignKeys": {
+        "junction_urls_refId_urls_id_fk": {
+          "name": "junction_urls_refId_urls_id_fk",
+          "tableFrom": "junction_urls",
+          "tableTo": "urls",
+          "columnsFrom": [
+            "refId"
+          ],
+          "columnsTo": [
+            "id"
+          ],
+          "onDelete": "cascade",
+          "onUpdate": "no action"
+        }
+      },
+      "compositePrimaryKeys": {
+        "junction_urls_attachedToId_refId_pk": {
+          "columns": [
+            "attachedToId",
+            "refId"
+          ],
+          "name": "junction_urls_attachedToId_refId_pk"
+        }
+      },
       "uniqueConstraints": {},
       "checkConstraints": {}
     },
     "junction_time_entries": {
       "name": "junction_time_entries",
       "columns": {
-        "id": {
-          "name": "id",
-          "type": "text",
-          "primaryKey": true,
-          "notNull": true,
-          "autoincrement": false
-        },
         "attachedToId": {
           "name": "attachedToId",
           "type": "text",
@@ -1237,8 +1351,30 @@
           "isUnique": true
         }
       },
-      "foreignKeys": {},
-      "compositePrimaryKeys": {},
+      "foreignKeys": {
+        "junction_time_entries_refId_time_entries_id_fk": {
+          "name": "junction_time_entries_refId_time_entries_id_fk",
+          "tableFrom": "junction_time_entries",
+          "tableTo": "time_entries",
+          "columnsFrom": [
+            "refId"
+          ],
+          "columnsTo": [
+            "id"
+          ],
+          "onDelete": "cascade",
+          "onUpdate": "no action"
+        }
+      },
+      "compositePrimaryKeys": {
+        "junction_time_entries_attachedToId_refId_pk": {
+          "columns": [
+            "attachedToId",
+            "refId"
+          ],
+          "name": "junction_time_entries_attachedToId_refId_pk"
+        }
+      },
       "uniqueConstraints": {},
       "checkConstraints": {}
     }

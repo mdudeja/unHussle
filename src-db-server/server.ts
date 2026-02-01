@@ -11,11 +11,18 @@ import { resourcesRoutes } from './routes/resources'
 import { urlRoutes } from './routes/urls'
 import { timeEntriesRoutes } from './routes/time_entries'
 import { convertDateStrings } from './utils/convertDateString'
+import { runSeed } from './database/seed/run-seed'
 
 console.log('Initializing Database...')
 const uDB = UnHussleDB.getInstance()
 await uDB.getDb()
 console.log('Database Initialized.')
+
+try {
+  await runSeed()
+} catch (error) {
+  console.error('Error running seed data:', error)
+}
 
 const PORT = parseInt(process.env.VITE_DB_SERVER_PORT || '3456', 10)
 const encoder = new TextEncoder()
@@ -27,7 +34,12 @@ const app = new Elysia()
       context.body = convertDateStrings(context.body)
     }
   })
-  .mapResponse(({ responseValue, set }) => {
+  .mapResponse(({ responseValue, set, path }) => {
+    // Skip compression for Swagger documentation routes
+    if (path?.startsWith('/api')) {
+      return
+    }
+
     const isJson = typeof responseValue === 'object'
     const text = isJson
       ? JSON.stringify(responseValue)
@@ -55,14 +67,19 @@ const app = new Elysia()
     }),
   )
   .use(cors())
-  .onError(({ error, code }) => {
-    console.error((error as any).message)
+  .onError(({ error, code, path }) => {
+    console.error(`Error on ${path}: ${(error as any).message}`)
     if (code === 'VALIDATION') {
       return error.detail(error.message)
     }
     return error
   })
-  .get('/health', () => 'OK')
+  .get('/health', () => {
+    if (uDB.isReady()) {
+      return new Response('OK', { status: 200 })
+    }
+    return new Response('Database not ready', { status: 503 })
+  })
   // entities
   .use(taskRoutes)
   .use(resourcesRoutes)

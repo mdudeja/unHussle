@@ -18,7 +18,7 @@ describe('Data Layer Tests', () => {
   let taskId: string
   let resourceId: string
   let timeEntryId: string
-  const testDbPath = join(tmpdir(), `unhussle-test-${Date.now()}.db`)
+  const testDbPath = join(tmpdir(), `unhussle-test-dl-${Date.now()}.db`)
 
   beforeAll(async () => {
     process.env.DB_MIGRATIONS_DIR = join(__dirname, '../../drizzle_migrations')
@@ -31,6 +31,8 @@ describe('Data Layer Tests', () => {
     //Clean up test database file
     try {
       await unlink(testDbPath)
+      await unlink(`${testDbPath}-shm`)
+      await unlink(`${testDbPath}-wal`)
     } catch (error) {
       console.warn('Failed to cleanup test database:', error)
     }
@@ -38,7 +40,7 @@ describe('Data Layer Tests', () => {
 
   test('Create Tag', async () => {
     const [tag] = await db
-      .insert(schema.tagsSchema)
+      .insert(schema.tags)
       .values({
         title: 'Test Tag',
         color: '#ff0000',
@@ -52,7 +54,7 @@ describe('Data Layer Tests', () => {
 
   test('Create Area', async () => {
     const [area] = await db
-      .insert(schema.areasSchema)
+      .insert(schema.areas)
       .values({
         title: 'Test Area',
         status: ProgressStatus.PLANNED,
@@ -68,7 +70,7 @@ describe('Data Layer Tests', () => {
 
   test('Create Project Linked to Area', async () => {
     const [project] = await db
-      .insert(schema.projectsSchema)
+      .insert(schema.projects)
       .values({
         title: 'Test Project',
         status: ProgressStatus.IN_PROGRESS,
@@ -84,7 +86,7 @@ describe('Data Layer Tests', () => {
 
   test('Create URL', async () => {
     const [url] = await db
-      .insert(schema.urlsSchema)
+      .insert(schema.urls)
       .values({
         title: 'Test URL',
         url: 'https://example.com/test',
@@ -98,7 +100,7 @@ describe('Data Layer Tests', () => {
 
   test('Create File URL', async () => {
     const [url] = await db
-      .insert(schema.urlsSchema)
+      .insert(schema.urls)
       .values({
         title: 'Test File URL',
         url: 'file:///path/to/local/file',
@@ -111,7 +113,7 @@ describe('Data Layer Tests', () => {
 
   test('Create Goal', async () => {
     const [goal] = await db
-      .insert(schema.goalsSchema)
+      .insert(schema.goals)
       .values({
         title: 'Test Goal',
         status: ProgressStatus.PLANNED,
@@ -127,7 +129,7 @@ describe('Data Layer Tests', () => {
 
   test('Create Resource', async () => {
     const [resource] = await db
-      .insert(schema.resourcesSchema)
+      .insert(schema.resources)
       .values({
         title: 'Test Resource',
         description: 'A useful resource',
@@ -143,7 +145,7 @@ describe('Data Layer Tests', () => {
 
   test('Create Task Linked to Project', async () => {
     const [task] = await db
-      .insert(schema.tasksSchema)
+      .insert(schema.tasks)
       .values({
         title: 'Test Task',
         status: ProgressStatus.PLANNED,
@@ -161,7 +163,7 @@ describe('Data Layer Tests', () => {
 
   test('Attach Tag to Task via Junction Table', async () => {
     const [junction] = await db
-      .insert(schema.junctionTagsSchema)
+      .insert(schema.junctionTags)
       .values({
         attachedToId: taskId,
         refId: tagId,
@@ -174,7 +176,7 @@ describe('Data Layer Tests', () => {
 
   test('Attach URL to Task via Junction Table', async () => {
     const [junction] = await db
-      .insert(schema.junctionUrlsSchema)
+      .insert(schema.junctionUrls)
       .values({
         attachedToId: taskId,
         refId: urlId,
@@ -187,7 +189,7 @@ describe('Data Layer Tests', () => {
 
   test('Create time entry linked to Task', async () => {
     const [timeEntry] = await db
-      .insert(schema.timeEntriesSchema)
+      .insert(schema.timeEntries)
       .values({
         task_id: taskId,
         start_time: new Date(),
@@ -201,7 +203,7 @@ describe('Data Layer Tests', () => {
 
   test('Attach time entry to Task via Junction Table', async () => {
     const [junction] = await db
-      .insert(schema.junctionTimeEntriesSchema)
+      .insert(schema.junctionTimeEntries)
       .values({
         attachedToId: taskId,
         refId: timeEntryId,
@@ -214,7 +216,7 @@ describe('Data Layer Tests', () => {
 
   test('Attach Tag to Resource', async () => {
     const [junction] = await db
-      .insert(schema.junctionTagsSchema)
+      .insert(schema.junctionTags)
       .values({
         attachedToId: resourceId,
         refId: tagId,
@@ -227,7 +229,7 @@ describe('Data Layer Tests', () => {
 
   test('Attach URL to Project', async () => {
     const [junction] = await db
-      .insert(schema.junctionUrlsSchema)
+      .insert(schema.junctionUrls)
       .values({
         attachedToId: projectId,
         refId: urlId,
@@ -239,8 +241,8 @@ describe('Data Layer Tests', () => {
   })
 
   test('Query Task with Relations including Tags and URLs', async () => {
-    const task = await db.query.tasksSchema.findFirst({
-      where: eq(schema.tasksSchema.id, taskId),
+    const task = await db.query.tasks.findFirst({
+      where: eq(schema.tasks.id, taskId),
       with: {
         project: true,
         area: true,
@@ -270,8 +272,8 @@ describe('Data Layer Tests', () => {
   })
 
   test('Query Task with Time Entries', async () => {
-    const task = await db.query.tasksSchema.findFirst({
-      where: eq(schema.tasksSchema.id, taskId),
+    const task = await db.query.tasks.findFirst({
+      where: eq(schema.tasks.id, taskId),
       with: {
         timeEntries: true,
       },
@@ -283,8 +285,8 @@ describe('Data Layer Tests', () => {
   })
 
   test('Query Project with URL', async () => {
-    const project = await db.query.projectsSchema.findFirst({
-      where: eq(schema.projectsSchema.id, projectId),
+    const project = await db.query.projects.findFirst({
+      where: eq(schema.projects.id, projectId),
       with: {
         urls: {
           with: {
@@ -303,8 +305,8 @@ describe('Data Layer Tests', () => {
   })
 
   test('Query Resource with Tag', async () => {
-    const resource = await db.query.resourcesSchema.findFirst({
-      where: eq(schema.resourcesSchema.id, resourceId),
+    const resource = await db.query.resources.findFirst({
+      where: eq(schema.resources.id, resourceId),
       with: {
         tags: {
           with: {
@@ -323,21 +325,21 @@ describe('Data Layer Tests', () => {
 
   test('Update Task', async () => {
     const [updated] = await db
-      .update(schema.tasksSchema)
+      .update(schema.tasks)
       .set({
         status: ProgressStatus.IN_PROGRESS,
       })
-      .where(eq(schema.tasksSchema.id, taskId))
+      .where(eq(schema.tasks.id, taskId))
       .returning()
 
     expect(updated?.status).toBe(ProgressStatus.IN_PROGRESS)
   })
 
   test('Delete Task', async () => {
-    await db.delete(schema.tasksSchema).where(eq(schema.tasksSchema.id, taskId))
+    await db.delete(schema.tasks).where(eq(schema.tasks.id, taskId))
 
-    const found = await db.query.tasksSchema.findFirst({
-      where: eq(schema.tasksSchema.id, taskId),
+    const found = await db.query.tasks.findFirst({
+      where: eq(schema.tasks.id, taskId),
     })
 
     expect(found).toBeUndefined()
@@ -346,50 +348,46 @@ describe('Data Layer Tests', () => {
   test('Cleanup', async () => {
     // Clean up junction tables first (foreign key constraints)
     await db
-      .delete(schema.junctionTagsSchema)
-      .where(eq(schema.junctionTagsSchema.attachedToId, taskId))
+      .delete(schema.junctionTags)
+      .where(eq(schema.junctionTags.attachedToId, taskId))
     await db
-      .delete(schema.junctionTagsSchema)
-      .where(eq(schema.junctionTagsSchema.attachedToId, resourceId))
+      .delete(schema.junctionTags)
+      .where(eq(schema.junctionTags.attachedToId, resourceId))
     await db
-      .delete(schema.junctionUrlsSchema)
-      .where(eq(schema.junctionUrlsSchema.attachedToId, taskId))
+      .delete(schema.junctionUrls)
+      .where(eq(schema.junctionUrls.attachedToId, taskId))
     await db
-      .delete(schema.junctionUrlsSchema)
-      .where(eq(schema.junctionUrlsSchema.attachedToId, projectId))
+      .delete(schema.junctionUrls)
+      .where(eq(schema.junctionUrls.attachedToId, projectId))
 
     // Delete resources
-    await db
-      .delete(schema.resourcesSchema)
-      .where(eq(schema.resourcesSchema.id, resourceId))
+    await db.delete(schema.resources).where(eq(schema.resources.id, resourceId))
 
     // Delete projects and entities
-    await db
-      .delete(schema.projectsSchema)
-      .where(eq(schema.projectsSchema.id, projectId))
-    await db.delete(schema.areasSchema).where(eq(schema.areasSchema.id, areaId))
-    await db.delete(schema.goalsSchema).where(eq(schema.goalsSchema.id, goalId))
-    await db.delete(schema.tagsSchema).where(eq(schema.tagsSchema.id, tagId))
-    await db.delete(schema.urlsSchema).where(eq(schema.urlsSchema.id, urlId))
+    await db.delete(schema.projects).where(eq(schema.projects.id, projectId))
+    await db.delete(schema.areas).where(eq(schema.areas.id, areaId))
+    await db.delete(schema.goals).where(eq(schema.goals.id, goalId))
+    await db.delete(schema.tags).where(eq(schema.tags.id, tagId))
+    await db.delete(schema.urls).where(eq(schema.urls.id, urlId))
 
     // Verify cleanup
-    const project = await db.query.projectsSchema.findFirst({
-      where: eq(schema.projectsSchema.id, projectId),
+    const project = await db.query.projects.findFirst({
+      where: eq(schema.projects.id, projectId),
     })
-    const area = await db.query.areasSchema.findFirst({
-      where: eq(schema.areasSchema.id, areaId),
+    const area = await db.query.areas.findFirst({
+      where: eq(schema.areas.id, areaId),
     })
-    const goal = await db.query.goalsSchema.findFirst({
-      where: eq(schema.goalsSchema.id, goalId),
+    const goal = await db.query.goals.findFirst({
+      where: eq(schema.goals.id, goalId),
     })
-    const resource = await db.query.resourcesSchema.findFirst({
-      where: eq(schema.resourcesSchema.id, resourceId),
+    const resource = await db.query.resources.findFirst({
+      where: eq(schema.resources.id, resourceId),
     })
-    const tag = await db.query.tagsSchema.findFirst({
-      where: eq(schema.tagsSchema.id, tagId),
+    const tag = await db.query.tags.findFirst({
+      where: eq(schema.tags.id, tagId),
     })
-    const url = await db.query.urlsSchema.findFirst({
-      where: eq(schema.urlsSchema.id, urlId),
+    const url = await db.query.urls.findFirst({
+      where: eq(schema.urls.id, urlId),
     })
 
     expect(project).toBeUndefined()

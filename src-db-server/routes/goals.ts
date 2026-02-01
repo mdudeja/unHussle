@@ -1,4 +1,4 @@
-import { goalsSchema } from '@d/database/schemas'
+import { goals } from '@d/database/schemas'
 import {
   insertGoalSchema,
   selectGoalSchema,
@@ -13,6 +13,6 @@ export const goalRoutes = routeGenerator({
     insert: insertGoalSchema,
     select: selectGoalSchema,
     update: updateGoalSchema,
-    base: goalsSchema,
+    base: goals,
   },
 })

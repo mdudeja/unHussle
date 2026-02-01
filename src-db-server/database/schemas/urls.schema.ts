@@ -2,7 +2,7 @@ import { sqliteTable, text, index, unique } from 'drizzle-orm/sqlite-core'
 import { entitySupporterSchema } from './common.schema'
 import { EntitySupporter, InferTableTypes } from '@c/index'
 
-export const urlsSchema = sqliteTable(
+export const urls = sqliteTable(
   'urls',
   {
     ...entitySupporterSchema,
@@ -31,4 +31,4 @@ export const urlsSchema = sqliteTable(
   ],
 )
 
-export type Url = InferTableTypes<EntitySupporter, typeof urlsSchema>
+export type Url = InferTableTypes<EntitySupporter, typeof urls>

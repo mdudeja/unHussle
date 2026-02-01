@@ -1,4 +1,4 @@
-import { tasksSchema } from '@d/database/schemas/tasks.schema'
+import { tasks } from '@d/database/schemas/tasks.schema'
 import {
   insertTaskSchema,
   selectTaskSchema,
@@ -13,6 +13,6 @@ export const taskRoutes = routeGenerator({
     insert: insertTaskSchema,
     select: selectTaskSchema,
     update: updateTaskSchema,
-    base: tasksSchema,
+    base: tasks,
   },
 })

@@ -2,31 +2,31 @@ import { integer, sqliteTable, text, index } from 'drizzle-orm/sqlite-core'
 import { relations } from 'drizzle-orm'
 import {
   entitySchema,
-  junctionTimeEntriesSchema,
+  junctionTimeEntries,
   prioritySchema,
   statusSchema,
 } from '@d/database/schemas/index'
 import { Entity, InferTableTypes } from '@c/index'
 import {
-  projectsSchema,
-  areasSchema,
-  goalsSchema,
-  junctionTagsSchema,
-  junctionUrlsSchema,
+  projects,
+  areas,
+  goals,
+  junctionTags,
+  junctionUrls,
 } from '@d/database/schemas/index'
 
-export const tasksSchema = sqliteTable(
+export const tasks = sqliteTable(
   'tasks',
   {
     ...entitySchema,
     // Override to add references
-    project_id: text('project_id').references(() => projectsSchema.id, {
+    project_id: text('project_id').references(() => projects.id, {
       onDelete: 'set null',
     }),
-    area_id: text('area_id').references(() => areasSchema.id, {
+    area_id: text('area_id').references(() => areas.id, {
       onDelete: 'set null',
     }),
-    goal_id: text('goal_id').references(() => goalsSchema.id, {
+    goal_id: text('goal_id').references(() => goals.id, {
       onDelete: 'set null',
     }),
     ...statusSchema,
@@ -57,22 +57,22 @@ export const tasksSchema = sqliteTable(
   ],
 )
 
-export const tasksRelations = relations(tasksSchema, ({ one, many }) => ({
-  project: one(projectsSchema, {
-    fields: [tasksSchema.project_id],
-    references: [projectsSchema.id],
+export const tasksRelations = relations(tasks, ({ one, many }) => ({
+  project: one(projects, {
+    fields: [tasks.project_id],
+    references: [projects.id],
   }),
-  area: one(areasSchema, {
-    fields: [tasksSchema.area_id],
-    references: [areasSchema.id],
+  area: one(areas, {
+    fields: [tasks.area_id],
+    references: [areas.id],
   }),
-  goal: one(goalsSchema, {
-    fields: [tasksSchema.goal_id],
-    references: [goalsSchema.id],
+  goal: one(goals, {
+    fields: [tasks.goal_id],
+    references: [goals.id],
   }),
-  tags: many(junctionTagsSchema),
-  urls: many(junctionUrlsSchema),
-  timeEntries: many(junctionTimeEntriesSchema),
+  tags: many(junctionTags),
+  urls: many(junctionUrls),
+  timeEntries: many(junctionTimeEntries),
 }))
 
-export type Task = InferTableTypes<Entity, typeof tasksSchema>
+export type Task = InferTableTypes<Entity, typeof tasks>

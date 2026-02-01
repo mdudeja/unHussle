@@ -4,7 +4,7 @@ import {
   updateProjectSchema,
 } from '@d/database/validation'
 import { routeGenerator } from '@d/routes/routegenerator'
-import { projectsSchema } from '@d/database/schemas'
+import { projects } from '@d/database/schemas'
 
 export const projectRoutes = routeGenerator({
   name: 'projects',
@@ -13,6 +13,6 @@ export const projectRoutes = routeGenerator({
     insert: insertProjectSchema,
     select: selectProjectSchema,
     update: updateProjectSchema,
-    base: projectsSchema,
+    base: projects,
   },
 })

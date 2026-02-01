@@ -1,12 +1,12 @@
 import {
-  areasSchema,
-  tagsSchema,
-  urlsSchema,
-  goalsSchema,
-  projectsSchema,
-  resourcesSchema,
-  tasksSchema,
-  timeEntriesSchema,
+  areas,
+  tags,
+  urls,
+  goals,
+  projects,
+  resources,
+  tasks,
+  timeEntries,
 } from '@d/database/schemas'
 import {
   insertAreaSchema,
@@ -43,60 +43,60 @@ type RouteGeneratorSchemas =
       insert: typeof insertTaskSchema
       select: typeof selectTaskSchema
       update: typeof updateTaskSchema
-      base: typeof tasksSchema
+      base: typeof tasks
     }
   | {
       insert: typeof insertAreaSchema
       select: typeof selectAreaSchema
       update: typeof updateAreaSchema
-      base: typeof areasSchema
+      base: typeof areas
     }
   | {
       insert: typeof insertGoalSchema
       select: typeof selectGoalSchema
       update: typeof updateGoalSchema
-      base: typeof goalsSchema
+      base: typeof goals
     }
   | {
       insert: typeof insertProjectSchema
       select: typeof selectProjectSchema
       update: typeof updateProjectSchema
-      base: typeof projectsSchema
+      base: typeof projects
     }
   | {
       insert: typeof insertTagsSchema
       select: typeof selectTagsSchema
       update: typeof updateTagsSchema
-      base: typeof tagsSchema
+      base: typeof tags
     }
   | {
       insert: typeof insertResourceSchema
       select: typeof selectResourceSchema
       update: typeof updateResourceSchema
-      base: typeof resourcesSchema
+      base: typeof resources
     }
   | {
       insert: typeof insertUrlsSchema
       select: typeof selectUrlsSchema
       update: typeof updateUrlsSchema
-      base: typeof urlsSchema
+      base: typeof urls
     }
   | {
       insert: typeof insertTimeEntriesSchema
       select: typeof selectTimeEntriesSchema
       update: typeof updateTimeEntriesSchema
-      base: typeof timeEntriesSchema
+      base: typeof timeEntries
     }
-
-export type RouteGeneratorConfig = {
-  name: string
-  prefix: string
-  schemas: RouteGeneratorSchemas
-}
 
 // Initialize DB Access
 const uDB = UnHussleDB.getInstance()
 const db = await uDB.getDb()
+
+export type RouteGeneratorConfig = {
+  name: keyof (typeof db)['query']
+  prefix: string
+  schemas: RouteGeneratorSchemas
+}
 
 export const routeGenerator = (config: RouteGeneratorConfig) => {
   return new Elysia({ prefix: config.prefix, name: config.name })

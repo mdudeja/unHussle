@@ -41,8 +41,8 @@ describe('Goals Store', () => {
     await fetch()
 
     const state = useStore.getState()
-    expect(state.goals.data).toHaveLength(1)
-    expect(state.goals.data[0].title).toBe('New Goal')
+    expect(state.goals.data).toHaveLength(8) // seed data has 7 goals
+    expect(state.goals.data[state.goals.data.length - 1].title).toBe('New Goal')
     expect(state.goals.isLoading).toBe(false)
   })
 

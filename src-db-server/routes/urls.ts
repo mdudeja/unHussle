@@ -1,4 +1,4 @@
-import { urlsSchema } from '@d/database/schemas'
+import { urls } from '@d/database/schemas'
 import {
   insertUrlsSchema,
   selectUrlsSchema,
@@ -15,7 +15,7 @@ const urlRoutes = routeGenerator({
     insert: insertUrlsSchema,
     select: selectUrlsSchema,
     update: updateUrlsSchema,
-    base: urlsSchema,
+    base: urls,
   },
 })
 
@@ -37,7 +37,7 @@ urlRoutes
       }
 
       const result = await db
-        .insert(urlsSchema)
+        .insert(urls)
         .values({ ...body, parts: urlParts })
         .returning()
 
@@ -76,9 +76,9 @@ urlRoutes
       }
 
       const result = await db
-        .update(urlsSchema)
+        .update(urls)
         .set(updatedBody)
-        .where(eq(urlsSchema.id, id))
+        .where(eq(urls.id, id))
         .returning()
       if (!result.length || !result[0]) {
         set.status = 500

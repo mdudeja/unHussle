@@ -8,15 +8,15 @@ import {
 import { junctionTableSchema } from './common.schema'
 import { InferTableTypes, JunctionTable } from '@c/index'
 import { relations } from 'drizzle-orm'
-import { tasksSchema, timeEntriesSchema } from '.'
+import { tasks, timeEntries } from '.'
 
-export const junctionTimeEntriesSchema = sqliteTable(
+export const junctionTimeEntries = sqliteTable(
   'junction_time_entries',
   {
     ...junctionTableSchema,
     refId: text()
       .notNull()
-      .references(() => timeEntriesSchema.id, {
+      .references(() => timeEntries.id, {
         onDelete: 'cascade',
       }),
   },
@@ -36,20 +36,20 @@ export const junctionTimeEntriesSchema = sqliteTable(
 )
 
 export const junctionTimeEntriesRelations = relations(
-  junctionTimeEntriesSchema,
+  junctionTimeEntries,
   ({ one }) => ({
-    task: one(tasksSchema, {
-      fields: [junctionTimeEntriesSchema.attachedToId],
-      references: [tasksSchema.id],
+    task: one(tasks, {
+      fields: [junctionTimeEntries.attachedToId],
+      references: [tasks.id],
     }),
-    timeEntry: one(timeEntriesSchema, {
-      fields: [junctionTimeEntriesSchema.refId],
-      references: [timeEntriesSchema.id],
+    timeEntry: one(timeEntries, {
+      fields: [junctionTimeEntries.refId],
+      references: [timeEntries.id],
     }),
   }),
 )
 
 export type JunctionTimeEntries = InferTableTypes<
   JunctionTable,
-  typeof junctionTimeEntriesSchema
+  typeof junctionTimeEntries
 >

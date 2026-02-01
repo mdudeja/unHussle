@@ -13,6 +13,7 @@ export const makeJSONRequest = async <T>({
       body: JSON.stringify(body),
       headers: {
         'Content-Type': 'application/json',
+        Accept: 'application/json',
       },
     }
     const res = await fetch(url, reqInit)
@@ -42,6 +43,7 @@ export const makeTextRequest = async ({
       body: JSON.stringify(body),
       headers: {
         'Content-Type': 'application/json',
+        Accept: 'text/plain',
       },
     })
 

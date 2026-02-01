@@ -1,3 +1,5 @@
+import { makeTextRequest } from '@/lib/server'
+
 export class DatabaseAdapter {
   private isReady: boolean = false
   private port: number | null = null
@@ -35,16 +37,17 @@ export class DatabaseAdapter {
 
     for (let attempt = 1; attempt <= this.maxRetries; attempt++) {
       try {
-        const response = await fetch(healthUrl)
-        if (response.ok) {
+        const serverOk = await makeTextRequest({
+          url: healthUrl,
+          method: 'GET',
+        })
+        if (serverOk === 'OK') {
           this.isReady = true
-          console.log('Connected to database server')
+          console.log('Connected to database server.')
           return
         }
       } catch (err) {
-        console.warn(
-          `Database server not ready (attempt ${attempt} of ${this.maxRetries})`,
-        )
+        console.warn(`Attempt ${attempt} to connect to database server failed.`)
       }
       await new Promise((resolve) => setTimeout(resolve, this.retryDelay))
     }

@@ -4,20 +4,23 @@ import {
   integer,
   index,
   unique,
+  text,
 } from 'drizzle-orm/sqlite-core'
 import { relations } from 'drizzle-orm'
 import { entityCollectionSchema } from './common.schema'
 import { EntityCollection, InferTableTypes } from '@c/index'
-import { tasksSchema } from './tasks.schema'
-import { resourcesSchema } from './resources.schema'
-import { projectsSchema } from './projects.schema'
-import { junctionTagsSchema } from './junction.tags.schema'
-import { junctionUrlsSchema } from './junction.urls.schema'
+import { tasks } from './tasks.schema'
+import { resources } from './resources.schema'
+import { projects } from './projects.schema'
+import { junctionTags } from './junction.tags.schema'
+import { junctionUrls } from './junction.urls.schema'
+import { areas } from './areas.schema'
 
-export const goalsSchema = sqliteTable(
+export const goals = sqliteTable(
   'goals',
   {
     ...entityCollectionSchema,
+    area_id: text().references(() => areas.id, { onDelete: 'set null' }),
     due_date: integer({ mode: 'timestamp_ms' }),
     progress: real().notNull().default(0),
   },
@@ -32,12 +35,16 @@ export const goalsSchema = sqliteTable(
   ],
 )
 
-export const goalsRelations = relations(goalsSchema, ({ many }) => ({
-  tasks: many(tasksSchema),
-  resources: many(resourcesSchema),
-  projects: many(projectsSchema),
-  tags: many(junctionTagsSchema),
-  urls: many(junctionUrlsSchema),
+export const goalsRelations = relations(goals, ({ one, many }) => ({
+  area: one(areas, {
+    fields: [goals.area_id],
+    references: [areas.id],
+  }),
+  tasks: many(tasks),
+  resources: many(resources),
+  projects: many(projects),
+  tags: many(junctionTags),
+  urls: many(junctionUrls),
 }))
 
-export type Goal = InferTableTypes<EntityCollection, typeof goalsSchema>
+export type Goal = InferTableTypes<EntityCollection, typeof goals>
