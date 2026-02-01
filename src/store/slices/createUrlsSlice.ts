@@ -1,4 +1,4 @@
-import { UrlsService } from '@/services/UrlsService'
+import { UrlsService } from '@/services/database/UrlsService'
 import generateCreateDbConnectedStateSlice, {
   DbSlice,
 } from '@/store/slices/createDbConnectedStoreSlice'

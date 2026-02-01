@@ -1,5 +1,5 @@
 import { Area } from '@c/index'
-import { DbService } from '@/services/DbService'
+import { DbService } from '@/services/database/DbService'
 
 export class AreasService extends DbService<Area> {
   private static instance: AreasService

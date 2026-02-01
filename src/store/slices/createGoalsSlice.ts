@@ -1,5 +1,5 @@
 import { Goal } from '@c/index'
-import { GoalsService } from '@/services/GoalsService'
+import { GoalsService } from '@/services/database/GoalsService'
 import generateCreateDbConnectedStateSlice, {
   DbSlice,
 } from '@/store/slices/createDbConnectedStoreSlice'

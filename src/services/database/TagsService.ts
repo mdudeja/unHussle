@@ -1,5 +1,5 @@
 import { Tag } from '@c/index'
-import { DbService } from '@/services/DbService'
+import { DbService } from '@/services/database/DbService'
 
 export class TagsService extends DbService<Tag> {
   private static instance: TagsService

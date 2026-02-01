@@ -1,5 +1,5 @@
 import { Url } from '@d/database/schemas'
-import { DbService } from '@/services/DbService'
+import { DbService } from '@/services/database/DbService'
 
 export class UrlsService extends DbService<Url> {
   private static instance: UrlsService

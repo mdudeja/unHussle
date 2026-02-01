@@ -1,4 +1,4 @@
-import { TasksService } from '@/services/TasksService'
+import { TasksService } from '@/services/database/TasksService'
 
 export class TimeTrackingService {
   private activeTimerId: string | null = null

@@ -1,5 +1,5 @@
 import { Project } from '@c/index'
-import { ProjectsService } from '@/services/ProjectsService'
+import { ProjectsService } from '@/services/database/ProjectsService'
 import generateCreateDbConnectedStateSlice, {
   DbSlice,
 } from '@/store/slices/createDbConnectedStoreSlice'

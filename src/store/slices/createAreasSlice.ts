@@ -1,5 +1,5 @@
 import { Area } from '@c/index'
-import { AreasService } from '@/services/AreasService'
+import { AreasService } from '@/services/database/AreasService'
 import generateCreateDbConnectedStateSlice, {
   DbSlice,
 } from '@/store/slices/createDbConnectedStoreSlice'

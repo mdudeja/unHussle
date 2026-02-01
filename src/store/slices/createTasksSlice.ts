@@ -1,5 +1,5 @@
 import { Task } from '@c/index'
-import { TasksService } from '@/services/TasksService'
+import { TasksService } from '@/services/database/TasksService'
 import generateCreateDbConnectedStateSlice, {
   DbSlice,
 } from '@/store/slices/createDbConnectedStoreSlice'

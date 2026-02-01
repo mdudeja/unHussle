@@ -74,11 +74,15 @@ const app = new Elysia()
     }
     return error
   })
-  .get('/health', () => {
-    if (uDB.isReady()) {
-      return new Response('OK', { status: 200 })
+  .get('/health', ({ set }) => {
+    const dbReady = uDB.isReady()
+    console.log(`Health check - DB ready: ${dbReady}`)
+    if (dbReady) {
+      set.status = 200
+      return 'OK'
     }
-    return new Response('Database not ready', { status: 503 })
+    set.status = 503
+    return 'Database not ready'
   })
   // entities
   .use(taskRoutes)

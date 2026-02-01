@@ -51,7 +51,8 @@ export const makeTextRequest = async ({
       throw new Error(`HTTP error! status: ${res.status}`)
     }
 
-    return res.text()
+    const text = await res.text()
+    return text
   } catch (err) {
     return Promise.reject(err)
   }

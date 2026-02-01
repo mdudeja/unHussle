@@ -1,4 +1,4 @@
-import { ResourcesService } from '@/services/ResourcesService'
+import { ResourcesService } from '@/services/database/ResourcesService'
 import generateCreateDbConnectedStateSlice, {
   DbSlice,
 } from '@/store/slices/createDbConnectedStoreSlice'

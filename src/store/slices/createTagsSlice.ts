@@ -1,5 +1,5 @@
 import { Tag } from '@c/index'
-import { TagsService } from '@/services/TagsService'
+import { TagsService } from '@/services/database/TagsService'
 import generateCreateDbConnectedStateSlice, {
   DbSlice,
 } from '@/store/slices/createDbConnectedStoreSlice'

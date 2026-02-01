@@ -1,4 +1,4 @@
-import { TimeEntriesService } from '@/services/TimeEntriesService'
+import { TimeEntriesService } from '@/services/database/TimeEntriesService'
 import generateCreateDbConnectedStateSlice, {
   DbSlice,
 } from '@/store/slices/createDbConnectedStoreSlice'

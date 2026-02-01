@@ -1,4 +1,4 @@
-import { DbService } from '@/services/DbService'
+import { DbService } from '@/services/database/DbService'
 import { InferTableTypes } from '@c/index'
 import { SQLiteTableWithColumns } from 'drizzle-orm/sqlite-core'
 import { StateCreator } from 'zustand'
