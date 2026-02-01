@@ -1,5 +1,5 @@
 import { makeJSONRequest } from '@/lib/server'
-import { InferTableTypes } from '@c/index'
+import { InferTableTypes } from '@c/types/index'
 import { SQLiteTableWithColumns } from 'drizzle-orm/sqlite-core'
 
 export class DbService<

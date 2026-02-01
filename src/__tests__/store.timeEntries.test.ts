@@ -1,5 +1,6 @@
 import { describe, test, expect, beforeEach } from 'bun:test'
 import { useStore } from '@/store'
+import { getNowMillis } from '@c/datetimeUtils'
 
 describe('Time Entries Store', () => {
   beforeEach(() => {
@@ -22,7 +23,7 @@ describe('Time Entries Store', () => {
     const { add } = useStore.getState().time_entries
     const newTimeEntryData = {
       description: 'New Time Entry',
-      start_time: new Date(),
+      start_time: getNowMillis(),
     }
     await add(newTimeEntryData)
     const state = useStore.getState()
@@ -52,7 +53,7 @@ describe('Time Entries Store', () => {
     const { add, update } = useStore.getState().time_entries
     const newTimeEntryData = {
       description: 'Time Entry to Update',
-      start_time: new Date(),
+      start_time: getNowMillis(),
     }
     await add(newTimeEntryData)
 
@@ -76,7 +77,7 @@ describe('Time Entries Store', () => {
     const { add, remove: deleteTimeEntry } = useStore.getState().time_entries
     const newTimeEntryData = {
       description: 'Time Entry to Delete',
-      start_time: new Date(),
+      start_time: getNowMillis(),
     }
     await add(newTimeEntryData)
 

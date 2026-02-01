@@ -1,4 +1,4 @@
-import { Resource } from '@c/index'
+import { Resource } from '@c/types/index'
 import { DbService } from '@/services/database/DbService'
 
 export class ResourcesService extends DbService<Resource> {

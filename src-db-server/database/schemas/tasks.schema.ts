@@ -6,7 +6,7 @@ import {
   prioritySchema,
   statusSchema,
 } from '@d/database/schemas/index'
-import { Entity, InferTableTypes } from '@c/index'
+import { Entity, InferTableTypes } from '@c/types/index'
 import {
   projects,
   areas,
@@ -33,16 +33,16 @@ export const tasks = sqliteTable(
     ...prioritySchema,
     estimated_minutes: integer({ mode: 'number' }),
     spent_minutes: integer({ mode: 'number' }).notNull().default(0),
-    due_date: integer({ mode: 'timestamp_ms' }),
+    due_date: integer({ mode: 'number' }),
     is_recurring: integer({ mode: 'boolean' }).notNull().default(false),
     recurring_rule: text(),
     is_fun: integer({ mode: 'boolean' }).notNull().default(false),
     is_chore: integer({ mode: 'boolean' }).notNull().default(false),
     is_quick: integer({ mode: 'boolean' }).notNull().default(false),
     stack_order: integer({ mode: 'number' }).notNull().default(0),
-    scheduled_for: integer({ mode: 'timestamp_ms' }),
-    started_at: integer({ mode: 'timestamp_ms' }),
-    completed_at: integer({ mode: 'timestamp_ms' }),
+    scheduled_for: integer({ mode: 'number' }),
+    started_at: integer({ mode: 'number' }),
+    completed_at: integer({ mode: 'number' }),
   },
   (table) => [
     index('tasks_project_idx').on(table.project_id),

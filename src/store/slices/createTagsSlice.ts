@@ -1,4 +1,4 @@
-import { Tag } from '@c/index'
+import { Tag } from '@c/types/index'
 import { TagsService } from '@/services/database/TagsService'
 import generateCreateDbConnectedStateSlice, {
   DbSlice,

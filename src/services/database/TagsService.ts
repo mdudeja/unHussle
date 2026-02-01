@@ -1,4 +1,4 @@
-import { Tag } from '@c/index'
+import { Tag } from '@c/types/index'
 import { DbService } from '@/services/database/DbService'
 
 export class TagsService extends DbService<Tag> {

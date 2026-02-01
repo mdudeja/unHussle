@@ -1,6 +1,7 @@
 import { createId } from '@paralleldrive/cuid2'
-import { Priority, ProgressStatus } from '@c/index'
+import { Priority, ProgressStatus } from '@c/types/index'
 import * as t from 'drizzle-orm/sqlite-core'
+import { getNowMillis } from '@c/datetimeUtils'
 
 // Enums
 const customEnum = <T>(name: string) =>
@@ -15,13 +16,13 @@ const customEnum = <T>(name: string) =>
 // Common Schemas
 export const timestampsSchema = {
   created_at: t
-    .integer({ mode: 'timestamp_ms' })
+    .integer({ mode: 'number' })
     .notNull()
-    .$default(() => new Date()),
+    .$default(() => getNowMillis()),
   updated_at: t
-    .integer({ mode: 'timestamp_ms' })
+    .integer({ mode: 'number' })
     .notNull()
-    .$onUpdate(() => new Date()),
+    .$onUpdate(() => getNowMillis()),
 }
 
 export const prioritySchema = {

@@ -1,12 +1,13 @@
 import { describe, test, expect, beforeAll, afterAll } from 'bun:test'
 import { UnHussleDB } from '@d/database/UnHussleDB'
-import { Priority, ProgressStatus } from '@c/index'
+import { Priority, ProgressStatus } from '@c/types/index'
 import { eq } from 'drizzle-orm'
 import type { BunSQLiteDatabase } from 'drizzle-orm/bun-sqlite'
 import * as schema from 'src-db-server/database/schemas'
 import { unlink } from 'fs/promises'
 import { tmpdir } from 'os'
 import { join } from 'path'
+import { getNowMillis } from '@c/datetimeUtils'
 
 describe('Data Layer Tests', () => {
   let db: BunSQLiteDatabase<typeof schema>
@@ -192,7 +193,7 @@ describe('Data Layer Tests', () => {
       .insert(schema.timeEntries)
       .values({
         task_id: taskId,
-        start_time: new Date(),
+        start_time: getNowMillis(),
       })
       .returning()
 

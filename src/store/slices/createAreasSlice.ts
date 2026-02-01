@@ -1,4 +1,4 @@
-import { Area } from '@c/index'
+import { Area } from '@c/types/index'
 import { AreasService } from '@/services/database/AreasService'
 import generateCreateDbConnectedStateSlice, {
   DbSlice,

@@ -48,7 +48,7 @@ export const runSeed = async ({
     await db.insert(goals).values({
       title: goal.title,
       description: goal.description,
-      due_date: new Date(goal.due_date),
+      due_date: goal.due_date,
       icon: goal.icon,
       color: area.color,
       area_id: area.id,

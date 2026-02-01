@@ -1,4 +1,4 @@
-import { Project } from '@c/index'
+import { Project } from '@c/types/index'
 import { ProjectsService } from '@/services/database/ProjectsService'
 import generateCreateDbConnectedStateSlice, {
   DbSlice,

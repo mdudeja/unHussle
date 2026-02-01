@@ -1,5 +1,5 @@
 import React, { useState } from 'react'
-import { Task, Priority, ProgressStatus } from '@c/index'
+import { Task, Priority, ProgressStatus } from '@c/types/index'
 import { Button } from '@/components/ui/button'
 import { Input } from '@/components/ui/input'
 import { Textarea } from '@/components/ui/textarea'

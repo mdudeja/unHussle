@@ -1,4 +1,4 @@
-import { Priority, ProgressStatus } from '@c/index'
+import { Priority, ProgressStatus } from '@c/types/index'
 
 export { type Goal } from '@d/database/schemas/goals.schema'
 export { type Area } from '@d/database/schemas/areas.schema'

@@ -10,7 +10,6 @@ import { tagRoutes } from '@d/routes/tags'
 import { resourcesRoutes } from './routes/resources'
 import { urlRoutes } from './routes/urls'
 import { timeEntriesRoutes } from './routes/time_entries'
-import { convertDateStrings } from './utils/convertDateString'
 import { runSeed } from './database/seed/run-seed'
 
 console.log('Initializing Database...')
@@ -28,12 +27,6 @@ const PORT = parseInt(process.env.VITE_DB_SERVER_PORT || '3456', 10)
 const encoder = new TextEncoder()
 
 const app = new Elysia()
-  .onTransform((context) => {
-    // Convert any ISO date strings in the body to Date objects
-    if (context.body && typeof context.body === 'object') {
-      context.body = convertDateStrings(context.body)
-    }
-  })
   .mapResponse(({ responseValue, set, path }) => {
     // Skip compression for Swagger documentation routes
     if (path?.startsWith('/api')) {

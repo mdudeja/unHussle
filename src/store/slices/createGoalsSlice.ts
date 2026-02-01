@@ -1,4 +1,4 @@
-import { Goal } from '@c/index'
+import { Goal } from '@c/types/index'
 import { GoalsService } from '@/services/database/GoalsService'
 import generateCreateDbConnectedStateSlice, {
   DbSlice,

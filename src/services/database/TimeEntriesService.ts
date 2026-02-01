@@ -1,4 +1,4 @@
-import { TimeEntry } from '@c/index'
+import { TimeEntry } from '@c/types/index'
 import { DbService } from '@/services/database/DbService'
 
 export class TimeEntriesService extends DbService<TimeEntry> {

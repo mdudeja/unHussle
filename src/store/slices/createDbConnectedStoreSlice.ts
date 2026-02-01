@@ -1,5 +1,5 @@
 import { DbService } from '@/services/database/DbService'
-import { InferTableTypes } from '@c/index'
+import { InferTableTypes } from '@c/types/index'
 import { SQLiteTableWithColumns } from 'drizzle-orm/sqlite-core'
 import { StateCreator } from 'zustand'
 

@@ -1,4 +1,4 @@
-import { Project } from '@c/index'
+import { Project } from '@c/types/index'
 import { DbService } from '@/services/database/DbService'
 
 export class ProjectsService extends DbService<Project> {

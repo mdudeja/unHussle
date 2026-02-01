@@ -1,7 +1,7 @@
 import { sqliteTable, text, index, unique } from 'drizzle-orm/sqlite-core'
 import { relations } from 'drizzle-orm'
 import { entitySchema } from './common.schema'
-import { Entity, InferTableTypes } from '@c/index'
+import { Entity, InferTableTypes } from '@c/types/index'
 import { projects } from './projects.schema'
 import { areas } from './areas.schema'
 import { goals } from './goals.schema'

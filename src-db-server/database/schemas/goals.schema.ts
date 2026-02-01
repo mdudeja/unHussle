@@ -8,7 +8,7 @@ import {
 } from 'drizzle-orm/sqlite-core'
 import { relations } from 'drizzle-orm'
 import { entityCollectionSchema } from './common.schema'
-import { EntityCollection, InferTableTypes } from '@c/index'
+import { EntityCollection, InferTableTypes } from '@c/types/index'
 import { tasks } from './tasks.schema'
 import { resources } from './resources.schema'
 import { projects } from './projects.schema'
@@ -21,7 +21,7 @@ export const goals = sqliteTable(
   {
     ...entityCollectionSchema,
     area_id: text().references(() => areas.id, { onDelete: 'set null' }),
-    due_date: integer({ mode: 'timestamp_ms' }),
+    due_date: integer({ mode: 'number' }),
     progress: real().notNull().default(0),
   },
   (table) => [

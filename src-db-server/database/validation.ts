@@ -10,7 +10,7 @@ import {
   timeEntries,
 } from '@d/database/schemas/index'
 import { t } from 'elysia'
-import { ProgressStatus, Priority } from '@c/index'
+import { ProgressStatus, Priority } from '@c/types/index'
 
 // Tasks
 export const insertTaskSchema = createInsertSchema(tasks, {

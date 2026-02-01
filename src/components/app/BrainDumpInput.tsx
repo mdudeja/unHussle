@@ -3,7 +3,7 @@ import { Input } from '@/components/ui/input'
 import { Button } from '@/components/ui/button'
 import { AlertCircle, MinusCircle, ArrowRight } from 'lucide-react'
 import { useStore } from '@/store'
-import { Priority, ProgressStatus } from '@c/index'
+import { Priority, ProgressStatus } from '@c/types/index'
 import { createId } from '@paralleldrive/cuid2'
 
 export const BrainDumpInputComponent = ({
