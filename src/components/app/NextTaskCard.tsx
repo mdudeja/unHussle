@@ -39,7 +39,7 @@ export const NextTaskCardComponent = ({ ref }: React.ComponentProps<'div'>) => {
       const pA = getPriorityVal(a.priority)
       const pB = getPriorityVal(b.priority)
       if (pA !== pB) return pB - pA
-      return a.created_at.getTime() - b.created_at.getTime() // Oldest first
+      return a.created_at - b.created_at // Oldest first
     })[0]
   }, [tasks.data])
 
@@ -67,10 +67,10 @@ export const NextTaskCardComponent = ({ ref }: React.ComponentProps<'div'>) => {
 
   if (!nextTask) {
     return (
-      <Card className="w-full max-w-2xl mx-auto border-border bg-surface/50">
-        <CardContent className="flex flex-col items-center justify-center p-8 text-muted-foreground gap-4">
-          <div className="p-4 rounded-full bg-background border border-border">
-            <Coffee className="size-8 text-sage" />
+      <Card className="w-full max-w-2xl mx-auto border-primary/30 shadow-accent">
+        <CardContent className="flex flex-col items-center justify-center p-8 text-primary gap-4">
+          <div className="p-4 rounded-full border border-primary/30 shadow-md">
+            <Coffee className="size-8 text-primary" />
           </div>
           <div className="text-center">
             <h3 className="text-lg font-medium text-text">All caught up!</h3>
@@ -89,15 +89,15 @@ export const NextTaskCardComponent = ({ ref }: React.ComponentProps<'div'>) => {
     <Card
       ref={ref}
       className={cn(
-        'w-full max-w-2xl mx-auto transition-all duration-300',
+        'w-full max-w-2xl mx-auto border-primary/30 shadow-accent',
         isHighPriority
-          ? 'border-l-4 border-l-danger shadow-md'
-          : 'border-l-4 border-l-primary shadow-sm',
+          ? 'border-l-8 border-l-primary'
+          : 'border-l-8 border-l-accent',
       )}
     >
       <CardHeader className="pb-2">
         <div className="flex items-center justify-between">
-          <span className="text-xs uppercase tracking-wider font-semibold text-muted-foreground">
+          <span className="text-sm uppercase tracking-wider font-semibold text-primary animate-bounce-short">
             {nextTask.status === ProgressStatus.IN_PROGRESS
               ? 'Current Focus'
               : 'Next Up'}

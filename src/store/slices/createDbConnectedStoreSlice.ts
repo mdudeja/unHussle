@@ -10,7 +10,7 @@ export interface DbSlice<
   isLoading: boolean
   error: string | null
   fetch: () => Promise<void>
-  add: (data: T['Write']) => Promise<void>
+  add: (data: T['Write']) => Promise<T['Read']>
   update: (id: string, data: T['Update']) => Promise<void>
   remove: (id: string) => Promise<void>
   reset: () => Promise<void>
@@ -84,6 +84,7 @@ export default function generateCreateDbConnectedStateSlice<
                   },
                 }) as any,
             )
+            return newData
           } catch (error) {
             set(
               (state) =>

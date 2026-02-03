@@ -38,6 +38,13 @@ export const areasData = [
     color: '#e67e22',
     icon: 'plane',
   },
+  {
+    title: 'Brain Dump',
+    description:
+      'A place to quickly jot down thoughts, ideas, and tasks for later organization.',
+    color: '#95a5a6',
+    icon: 'brain-circuit',
+  },
 ]
 
 export const goalsData = [

@@ -7,6 +7,7 @@ export const timeEntries = sqliteTable(
   'time_entries',
   {
     ...entitySupporterSchema,
+    title: text().default(''),
     task_id: text('task_id').references(() => tasks.id, {
       onDelete: 'cascade',
     }),

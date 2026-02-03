@@ -37,8 +37,10 @@ import {
 import { Elysia } from 'elysia'
 import { UnHussleDB } from '@d/database/UnHussleDB'
 import { eq } from 'drizzle-orm'
+import { Static, Type } from '@sinclair/typebox'
+import { Value } from '@sinclair/typebox/value'
 
-type RouteGeneratorSchemas =
+export type RouteGeneratorSchemas =
   | {
       insert: typeof insertTaskSchema
       select: typeof selectTaskSchema
@@ -113,33 +115,62 @@ export const routeGenerator = (config: RouteGeneratorConfig) => {
 
     .get(
       '/',
-      async ({ db }) => {
+      async () => {
         console.log(`Get All ${config.name}`)
-        return await db.select().from(config.schemas.base)
+        const ps = uDB.getPreparedStatement(config.name, 'get_all')
+        if (!ps) {
+          throw new Error('Prepared statement not found')
+        }
+
+        return Value.Parse(Type.Array(config.schemas.select), ps.all())
       },
       {
-        response: Array(config.schemas.select),
+        response: Type.Array(config.schemas.select),
       },
     )
 
     .get(
       '/:id',
-      async ({ params: { id }, db }) => {
+      async ({ params: { id } }) => {
         console.log(`Get ${config.name} with id: `, id)
-        const result = await db
-          .select()
-          .from(config.schemas.base)
-          .where(eq(config.schemas.base.id, id))
-          .limit(1)
+        const ps = uDB.getPreparedStatement(config.name, 'get_by_id')
 
-        if (!result.length || !result[0]) {
+        if (!ps) {
+          throw new Error('Prepared statement not found')
+        }
+
+        const result = ps.get({ id })
+
+        if (!result) {
           throw new Error('NOT_FOUND')
         }
 
-        return result[0]
+        return Value.Parse(config.schemas.select, result)
       },
       {
         response: config.schemas.select,
+      },
+    )
+
+    .get(
+      '/search/:term',
+      async ({ params: { term } }) => {
+        console.log(`Search ${config.name} with term: `, term)
+
+        const ps = uDB.getPreparedStatement(config.name, 'search')
+
+        if (!ps) {
+          throw new Error('Prepared statement not found')
+        }
+
+        const values = ps.all({ term: `%${term.toLowerCase()}%` })
+
+        const result = Value.Parse(Type.Array(config.schemas.select), values)
+
+        return result
+      },
+      {
+        response: Type.Array(config.schemas.select),
       },
     )
 
@@ -157,7 +188,7 @@ export const routeGenerator = (config: RouteGeneratorConfig) => {
           throw new Error('Failed to insert task')
         }
 
-        return result[0]
+        return Value.Parse(config.schemas.select, result[0])
       },
       {
         body: config.schemas.insert,
@@ -174,11 +205,13 @@ export const routeGenerator = (config: RouteGeneratorConfig) => {
           .set(body)
           .where(eq(config.schemas.base.id, id))
           .returning()
+
         if (!result.length || !result[0]) {
           set.status = 500
           throw new Error('Failed to update task')
         }
-        return result[0]
+
+        return Value.Parse(config.schemas.select, result[0])
       },
       {
         body: config.schemas.update,
@@ -186,12 +219,18 @@ export const routeGenerator = (config: RouteGeneratorConfig) => {
       },
     )
 
-    .delete('/all', async () => {
-      console.log(`Delete all ${config.name} `)
-      const result = await db.delete(config.schemas.base).returning()
+    .delete(
+      '/all',
+      async () => {
+        console.log(`Delete all ${config.name} `)
+        const result = await db.delete(config.schemas.base).returning()
 
-      return result
-    })
+        return { deleted: result.length }
+      },
+      {
+        response: Type.Object({ deleted: Type.Number() }),
+      },
+    )
 
     .delete(
       '/:id',
@@ -206,7 +245,7 @@ export const routeGenerator = (config: RouteGeneratorConfig) => {
           throw new Error('NOT_FOUND')
         }
 
-        return result[0]
+        return Value.Parse(config.schemas.select, result[0])
       },
       {
         response: config.schemas.select,
