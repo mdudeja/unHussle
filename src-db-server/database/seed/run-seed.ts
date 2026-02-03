@@ -2,6 +2,7 @@ import { areas, goals } from '@d/database/schemas'
 import { UnHussleDB } from '@d/database/UnHussleDB'
 import { areasData, goalsData } from '@d/database/seed/data'
 import { eq } from 'drizzle-orm'
+import { Logger } from '@c/Logger'
 
 export const runSeed = async ({
   areasToSeed,
@@ -10,7 +11,8 @@ export const runSeed = async ({
   areasToSeed?: typeof areasData
   goalsToSeed?: typeof goalsData
 } = {}) => {
-  console.log('Running seed data...')
+  const logger = Logger.getInstance()
+  logger.debug('Running seed data...')
 
   areasToSeed = areasToSeed || areasData
   goalsToSeed = goalsToSeed || goalsData
@@ -23,7 +25,7 @@ export const runSeed = async ({
   const goalCount = await db.$count(goals)
 
   if (areaCount > 0 || goalCount > 0) {
-    console.log('Areas or Goals table is not empty. Skipping seed data.')
+    logger.debug('Areas or Goals table is not empty. Skipping seed data.')
     return
   }
 
@@ -39,7 +41,7 @@ export const runSeed = async ({
     })
 
     if (!area) {
-      console.warn(
+      logger.warn(
         `Area with title "${goal.mapToArea}" not found. Skipping goal "${goal.title}".`,
       )
       continue
@@ -55,5 +57,5 @@ export const runSeed = async ({
     })
   }
 
-  console.log('Seed data inserted successfully.')
+  logger.debug('Seed data inserted successfully.')
 }

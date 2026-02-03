@@ -11,22 +11,27 @@ import { resourcesRoutes } from './routes/resources'
 import { urlRoutes } from './routes/urls'
 import { timeEntriesRoutes } from './routes/time_entries'
 import { runSeed } from './database/seed/run-seed'
+import { Logger } from '@c/Logger'
 
-console.log('Initializing Database...')
+const logger = Logger.getInstance()
+
+logger.debug('Initializing Database...')
 const uDB = UnHussleDB.getInstance()
 await uDB.getDb()
-console.log('Database Initialized.')
+logger.debug('Database Initialized.')
 
 try {
   await runSeed()
 } catch (error) {
-  console.error('Error running seed data:', error)
+  logger.error(`Error running seed data: ${error}`)
 }
 
 const PORT = parseInt(process.env.VITE_DB_SERVER_PORT || '3456', 10)
 const encoder = new TextEncoder()
 
 const app = new Elysia()
+  .decorate('logger', logger)
+
   .mapResponse(({ responseValue, set, path }) => {
     // Skip compression for Swagger documentation routes
     if (path?.startsWith('/api')) {
@@ -48,6 +53,7 @@ const app = new Elysia()
 
     return new Response(compressedText)
   })
+
   .use(
     swagger({
       path: '/api',
@@ -59,17 +65,20 @@ const app = new Elysia()
       },
     }),
   )
+
   .use(cors())
-  .onError(({ error, code, path }) => {
-    console.error(`Error on ${path}: ${(error as any).message}`)
+
+  .onError(({ error, code, path, logger }) => {
+    logger.error(`Error on ${path}: ${(error as any).message}`)
     if (code === 'VALIDATION') {
       return error.detail(error.message)
     }
     return error
   })
-  .get('/health', ({ set }) => {
+
+  .get('/health', ({ set, logger }) => {
     const dbReady = uDB.isReady()
-    console.log(`Health check - DB ready: ${dbReady}`)
+    logger.debug(`Health check - DB ready: ${dbReady}`)
     if (dbReady) {
       set.status = 200
       return 'OK'
@@ -93,7 +102,7 @@ const app = new Elysia()
 
   .listen(PORT)
 
-console.log(
+logger.debug(
   `🦊 Elysia is running at ${app.server?.hostname}:${app.server?.port}`,
 )
 

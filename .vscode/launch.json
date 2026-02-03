@@ -9,11 +9,9 @@
             "runtime": "bun",
             "runtimeArgs": [
                 "run",
-                "server"
+                "server",
             ],
             "cwd": "${workspaceFolder}",
-            "stopOnEntry": false,
-            "watchMode": false
         },
         {
             "type": "bun",

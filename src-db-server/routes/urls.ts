@@ -23,8 +23,8 @@ urlRoutes
 
   .post(
     '/',
-    async ({ body, set, db }) => {
-      console.log(`Add url with id: `, body.id)
+    async ({ body, set, db, logger }) => {
+      logger.debug(`Add url with id: ${body.id}`)
       const url = new URL(body.url)
 
       const urlParts = {

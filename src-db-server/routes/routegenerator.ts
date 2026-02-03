@@ -37,8 +37,9 @@ import {
 import { Elysia } from 'elysia'
 import { UnHussleDB } from '@d/database/UnHussleDB'
 import { eq } from 'drizzle-orm'
-import { Static, Type } from '@sinclair/typebox'
+import { Type } from '@sinclair/typebox'
 import { Value } from '@sinclair/typebox/value'
+import { Logger } from '@c/Logger'
 
 export type RouteGeneratorSchemas =
   | {
@@ -103,8 +104,9 @@ export type RouteGeneratorConfig = {
 export const routeGenerator = (config: RouteGeneratorConfig) => {
   return new Elysia({ prefix: config.prefix, name: config.name })
     .decorate('db', db)
-    .onError(({ code, status, error }) => {
-      console.error('Error occurred:', { code, status, error })
+    .decorate('logger', Logger.getInstance())
+    .onError(({ code, status, error, logger }) => {
+      logger.error(`Error in ${config.name} route: ${{ code, status, error }}`)
 
       if (code === 'NOT_FOUND') {
         return status(404, `${config.name} not found`)
@@ -115,8 +117,8 @@ export const routeGenerator = (config: RouteGeneratorConfig) => {
 
     .get(
       '/',
-      async () => {
-        console.log(`Get All ${config.name}`)
+      async ({ logger }) => {
+        logger.debug(`Get All ${config.name}`)
         const ps = uDB.getPreparedStatement(config.name, 'get_all')
         if (!ps) {
           throw new Error('Prepared statement not found')
@@ -131,8 +133,8 @@ export const routeGenerator = (config: RouteGeneratorConfig) => {
 
     .get(
       '/:id',
-      async ({ params: { id } }) => {
-        console.log(`Get ${config.name} with id: `, id)
+      async ({ params: { id }, logger }) => {
+        logger.debug(`Get ${config.name} with id: ${id}`)
         const ps = uDB.getPreparedStatement(config.name, 'get_by_id')
 
         if (!ps) {
@@ -154,8 +156,8 @@ export const routeGenerator = (config: RouteGeneratorConfig) => {
 
     .get(
       '/search/:term',
-      async ({ params: { term } }) => {
-        console.log(`Search ${config.name} with term: `, term)
+      async ({ params: { term }, logger }) => {
+        logger.debug(`Search ${config.name} with term: ${term}`)
 
         const ps = uDB.getPreparedStatement(config.name, 'search')
 
@@ -176,8 +178,8 @@ export const routeGenerator = (config: RouteGeneratorConfig) => {
 
     .post(
       '/',
-      async ({ body, set, db }) => {
-        console.log(`Add ${config.name} with id: `, body.id)
+      async ({ body, set, db, logger }) => {
+        logger.debug(`Add ${config.name} with id: ${body.id}`)
         const result = await db
           .insert(config.schemas.base)
           .values(body)
@@ -198,8 +200,8 @@ export const routeGenerator = (config: RouteGeneratorConfig) => {
 
     .patch(
       '/:id',
-      async ({ params: { id }, body, set, db }) => {
-        console.log(`Update ${config.name} with id: `, id)
+      async ({ params: { id }, body, set, db, logger }) => {
+        logger.debug(`Update ${config.name} with id: ${id}`)
         const result = await db
           .update(config.schemas.base)
           .set(body)
@@ -221,8 +223,8 @@ export const routeGenerator = (config: RouteGeneratorConfig) => {
 
     .delete(
       '/all',
-      async () => {
-        console.log(`Delete all ${config.name} `)
+      async ({ logger }) => {
+        logger.debug(`Delete all ${config.name} `)
         const result = await db.delete(config.schemas.base).returning()
 
         return { deleted: result.length }
@@ -234,8 +236,8 @@ export const routeGenerator = (config: RouteGeneratorConfig) => {
 
     .delete(
       '/:id',
-      async ({ params: { id }, db }) => {
-        console.log(`Delete ${config.name} with id: `, id)
+      async ({ params: { id }, db, logger }) => {
+        logger.debug(`Delete ${config.name} with id: ${id}`)
         const result = await db
           .delete(config.schemas.base)
           .where(eq(config.schemas.base.id, id))
