@@ -1,8 +1,8 @@
 {
   "version": "6",
   "dialect": "sqlite",
-  "id": "f4ebf6e6-1750-4c64-ba7a-0b68bf2be661",
-  "prevId": "2bea99f1-71a8-4fc1-8a5a-7a38b1d8b72f",
+  "id": "8b2bc472-7585-410a-8f72-3651a296a869",
+  "prevId": "00000000-0000-0000-0000-000000000000",
   "tables": {
     "areas": {
       "name": "areas",

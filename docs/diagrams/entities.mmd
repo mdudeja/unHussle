@@ -1,0 +1,160 @@
+---
+references:
+  - "File: /src-db-server/database/schemas/resources.schema.ts"
+  - "File: /src-db-server/database/schemas/junction.time_entries.schema.ts"
+  - "File: /src-db-server/database/schemas/projects.schema.ts"
+  - "File: /src-db-server/database/schemas/junction.urls.schema.ts"
+  - "File: /src-db-server/database/schemas/tasks.schema.ts"
+  - "File: /src-db-server/database/schemas/junction.tags.schema.ts"
+  - "File: /src-db-server/database/schemas/common.schema.ts"
+  - "File: /src-db-server/database/schemas/goals.schema.ts"
+  - "File: /src-db-server/database/schemas/areas.schema.ts"
+  - "File: /src-db-server/database/schemas/time_entries.schema.ts"
+  - "File: /src-db-server/database/schemas/tags.schema.ts"
+  - "File: /src-db-server/database/schemas/urls.schema.ts"
+generationTime: 2026-02-04T02:13:44.964Z
+---
+erDiagram
+    AREAS {
+        text id PK
+        integer created_at
+        integer updated_at
+        text color
+        text description
+        text icon
+        text priority
+        text status
+        text title
+    }
+    GOALS {
+        text id PK
+        text area_id FK
+        integer created_at
+        integer due_date
+        integer updated_at
+        real progress
+        text color
+        text description
+        text icon
+        text priority
+        text status
+        text title
+    }
+    PROJECTS {
+        text id PK
+        text area_id FK
+        text goal_id FK
+        integer created_at
+        integer due_date
+        integer updated_at
+        text color
+        text description
+        text icon
+        text priority
+        text status
+        text title
+    }
+    TASKS {
+        text id PK
+        text area_id FK
+        text goal_id FK
+        text project_id FK
+        integer completed_at
+        integer created_at
+        integer due_date
+        integer estimated_minutes
+        integer is_chore
+        integer is_fun
+        integer is_quick
+        integer is_recurring
+        integer scheduled_for
+        integer spent_minutes
+        integer stack_order
+        integer started_at
+        integer updated_at
+        text description
+        text priority
+        text recurring_rule
+        text status
+        text title
+    }
+    RESOURCES {
+        text id PK
+        text area_id FK
+        text goal_id FK
+        text project_id FK
+        integer created_at
+        integer updated_at
+        text description
+        text title
+    }
+    TAGS {
+        text id PK
+        integer created_at
+        integer updated_at
+        text color
+        text description
+        text title
+    }
+    URLS {
+        text id PK
+        integer created_at
+        integer updated_at
+        text description
+        text parts
+        text title
+        text url
+    }
+    TIME_ENTRIES {
+        text id PK
+        text task_id FK
+        integer created_at
+        integer duration
+        integer end_time
+        integer start_time
+        integer updated_at
+        text description
+        text title
+    }
+    JUNCTION_TAGS {
+        text attachedToId PK, FK
+        text refId PK, FK
+        integer created_at
+        integer updated_at
+    }
+    JUNCTION_URLS {
+        text attachedToId PK, FK
+        text refId PK, FK
+        integer created_at
+        integer updated_at
+    }
+    JUNCTION_TIME_ENTRIES {
+        text attachedToId PK, FK
+        text refId PK, FK
+        integer created_at
+        integer updated_at
+    }
+    AREAS ||--o{ GOALS : area_id
+    AREAS ||--o{ JUNCTION_TAGS : attachedToId
+    AREAS ||--o{ JUNCTION_URLS : attachedToId
+    AREAS ||--o{ PROJECTS : area_id
+    AREAS ||--o{ RESOURCES : area_id
+    AREAS ||--o{ TASKS : area_id
+    GOALS ||--o{ JUNCTION_TAGS : attachedToId
+    GOALS ||--o{ JUNCTION_URLS : attachedToId
+    GOALS ||--o{ PROJECTS : goal_id
+    GOALS ||--o{ RESOURCES : goal_id
+    GOALS ||--o{ TASKS : goal_id
+    PROJECTS ||--o{ JUNCTION_TAGS : attachedToId
+    PROJECTS ||--o{ JUNCTION_URLS : attachedToId
+    PROJECTS ||--o{ RESOURCES : project_id
+    PROJECTS ||--o{ TASKS : project_id
+    RESOURCES ||--o{ JUNCTION_TAGS : attachedToId
+    RESOURCES ||--o{ JUNCTION_URLS : attachedToId
+    TAGS ||--o{ JUNCTION_TAGS : refId
+    TASKS ||--o{ JUNCTION_TAGS : attachedToId
+    TASKS ||--o{ JUNCTION_TIME_ENTRIES : attachedToId
+    TASKS ||--o{ JUNCTION_URLS : attachedToId
+    TASKS ||--o{ TIME_ENTRIES : task_id
+    TIME_ENTRIES ||--o{ JUNCTION_TIME_ENTRIES : refId
+    URLS ||--o{ JUNCTION_URLS : refId

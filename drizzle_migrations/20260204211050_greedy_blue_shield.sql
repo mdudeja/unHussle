@@ -153,6 +153,7 @@ CREATE TABLE `time_entries` (
 	`description` text,
 	`created_at` integer NOT NULL,
 	`updated_at` integer NOT NULL,
+	`title` text DEFAULT '',
 	`task_id` text,
 	`start_time` integer NOT NULL,
 	`end_time` integer,
