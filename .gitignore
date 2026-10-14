@@ -31,3 +31,6 @@ db_test
 
 docs/content/**/*
 
+
+# All agentic stuff
+.agentic/

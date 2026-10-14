@@ -27,7 +27,6 @@ try {
 }
 
 const PORT = parseInt(process.env.VITE_DB_SERVER_PORT || '3456', 10)
-const encoder = new TextEncoder()
 
 const app = new Elysia()
   .decorate('logger', logger)
@@ -43,7 +42,7 @@ const app = new Elysia()
       ? JSON.stringify(responseValue)
       : String(responseValue?.toString() ?? '')
 
-    const compressedText = Bun.gzipSync(encoder.encode(text))
+    const compressedText = Bun.gzipSync(text)
 
     set.headers['Content-Encoding'] = 'gzip'
     set.headers['Content-Length'] = String(compressedText.byteLength)

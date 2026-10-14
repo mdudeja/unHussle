@@ -15,8 +15,6 @@ fn greet(name: &str) -> String {
 struct DbServer(Mutex<Option<CommandChild>>);
 
 fn start_db_server(app: &AppHandle) -> Result<CommandChild, String> {
-    use tauri::Manager;
-
     // Get app data directory and resource directory
     let db_path = app
         .path()
@@ -28,7 +26,7 @@ fn start_db_server(app: &AppHandle) -> Result<CommandChild, String> {
         .map_err(|e| format!("Failed to get resource directory: {}", e))?;
 
     // Ensure app data directory exists
-    std::fs::create_dir_all(&db_path.parent().unwrap())
+    std::fs::create_dir_all(db_path.parent().unwrap())
         .map_err(|e| format!("Failed to create app data directory: {}", e))?;
 
     println!("Database path: {:?}", db_path.to_str().unwrap());
@@ -130,7 +128,7 @@ pub fn run() {
             let handle = app.handle();
 
             // Start the database server sidecar
-            match start_db_server(&handle) {
+            match start_db_server(handle) {
                 Ok(child) => {
                     let pid = child.pid();
                     let state = handle.state::<DbServer>();
