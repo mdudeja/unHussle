@@ -2,21 +2,25 @@ import { Url } from '@d/database/schemas'
 
 type UrlParseResult = {
   urls: Url['Write'][]
-  urlCleanText: string
+  textMinusUrls: string
 }
 
-export const parseUrl = (
-  inputText: string,
-  cleanText: string,
-): UrlParseResult => {
-  const result: UrlParseResult = { urls: [], urlCleanText: cleanText }
-  const urlRegex = /(https?:\/\/[^\s]+|file:\/\/[^\s]+)/gi
-  const urls = inputText.match(urlRegex)
-  result.urls = urls ? urls.map((url) => ({ url })) : []
+// Matches a URL-like token anywhere in the text: either an explicit scheme
+// (http/https/file) or a `www.` prefix. A bare word is intentionally not
+// treated as a URL.
+const urlRegex = /(?:(?:https?|file):\/\/|www\.)\S+/gi
+const trailingPunctuationRegex = /[.,;:!?)\]}>'"]+$/
 
-  result.urls.forEach((urlObj) => {
-    result.urlCleanText = result.urlCleanText.replace(urlObj.url, '')
+export const parseUrl = (inputText: string): UrlParseResult => {
+  const matches = inputText.match(urlRegex) ?? []
+  const urls = matches.map((raw) => ({
+    url: raw.replace(trailingPunctuationRegex, ''),
+  }))
+
+  let textMinusUrls = inputText
+  urls.forEach(({ url }) => {
+    textMinusUrls = textMinusUrls.split(url).join('')
   })
 
-  return result
+  return { urls, textMinusUrls }
 }

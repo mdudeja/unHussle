@@ -27,14 +27,6 @@ export class TimeTrackingService {
 
     const endTime = Date.now()
     const durationMs = endTime - active.startTime
-    // Convert to minutes for 'spent_minutes' in DB (since schema is integer minutes)
-    // OR seconds? Schema says 'spent_minutes'. Let's assume minutes.
-    // If schema was 'spent_seconds' we'd be more precise.
-    // Wait, TasksSchema spent_minutes: integer.
-    // Let's stick to minutes, but maybe we should accumulate seconds in future.
-    // For now, let's just add the minutes elapsed.
-
-    // Better strategy: Fetch current task, add delta.
     try {
       const task = await TasksService.getInstance().fetchById(active.taskId)
       if (task) {

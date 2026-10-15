@@ -5,7 +5,7 @@ type HashtagParseResult = {
   area_id?: string
   goal_id?: string
   tags?: Tag['Write'][]
-  hashtagCleanText: string
+  textWithoutTags: string
 }
 
 export const parseHashtags = ({
@@ -13,25 +13,26 @@ export const parseHashtags = ({
   existingProjects,
   existingAreas,
   existingGoals,
-  cleanText,
 }: {
   text: string
   existingProjects: Project['Read'][]
   existingAreas: Area['Read'][]
   existingGoals: Goal['Read'][]
-  cleanText: string
 }): HashtagParseResult => {
   const result: HashtagParseResult = {
-    hashtagCleanText: cleanText,
+    textWithoutTags: text,
   }
-  const hashtagRegex = /#'([^']+)'/g
+  // Captures the whole hashtag body (everything up to the next whitespace),
+  // whether or not it is followed by more text.
+  const hashtagRegex = /(?<=#)\S+/g
   const hashtags = text.match(hashtagRegex) || []
 
   const tagsSet = new Set<string>()
 
   for (const tag of hashtags) {
-    const tagName = tag.trim().slice(2, -1).toLowerCase()
-    result.hashtagCleanText = result.hashtagCleanText.replace(tag, '')
+    const tagName = tag.trim().toLowerCase()
+    // Remove the hashtag including its `#`, using the original casing.
+    result.textWithoutTags = result.textWithoutTags.replace(`#${tag}`, '')
 
     // Check if it's an existing project, area, goal, or tag
     const matchedProject = existingProjects.find(
