@@ -31,6 +31,8 @@ import {
   parseDataFromTaskInput,
   ParsedData,
 } from '@/lib/inputParsers/parseDataFromTaskInput'
+import { useAPGHashtagAutocomplete } from '@/lib/hooks/useAPGHashtagAutocomplete'
+import { AutocompleteList } from '@/components/ui/custom/AutocompleteList'
 
 const starterParsedData: ParsedData = {
   task: {
@@ -77,6 +79,14 @@ export const BrainDumpInputComponent = () => {
   const areas = useStore((state) => state.areas)
   const projects = useStore((state) => state.projects)
   const goals = useStore((state) => state.goals)
+
+  // `#` autocomplete for areas, projects and goals. Selecting a suggestion
+  // inserts its hashtag (e.g. `#health_fitness`) at the cursor token.
+  const autocomplete = useAPGHashtagAutocomplete({
+    inputValue,
+    enabled: !isSubmitting,
+    onSelect: (_suggestion, nextInputValue) => setInputValue(nextInputValue),
+  })
 
   useEffect(() => {
     const parsed = parseDataFromTaskInput({
@@ -176,6 +186,11 @@ export const BrainDumpInputComponent = () => {
   const handleKeyDown = (
     e: React.KeyboardEvent<HTMLInputElement | HTMLTextAreaElement>,
   ) => {
+    // Let the autocomplete consume navigation and selection keys when open.
+    if (autocomplete.onKeyDown(e)) {
+      return
+    }
+
     if (e.key === 'Enter' && (e.ctrlKey || e.metaKey)) {
       e.preventDefault()
       handleSubmit()
@@ -239,6 +254,16 @@ export const BrainDumpInputComponent = () => {
               disabled={isSubmitting}
             />
           </div>
+        )}
+
+        {autocomplete.isOpen && (
+          <AutocompleteList
+            options={autocomplete.suggestions}
+            highlightedIndex={autocomplete.highlightedIndex}
+            onSelect={autocomplete.select}
+            onHighlight={autocomplete.setHighlightedIndex}
+            className="absolute left-0 right-0 top-full z-50 mt-1"
+          />
         )}
       </div>
 

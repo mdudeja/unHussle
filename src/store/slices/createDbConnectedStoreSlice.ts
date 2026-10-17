@@ -94,11 +94,11 @@ export default function generateCreateDbConnectedStateSlice<
                 ({
                   [sliceName]: {
                     ...state[sliceName],
-                    searchResults,
                     isLoading: false,
                   },
                 }) as any,
             )
+            return searchResults
           } catch (error) {
             set(
               (state) =>
@@ -110,6 +110,7 @@ export default function generateCreateDbConnectedStateSlice<
                   },
                 }) as any,
             )
+            return [] as T['Read'][]
           }
         },
 

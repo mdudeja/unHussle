@@ -54,6 +54,7 @@ export const runSeed = async ({
       icon: goal.icon,
       color: area.color,
       area_id: area.id,
+      goal_tag: goal.goal_tag,
     })
   }
 

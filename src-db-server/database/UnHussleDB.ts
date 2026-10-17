@@ -111,7 +111,25 @@ export class UnHussleDB {
       resources: schema.resources,
     }
 
+    const nameToTagsColumnMap = {
+      projects: schema.projects.project_tag,
+      areas: schema.areas.area_tag,
+      goals: schema.goals.goal_tag,
+    }
+
     const table = nameToTableMap[name as keyof typeof nameToTableMap]
+
+    // Only projects/areas/goals have a hashtag column. Interpolating an
+    // `undefined` column would emit invalid SQL (`... or  LIKE ?`), so the tag
+    // clause is only added for tables that actually have one.
+    const tagColumn =
+      name in nameToTagsColumnMap
+        ? nameToTagsColumnMap[name as keyof typeof nameToTagsColumnMap]
+        : undefined
+
+    const searchCondition = tagColumn
+      ? sql`lower(${table.title}) LIKE ${sql.placeholder('term')} or lower(${tagColumn}) LIKE ${sql.placeholder('term')}`
+      : sql`lower(${table.title}) LIKE ${sql.placeholder('term')}`
 
     this.preparedStatements[name] = {
       get_all: this.db.select().from(table).prepare(),
@@ -131,7 +149,7 @@ export class UnHussleDB {
       search: this.db
         .select()
         .from(table)
-        .where(sql`lower(${table.title}) LIKE ${sql.placeholder('term')}`)
+        .where(searchCondition)
         .limit(sql.placeholder('limit'))
         .prepare(),
     }

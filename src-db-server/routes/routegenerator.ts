@@ -95,6 +95,12 @@ export type RouteGeneratorSchemas =
 const uDB = UnHussleDB.getInstance()
 const db = await uDB.getDb()
 
+// Maximum rows returned by the `/search/:term` endpoint.
+const parsedSearchLimit = parseInt(
+  process.env.VITE_SEARCH_RESULTS_COUNT || '20',
+  10,
+)
+
 export type RouteGeneratorConfig = {
   name: keyof (typeof db)['query']
   prefix: string
@@ -193,7 +199,10 @@ export const routeGenerator = (config: RouteGeneratorConfig) => {
           throw new Error('Prepared statement not found: search')
         }
 
-        const values = ps.all({ term: `%${term.toLowerCase()}%` })
+        const values = ps.all({
+          term: `%${term.toLowerCase()}%`,
+          limit: parsedSearchLimit,
+        })
 
         const result = Value.Parse(Type.Array(config.schemas.select), values)
 
