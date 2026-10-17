@@ -4,7 +4,7 @@ import { parseUrl } from '@/lib/inputParsers/parseUrl'
 import { parseHashtags } from '@/lib/inputParsers/parseHashtags'
 import { parseDueDate } from '@/lib/inputParsers/parseDueDate'
 
-interface ParsedData {
+export interface ParsedData {
   task: Task['Write']
   urls: Url['Write'][]
   tags: Tag['Write'][]
@@ -78,9 +78,6 @@ export const parseDataFromTaskInput = ({
   const task: Task['Write'] = {
     title: title.replace(/\s+/g, ' ').trim(),
     priority: Priority.MEDIUM,
-    is_fun: false,
-    is_chore: false,
-    is_quick: false,
     area_id,
     project_id,
     goal_id,

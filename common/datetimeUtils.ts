@@ -51,6 +51,21 @@ const formatDateTime = (millis: number): string => {
   return zonedDateTime.toString({ fractionalSecondDigits: 0 })
 }
 
+const formatDdMmYyyy = (date: Date): string =>
+  `${String(date.getDate()).padStart(2, '0')}/${String(
+    date.getMonth() + 1,
+  ).padStart(2, '0')}/${date.getFullYear()}`
+
+// Formats an epoch-millis timestamp as DD/MM/YYYY in the local timezone.
+const formatMillisAsDdMmYyyy = (millis: number): string => {
+  const plainDate = Temporal.Instant.fromEpochMilliseconds(millis)
+    .toZonedDateTimeISO(Temporal.Now.timeZoneId())
+    .toPlainDate()
+  return `${String(plainDate.day).padStart(2, '0')}/${String(
+    plainDate.month,
+  ).padStart(2, '0')}/${plainDate.year}`
+}
+
 export {
   getNow,
   getNowMillis,
@@ -58,4 +73,6 @@ export {
   getEndOfDayMillis,
   formatTimeDuration,
   formatDateTime,
+  formatDdMmYyyy,
+  formatMillisAsDdMmYyyy,
 }

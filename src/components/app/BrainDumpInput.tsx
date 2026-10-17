@@ -1,33 +1,65 @@
 import React, { useState, useRef, useEffect } from 'react'
-import { Temporal } from 'temporal-polyfill'
 import { useStore } from '@/store'
 import { Input } from '@/components/ui/input'
 import { Textarea } from '@/components/ui/textarea'
 import { Button } from '@/components/ui/button'
 import { Badge } from '@/components/ui/badge'
-import { Priority, ProgressStatus, Task } from '@c/types/index'
-import { Expand, Minimize2, Loader2 } from 'lucide-react'
-import { Tag, Url } from '@d/database/schemas'
-import { parseDataFromTaskInput } from '@/lib/inputParsers/parseDataFromTaskInput'
-
-interface ParsedData {
-  task: Task['Write']
-  urls: Url['Write'][]
-  tags: Tag['Write'][]
-}
+import { Calendar } from '@/components/ui/calendar'
+import {
+  Popover,
+  PopoverContent,
+  PopoverTrigger,
+} from '@/components/ui/popover'
+import { Priority, ProgressStatus } from '@c/types/index'
+import {
+  Expand,
+  Minimize2,
+  Loader2,
+  Smile,
+  ClipboardList,
+  Zap,
+  Flag,
+  CalendarIcon,
+} from 'lucide-react'
+import { cn } from '@/lib/utils'
+import {
+  formatDdMmYyyy,
+  formatMillisAsDdMmYyyy,
+  getStartOfDayMillis,
+} from '@c/datetimeUtils'
+import {
+  parseDataFromTaskInput,
+  ParsedData,
+} from '@/lib/inputParsers/parseDataFromTaskInput'
 
 const starterParsedData: ParsedData = {
   task: {
     title: '',
     priority: Priority.MEDIUM,
-    is_fun: false,
-    is_chore: false,
-    is_quick: false,
   },
   urls: [],
   tags: [],
 }
 
+type TaskFlags = {
+  is_fun: boolean
+  is_chore: boolean
+  is_quick: boolean
+}
+
+const emptyFlags: TaskFlags = {
+  is_fun: false,
+  is_chore: false,
+  is_quick: false,
+}
+
+const flagOptions = [
+  { key: 'is_fun', label: 'Fun', icon: Smile },
+  { key: 'is_chore', label: 'Chore', icon: ClipboardList },
+  { key: 'is_quick', label: 'Quick', icon: Zap },
+] as const
+
+// Formats a JS Date (local time) as DD/MM/YYYY.
 export const BrainDumpInputComponent = () => {
   const inputRef = useRef<HTMLInputElement>(null)
   const textareaRef = useRef<HTMLTextAreaElement>(null)
@@ -36,6 +68,10 @@ export const BrainDumpInputComponent = () => {
   const [isExpanded, setIsExpanded] = useState(false)
   const [isSubmitting, setIsSubmitting] = useState(false)
   const [parsedData, setParsedData] = useState<ParsedData>(starterParsedData)
+  const [priority, setPriority] = useState<Priority>(Priority.MEDIUM)
+  const [flags, setFlags] = useState<TaskFlags>(emptyFlags)
+  const [dueDate, setDueDate] = useState<Date | undefined>(undefined)
+  const [isCalendarOpen, setIsCalendarOpen] = useState(false)
 
   const tasks = useStore((state) => state.tasks)
   const areas = useStore((state) => state.areas)
@@ -51,6 +87,38 @@ export const BrainDumpInputComponent = () => {
     })
     setParsedData(parsed)
   }, [inputValue])
+
+  const parsedDueMillis = parsedData.task.due_date ?? undefined
+  const parsedDueDate =
+    parsedDueMillis !== undefined ? new Date(parsedDueMillis) : undefined
+  // A date chosen from the picker takes precedence over one typed in the input.
+  const selectedDate = dueDate ?? parsedDueDate
+  const effectiveDueMillis =
+    dueDate !== undefined
+      ? getStartOfDayMillis({
+          year: dueDate.getFullYear(),
+          month: dueDate.getMonth() + 1,
+          day: dueDate.getDate(),
+        })
+      : parsedDueMillis
+
+  const resetForm = () => {
+    setInputValue('')
+    setIsExpanded(false)
+    setParsedData(starterParsedData)
+    setPriority(Priority.MEDIUM)
+    setFlags(emptyFlags)
+    setDueDate(undefined)
+  }
+
+  const toggleFlag = (key: keyof TaskFlags) => {
+    setFlags((prev) => ({ ...prev, [key]: !prev[key] }))
+  }
+
+  const handleSelectDueDate = (date?: Date) => {
+    setDueDate(date)
+    setIsCalendarOpen(false)
+  }
 
   const handleSubmit = async () => {
     if (!parsedData.task.title.trim() && inputValue.trim()) {
@@ -85,21 +153,19 @@ export const BrainDumpInputComponent = () => {
         title: parsedData.task.title,
         description: isExpanded ? inputValue : undefined,
         status: ProgressStatus.PLANNED,
-        priority: parsedData.task.priority,
+        priority,
         project_id: parsedData.task.project_id,
         area_id: parsedData.task.area_id,
         goal_id: parsedData.task.goal_id,
-        is_fun: parsedData.task.is_fun,
-        is_chore: parsedData.task.is_chore,
-        is_quick: parsedData.task.is_quick,
+        is_fun: flags.is_fun,
+        is_chore: flags.is_chore,
+        is_quick: flags.is_quick,
         estimated_minutes: parsedData.task.estimated_minutes,
-        due_date: parsedData.task.due_date,
+        due_date: effectiveDueMillis,
       })
 
       // Reset form
-      setInputValue('')
-      setIsExpanded(false)
-      setParsedData(starterParsedData)
+      resetForm()
     } catch (error) {
       console.error('Failed to create task:', error)
     } finally {
@@ -115,8 +181,7 @@ export const BrainDumpInputComponent = () => {
       handleSubmit()
     } else if (e.key === 'Escape') {
       e.preventDefault()
-      setInputValue('')
-      setIsExpanded(false)
+      resetForm()
     }
   }
 
@@ -177,6 +242,92 @@ export const BrainDumpInputComponent = () => {
         )}
       </div>
 
+      {/* Task metadata controls */}
+      <div className="flex flex-wrap items-center gap-2">
+        {/* Priority selector */}
+        <div className="flex items-center gap-1.5">
+          <Flag className="h-4 w-4 text-muted-foreground" />
+          <div className="flex overflow-hidden rounded-md border border-border">
+            {(Object.values(Priority) as Priority[]).map((p) => (
+              <button
+                key={p}
+                type="button"
+                onClick={() => setPriority(p)}
+                disabled={isSubmitting}
+                className={cn(
+                  'px-2.5 py-1 text-xs capitalize transition-colors',
+                  priority === p
+                    ? 'bg-primary text-primary-foreground'
+                    : 'text-muted-foreground hover:bg-accent hover:text-accent-foreground',
+                )}
+              >
+                {p}
+              </button>
+            ))}
+          </div>
+        </div>
+
+        {/* Fun / Chore / Quick toggles */}
+        {flagOptions.map(({ key, label, icon: Icon }) => (
+          <button
+            key={key}
+            type="button"
+            onClick={() => toggleFlag(key)}
+            disabled={isSubmitting}
+            aria-pressed={flags[key]}
+            className={cn(
+              'flex items-center gap-1.5 rounded-full border px-3 py-1 text-xs transition-colors',
+              flags[key]
+                ? 'border-primary bg-primary/10 text-primary'
+                : 'border-border text-muted-foreground hover:bg-accent hover:text-accent-foreground',
+            )}
+          >
+            <Icon className="h-3.5 w-3.5" />
+            {label}
+          </button>
+        ))}
+
+        {/* Due date selector */}
+        <Popover open={isCalendarOpen} onOpenChange={setIsCalendarOpen}>
+          <PopoverTrigger asChild>
+            <Button
+              type="button"
+              variant="outline"
+              size="sm"
+              disabled={isSubmitting}
+              className={cn(
+                'gap-1.5 font-normal',
+                !selectedDate && 'text-muted-foreground',
+              )}
+            >
+              <CalendarIcon className="h-4 w-4" />
+              {selectedDate ? formatDdMmYyyy(selectedDate) : 'Due date'}
+            </Button>
+          </PopoverTrigger>
+          <PopoverContent align="start" className="w-auto p-0">
+            <Calendar
+              mode="single"
+              selected={selectedDate}
+              onSelect={handleSelectDueDate}
+              autoFocus
+            />
+            {selectedDate && (
+              <div className="border-t p-2">
+                <Button
+                  type="button"
+                  variant="ghost"
+                  size="sm"
+                  className="w-full text-muted-foreground"
+                  onClick={() => handleSelectDueDate(undefined)}
+                >
+                  Clear due date
+                </Button>
+              </div>
+            )}
+          </PopoverContent>
+        </Popover>
+      </div>
+
       {/* Parsed data visualization */}
       {inputValue && (
         <div className="flex flex-wrap gap-2 text-sm">
@@ -186,16 +337,12 @@ export const BrainDumpInputComponent = () => {
               {parsedData.task.title.length > 30 ? '...' : ''}
             </Badge>
           )}
-          {parsedData.task.priority !== Priority.MEDIUM && (
+          {priority !== Priority.MEDIUM && (
             <Badge
-              variant={
-                parsedData.task.priority === Priority.HIGH
-                  ? 'destructive'
-                  : 'secondary'
-              }
+              variant={priority === Priority.HIGH ? 'destructive' : 'secondary'}
               className="text-xs"
             >
-              {parsedData.task.priority}
+              {priority}
             </Badge>
           )}
           {parsedData.task.project_id && (
@@ -218,18 +365,21 @@ export const BrainDumpInputComponent = () => {
               #{tag.title}
             </Badge>
           ))}
-          {parsedData.task.is_fun && (
-            <Badge variant="secondary" className="text-xs">
+          {flags.is_fun && (
+            <Badge variant="secondary" className="text-xs border-border">
+              <Smile className="h-5 w-5" />
               Fun
             </Badge>
           )}
-          {parsedData.task.is_chore && (
-            <Badge variant="secondary" className="text-xs">
+          {flags.is_chore && (
+            <Badge variant="secondary" className="text-xs border-border">
+              <ClipboardList className="h-5 w-5" />
               Chore
             </Badge>
           )}
-          {parsedData.task.is_quick && (
-            <Badge variant="secondary" className="text-xs">
+          {flags.is_quick && (
+            <Badge variant="secondary" className="text-xs border-border">
+              <Zap className="h-5 w-5" />
               Quick
             </Badge>
           )}
@@ -238,13 +388,9 @@ export const BrainDumpInputComponent = () => {
               Est: {parsedData.task.estimated_minutes}m
             </Badge>
           )}
-          {parsedData.task.due_date && (
+          {effectiveDueMillis !== undefined && (
             <Badge variant="outline" className="text-xs">
-              Due:{' '}
-              {Temporal.Instant.fromEpochMilliseconds(parsedData.task.due_date)
-                .toZonedDateTimeISO(Temporal.Now.timeZoneId())
-                .toPlainDate()
-                .toString()}
+              Due: {formatMillisAsDdMmYyyy(effectiveDueMillis)}
             </Badge>
           )}
           {parsedData.urls.map((url, idx) => (
@@ -272,14 +418,7 @@ export const BrainDumpInputComponent = () => {
               'Add Task (Ctrl+Enter)'
             )}
           </Button>
-          <Button
-            variant="outline"
-            onClick={() => {
-              setInputValue('')
-              setIsExpanded(false)
-            }}
-            disabled={isSubmitting}
-          >
+          <Button variant="outline" onClick={resetForm} disabled={isSubmitting}>
             Cancel
           </Button>
         </div>
@@ -287,8 +426,8 @@ export const BrainDumpInputComponent = () => {
 
       <p className="text-xs text-muted-foreground">
         Use # for tags/projects/areas/goals • Add priority (high/low) • Mark as
-        fun/chore/quick • Add time (30m, 2h) • Set due date (today, tomorrow,
-        next Friday)
+        fun/chore/quick • Add time (est:|et: 30m, 2h) • Set due date (today,
+        tomorrow, next Friday) or pick due date from a date picker
       </p>
     </div>
   )

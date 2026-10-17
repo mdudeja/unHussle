@@ -121,10 +121,38 @@ export const routeGenerator = (config: RouteGeneratorConfig) => {
         logger.debug(`Get All ${config.name}`)
         const ps = uDB.getPreparedStatement(config.name, 'get_all')
         if (!ps) {
-          throw new Error('Prepared statement not found')
+          throw new Error('Prepared statement not found: get_all')
         }
 
         return Value.Parse(Type.Array(config.schemas.select), ps.all())
+      },
+      {
+        response: Type.Array(config.schemas.select),
+      },
+    )
+
+    .get(
+      '/paginated/:page/:pageSize',
+      async ({ logger, params: { page, pageSize } }) => {
+        logger.debug(
+          `Get Paged ${config.name} with page: ${page}, pageSize: ${pageSize}`,
+        )
+        const ps = uDB.getPreparedStatement(config.name, 'get_paginated')
+        if (!ps) {
+          throw new Error('Prepared statement not found: get_paged')
+        }
+
+        try {
+          const limit = parseInt(pageSize, 10)
+          const offset = (parseInt(page, 10) - 1) * limit
+
+          return Value.Parse(
+            Type.Array(config.schemas.select),
+            ps.all({ limit, offset }),
+          )
+        } catch (error) {
+          throw new Error(`Invalid page or pageSize: ${error}`)
+        }
       },
       {
         response: Type.Array(config.schemas.select),
@@ -138,7 +166,7 @@ export const routeGenerator = (config: RouteGeneratorConfig) => {
         const ps = uDB.getPreparedStatement(config.name, 'get_by_id')
 
         if (!ps) {
-          throw new Error('Prepared statement not found')
+          throw new Error('Prepared statement not found: get_by_id')
         }
 
         const result = ps.get({ id })
@@ -162,7 +190,7 @@ export const routeGenerator = (config: RouteGeneratorConfig) => {
         const ps = uDB.getPreparedStatement(config.name, 'search')
 
         if (!ps) {
-          throw new Error('Prepared statement not found')
+          throw new Error('Prepared statement not found: search')
         }
 
         const values = ps.all({ term: `%${term.toLowerCase()}%` })

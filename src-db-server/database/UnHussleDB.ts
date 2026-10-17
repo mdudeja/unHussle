@@ -8,9 +8,9 @@ import {
   PreparedQueryConfig,
   SQLitePreparedQuery,
 } from 'drizzle-orm/sqlite-core'
-import { eq, sql } from 'drizzle-orm'
+import { eq, sql, desc } from 'drizzle-orm'
 
-type preparedQueryType = 'get_all' | 'get_by_id' | 'search'
+type preparedQueryType = 'get_all' | 'get_by_id' | 'search' | 'get_paginated'
 
 export class UnHussleDB {
   private dbFilePath?: string
@@ -121,10 +121,18 @@ export class UnHussleDB {
         .where(eq(table.id, sql.placeholder('id')))
         .limit(1)
         .prepare(),
+      get_paginated: this.db
+        .select()
+        .from(table)
+        .orderBy(desc(table.updated_at))
+        .limit(sql.placeholder('limit'))
+        .offset(sql.placeholder('offset'))
+        .prepare(),
       search: this.db
         .select()
         .from(table)
         .where(sql`lower(${table.title}) LIKE ${sql.placeholder('term')}`)
+        .limit(sql.placeholder('limit'))
         .prepare(),
     }
   }

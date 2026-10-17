@@ -13,9 +13,26 @@ export class DbService<
     this.baseEndpoint = baseEndpoint
   }
 
+  async fetchPaginated(page: number, pageSize: number) {
+    const pageNum = page > 0 ? page : 1
+    const pageSizeNum = pageSize > 0 ? pageSize : 10
+
+    return makeJSONRequest<T['Read'][]>({
+      url: `${this.dbUrl}/${this.baseEndpoint}/paginated/${pageNum}/${pageSizeNum}`,
+      method: 'GET',
+    })
+  }
+
   async fetchAll() {
     return makeJSONRequest<T['Read'][]>({
       url: `${this.dbUrl}/${this.baseEndpoint}`,
+      method: 'GET',
+    })
+  }
+
+  async search(query: string) {
+    return makeJSONRequest<T['Read'][]>({
+      url: `${this.dbUrl}/${this.baseEndpoint}/search/${encodeURIComponent(query)}`,
       method: 'GET',
     })
   }

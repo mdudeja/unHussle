@@ -9,11 +9,23 @@ export interface DbSlice<
   data: T['Read'][]
   isLoading: boolean
   error: string | null
-  fetch: () => Promise<void>
+  fetch: (pageNumber?: number) => Promise<void>
+  search: (query: string) => Promise<T['Read'][]>
   add: (data: T['Write']) => Promise<T['Read']>
   update: (id: string, data: T['Update']) => Promise<void>
   remove: (id: string) => Promise<void>
   reset: () => Promise<void>
+}
+
+const fetchLimits: { [key: string]: number } = {
+  areas: +(process.env.VITE_FETCH_LIMIT_AREAS || '50'),
+  goals: +(process.env.VITE_FETCH_LIMIT_GOALS || '30'),
+  projects: +(process.env.VITE_FETCH_LIMIT_PROJECTS || '30'),
+  resources: +(process.env.VITE_FETCH_LIMIT_RESOURCES || '100'),
+  tags: +(process.env.VITE_FETCH_LIMIT_TAGS || '100'),
+  tasks: +(process.env.VITE_FETCH_LIMIT_TASKS || '100'),
+  time_entries: +(process.env.VITE_FETCH_LIMIT_TIME_ENTRIES || '100'),
+  urls: +(process.env.VITE_FETCH_LIMIT_URLS || '100'),
 }
 
 export default function generateCreateDbConnectedStateSlice<
@@ -27,7 +39,7 @@ export default function generateCreateDbConnectedStateSlice<
         isLoading: false,
         error: null,
 
-        fetch: async () => {
+        fetch: async (pageNumber?: number) => {
           set(
             (state) =>
               ({
@@ -39,7 +51,10 @@ export default function generateCreateDbConnectedStateSlice<
               }) as any,
           )
           try {
-            const data = await serviceInstance.fetchAll()
+            const data = await serviceInstance.fetchPaginated(
+              pageNumber || 1,
+              fetchLimits[sliceName] || 50,
+            )
             set(
               (state) =>
                 ({
@@ -58,6 +73,43 @@ export default function generateCreateDbConnectedStateSlice<
                 }) as any,
             )
             throw error
+          }
+        },
+
+        search: async (query: string) => {
+          set(
+            (state) =>
+              ({
+                [sliceName]: {
+                  ...state[sliceName],
+                  isLoading: true,
+                  error: null,
+                },
+              }) as any,
+          )
+          try {
+            const searchResults = await serviceInstance.search(query)
+            set(
+              (state) =>
+                ({
+                  [sliceName]: {
+                    ...state[sliceName],
+                    searchResults,
+                    isLoading: false,
+                  },
+                }) as any,
+            )
+          } catch (error) {
+            set(
+              (state) =>
+                ({
+                  [sliceName]: {
+                    ...state[sliceName],
+                    error: 'Failed to search data',
+                    isLoading: false,
+                  },
+                }) as any,
+            )
           }
         },
 
