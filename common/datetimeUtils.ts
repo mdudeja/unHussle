@@ -66,6 +66,14 @@ const formatMillisAsDdMmYyyy = (millis: number): string => {
   ).padStart(2, '0')}/${plainDate.year}`
 }
 
+/** Converts a JS Date (local time) into epoch millis at the start of that day. */
+const dateToStartOfDayMillis = (date: Date): number =>
+  getStartOfDayMillis({
+    year: date.getFullYear(),
+    month: date.getMonth() + 1,
+    day: date.getDate(),
+  })
+
 export {
   getNow,
   getNowMillis,
@@ -75,4 +83,5 @@ export {
   formatDateTime,
   formatDdMmYyyy,
   formatMillisAsDdMmYyyy,
+  dateToStartOfDayMillis,
 }

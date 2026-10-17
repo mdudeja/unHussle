@@ -20,6 +20,7 @@ export const goals = sqliteTable(
   'goals',
   {
     ...entityCollectionSchema,
+    goal_tag: text(),
     area_id: text().references(() => areas.id, { onDelete: 'set null' }),
     due_date: integer({ mode: 'number' }),
     progress: real().notNull().default(0),
@@ -32,6 +33,7 @@ export const goals = sqliteTable(
     index('goals_created_at_idx').on(table.created_at),
     index('goals_updated_at_idx').on(table.updated_at),
     unique('goals_title_unique').on(table.title),
+    unique('goals_goal_tag_unique').on(table.goal_tag),
   ],
 )
 

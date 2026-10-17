@@ -19,6 +19,7 @@ export const projects = sqliteTable(
   'projects',
   {
     ...entityCollectionSchema,
+    project_tag: text(),
     area_id: text().references(() => areas.id),
     goal_id: text().references(() => goals.id),
     due_date: integer({ mode: 'number' }),
@@ -33,6 +34,7 @@ export const projects = sqliteTable(
     index('projects_created_at_idx').on(table.created_at),
     index('projects_updated_at_idx').on(table.updated_at),
     unique('projects_title_unique').on(table.title),
+    unique('projects_project_tag_unique').on(table.project_tag),
   ],
 )
 

@@ -18,14 +18,14 @@ export interface DbSlice<
 }
 
 const fetchLimits: { [key: string]: number } = {
-  areas: +(process.env.VITE_FETCH_LIMIT_AREAS || '50'),
-  goals: +(process.env.VITE_FETCH_LIMIT_GOALS || '30'),
-  projects: +(process.env.VITE_FETCH_LIMIT_PROJECTS || '30'),
-  resources: +(process.env.VITE_FETCH_LIMIT_RESOURCES || '100'),
-  tags: +(process.env.VITE_FETCH_LIMIT_TAGS || '100'),
-  tasks: +(process.env.VITE_FETCH_LIMIT_TASKS || '100'),
-  time_entries: +(process.env.VITE_FETCH_LIMIT_TIME_ENTRIES || '100'),
-  urls: +(process.env.VITE_FETCH_LIMIT_URLS || '100'),
+  areas: +(import.meta.env.VITE_FETCH_LIMIT_AREAS || '50'),
+  goals: +(import.meta.env.VITE_FETCH_LIMIT_GOALS || '30'),
+  projects: +(import.meta.env.VITE_FETCH_LIMIT_PROJECTS || '30'),
+  resources: +(import.meta.env.VITE_FETCH_LIMIT_RESOURCES || '100'),
+  tags: +(import.meta.env.VITE_FETCH_LIMIT_TAGS || '100'),
+  tasks: +(import.meta.env.VITE_FETCH_LIMIT_TASKS || '100'),
+  time_entries: +(import.meta.env.VITE_FETCH_LIMIT_TIME_ENTRIES || '100'),
+  urls: +(import.meta.env.VITE_FETCH_LIMIT_URLS || '100'),
 }
 
 export default function generateCreateDbConnectedStateSlice<

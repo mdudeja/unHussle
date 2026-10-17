@@ -36,13 +36,19 @@ export const parseHashtags = ({
 
     // Check if it's an existing project, area, goal, or tag
     const matchedProject = existingProjects.find(
-      (p) => p.title.toLowerCase() === tagName,
+      (p) =>
+        p.title.toLowerCase() === tagName ||
+        p.project_tag?.toLowerCase() === tagName,
     )
     const matchedArea = existingAreas.find(
-      (a) => a.title.toLowerCase() === tagName,
+      (a) =>
+        a.title.toLowerCase() === tagName ||
+        a.area_tag?.toLowerCase() === tagName,
     )
     const matchedGoal = existingGoals.find(
-      (g) => g.title.toLowerCase() === tagName,
+      (g) =>
+        g.title.toLowerCase() === tagName ||
+        g.goal_tag?.toLowerCase() === tagName,
     )
 
     if (matchedProject && !result.project_id) {

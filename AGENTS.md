@@ -20,20 +20,23 @@ This project uses `agentic-indexer` MCP. Use the MCP first to explore the projec
 - Package manager: `bun`
 - Tests: Bun test (`bun:test`) with preload `common/testing/test-setup.ts`
 
+This project uses shadcn/ui for UI components. New components as needed can be added using `bunx --bun shadcn@latest add [component-name]`.
+
 ## Commands (bun)
 
-| Script                 | Purpose                                                                   |
-| ---------------------- | ------------------------------------------------------------------------- |
-| `bun run dev`          | Build sidecar binary then start Vite dev server                           |
-| `bun run debug`        | Vite only (no sidecar build)                                              |
-| `bun run build`        | `tsc` then build sidecar then `vite build`                                |
-| `bun run preview`      | Vite preview                                                              |
-| `bun run tauri`        | Tauri CLI                                                                 |
-| `bun run build:server` | Compile `src-db-server/build.ts` -> binary in `binaries/`                 |
-| `bun run server`       | Run API server against `.env.local` DB                                    |
-| `bun run server:test`  | Run API server against `.env.test` DB                                     |
-| `bun run test`         | `scripts/test-with-server.sh` (starts test server, runs tests, cleans up) |
-| `bunx drizzle-kit ...` | DB migrations (config in `drizzle.config.ts`)                             |
+| Script                                          | Purpose                                                                   |
+| ----------------------------------------------- | ------------------------------------------------------------------------- |
+| `bun run dev`                                   | Build sidecar binary then start Vite dev server                           |
+| `bun run debug`                                 | Vite only (no sidecar build)                                              |
+| `bun run build`                                 | `tsc` then build sidecar then `vite build`                                |
+| `bun run preview`                               | Vite preview                                                              |
+| `bun run tauri`                                 | Tauri CLI                                                                 |
+| `bun run build:server`                          | Compile `src-db-server/build.ts` -> binary in `binaries/`                 |
+| `bun run server`                                | Run API server against `.env.local` DB                                    |
+| `bun run server:test`                           | Run API server against `.env.test` DB                                     |
+| `bun run test`                                  | `scripts/test-with-server.sh` (starts test server, runs tests, cleans up) |
+| `bunx drizzle-kit ...`                          | DB migrations (config in `drizzle.config.ts`)                             |
+| `bunx --bun shadcn@latest add [component-name]` | Add new shadcn/ui component                                               |
 
 Avoid `npm`/`yarn`/`pnpm`; lockfile is `bun.lock`.
 
