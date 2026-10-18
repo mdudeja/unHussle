@@ -20,6 +20,13 @@ import {
   Zap,
   Flag,
   CalendarIcon,
+  ListTodo,
+  FolderKanban,
+  Goal,
+  GitGraph,
+  CircleAlert,
+  Crosshair,
+  Clock9,
 } from 'lucide-react'
 import { cn } from '@/lib/utils'
 import {
@@ -33,6 +40,7 @@ import {
 } from '@/lib/inputParsers/parseDataFromTaskInput'
 import { useAPGHashtagAutocomplete } from '@/lib/hooks/useAPGHashtagAutocomplete'
 import { AutocompleteList } from '@/components/ui/custom/AutocompleteList'
+import { IconResolver } from '../ui/utils/IconResolver'
 
 const starterParsedData: ParsedData = {
   task: {
@@ -204,6 +212,10 @@ export const BrainDumpInputComponent = () => {
     setIsExpanded(!isExpanded)
   }
 
+  const selectedProject = projects.getById(parsedData.task.project_id)
+  const selectedArea = areas.getById(parsedData.task.area_id)
+  const selectedGoal = goals.getById(parsedData.task.goal_id)
+
   return (
     <div className="w-full space-y-2">
       <div className="relative">
@@ -271,45 +283,37 @@ export const BrainDumpInputComponent = () => {
       <div className="flex flex-wrap items-center gap-2">
         {/* Priority selector */}
         <div className="flex items-center gap-1.5">
-          <Flag className="h-4 w-4 text-muted-foreground" />
+          <Flag className="h-5 w-5 text-muted-foreground" />
           <div className="flex overflow-hidden rounded-md border border-border">
             {(Object.values(Priority) as Priority[]).map((p) => (
-              <button
+              <Button
                 key={p}
                 type="button"
-                onClick={() => setPriority(p)}
+                variant={priority === p ? 'default' : 'outline'}
+                size="sm"
                 disabled={isSubmitting}
-                className={cn(
-                  'px-2.5 py-1 text-xs capitalize transition-colors',
-                  priority === p
-                    ? 'bg-primary text-primary-foreground'
-                    : 'text-muted-foreground hover:bg-accent hover:text-accent-foreground',
-                )}
+                className="rounded-none"
+                onClick={() => setPriority(p)}
               >
                 {p}
-              </button>
+              </Button>
             ))}
           </div>
         </div>
 
         {/* Fun / Chore / Quick toggles */}
         {flagOptions.map(({ key, label, icon: Icon }) => (
-          <button
+          <Button
             key={key}
             type="button"
             onClick={() => toggleFlag(key)}
             disabled={isSubmitting}
-            aria-pressed={flags[key]}
-            className={cn(
-              'flex items-center gap-1.5 rounded-full border px-3 py-1 text-xs transition-colors',
-              flags[key]
-                ? 'border-primary bg-primary/10 text-primary'
-                : 'border-border text-muted-foreground hover:bg-accent hover:text-accent-foreground',
-            )}
+            variant={flags[key] ? 'default' : 'outline'}
+            icon={<Icon className="h-3.5 w-3.5" />}
+            className="rounded-full"
           >
-            <Icon className="h-3.5 w-3.5" />
             {label}
-          </button>
+          </Button>
         ))}
 
         {/* Due date selector */}
@@ -321,7 +325,7 @@ export const BrainDumpInputComponent = () => {
               size="sm"
               disabled={isSubmitting}
               className={cn(
-                'gap-1.5 font-normal',
+                'gap-1.5',
                 !selectedDate && 'text-muted-foreground',
               )}
             >
@@ -356,70 +360,108 @@ export const BrainDumpInputComponent = () => {
       {/* Parsed data visualization */}
       {inputValue && (
         <div className="flex flex-wrap gap-2 text-sm">
-          {parsedData.task.title && (
-            <Badge variant="outline" className="text-xs">
-              Task: {parsedData.task.title.substring(0, 30)}
-              {parsedData.task.title.length > 30 ? '...' : ''}
-            </Badge>
-          )}
-          {priority !== Priority.MEDIUM && (
+          {priority === Priority.HIGH && (
             <Badge
-              variant={priority === Priority.HIGH ? 'destructive' : 'secondary'}
+              variant="destructive"
               className="text-xs"
+              icon={<CircleAlert className="h-4 w-4" />}
             >
               {priority}
             </Badge>
           )}
-          {parsedData.task.project_id && (
-            <Badge variant="default" className="text-xs">
-              Project: {parsedData.task.project_id}
+          {parsedData.task.title && (
+            <Badge
+              variant="outline"
+              className="text-xs"
+              icon={<ListTodo className="h-4 w-4" />}
+            >
+              {parsedData.task.title.substring(0, 30)}
+              {parsedData.task.title.length > 30 ? '...' : ''}
             </Badge>
           )}
-          {parsedData.task.area_id && (
-            <Badge variant="default" className="text-xs">
-              Area: {parsedData.task.area_id}
+          <div className="basis-full h-0" />
+          {selectedProject && (
+            <Badge
+              variant="project"
+              className="text-xs"
+              icon={
+                selectedProject.icon ? (
+                  <IconResolver
+                    icon={selectedProject.icon as any}
+                    className="h-4 w-4"
+                  />
+                ) : (
+                  <FolderKanban className="h-4 w-4" />
+                )
+              }
+            >
+              {selectedProject.title}
             </Badge>
           )}
-          {parsedData.task.goal_id && (
-            <Badge variant="default" className="text-xs">
-              Goal: {parsedData.task.goal_id}
+          {selectedArea && (
+            <Badge
+              variant="area"
+              className="text-xs"
+              icon={
+                selectedArea.icon ? (
+                  <IconResolver
+                    icon={selectedArea.icon as any}
+                    className="h-4 w-4"
+                  />
+                ) : (
+                  <GitGraph className="h-4 w-4" />
+                )
+              }
+            >
+              {selectedArea.title}
             </Badge>
           )}
-          {parsedData.tags.map((tag, idx) => (
-            <Badge key={idx} variant="outline" className="text-xs">
-              #{tag.title}
-            </Badge>
-          ))}
-          {flags.is_fun && (
-            <Badge variant="secondary" className="text-xs border-border">
-              <Smile className="h-5 w-5" />
-              Fun
-            </Badge>
-          )}
-          {flags.is_chore && (
-            <Badge variant="secondary" className="text-xs border-border">
-              <ClipboardList className="h-5 w-5" />
-              Chore
-            </Badge>
-          )}
-          {flags.is_quick && (
-            <Badge variant="secondary" className="text-xs border-border">
-              <Zap className="h-5 w-5" />
-              Quick
+          {selectedGoal && (
+            <Badge
+              variant="goal"
+              className="text-xs"
+              icon={
+                selectedGoal.icon ? (
+                  <IconResolver
+                    icon={selectedGoal.icon as any}
+                    className="h-4 w-4"
+                  />
+                ) : (
+                  <Goal className="h-4 w-4" />
+                )
+              }
+            >
+              {selectedGoal.title}
             </Badge>
           )}
+          <div className="basis-full h-0" />
           {parsedData.task.estimated_minutes && (
-            <Badge variant="outline" className="text-xs">
-              Est: {parsedData.task.estimated_minutes}m
+            <Badge
+              variant="muted"
+              className="text-xs"
+              icon={<Clock9 className="h-4 w-4" />}
+            >
+              {parsedData.task.estimated_minutes}m
             </Badge>
           )}
           {effectiveDueMillis !== undefined && (
-            <Badge variant="outline" className="text-xs">
-              Due: {formatMillisAsDdMmYyyy(effectiveDueMillis)}
+            <Badge
+              variant="muted"
+              className="text-xs"
+              icon={<Crosshair className="h-4 w-4" />}
+            >
+              {formatMillisAsDdMmYyyy(effectiveDueMillis)}
             </Badge>
           )}
+          <div className="basis-full h-0" />
+          {parsedData.tags.map((tag, idx) => (
+            <Badge key={idx} variant="primary_outline" className="text-xs">
+              #{tag.title}
+            </Badge>
+          ))}
+          <div className="basis-full h-0" />
           {parsedData.urls.map((url, idx) => (
-            <Badge key={idx} variant="outline" className="text-xs">
+            <Badge key={idx} variant="link_border" className="text-xs">
               Link: {url.url.substring(0, 20)}...
             </Badge>
           ))}

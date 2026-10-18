@@ -49,9 +49,9 @@ export const CreateProjectButtonComponent = () => {
 
   return (
     <>
-      <Button size="sm" onClick={openDialog} className="gap-1.5">
+      <Button size="default" onClick={openDialog} className="gap-1.5">
         <Plus className="size-4" />
-        New Project
+        <strong>New Project</strong>
       </Button>
 
       <EntityFormDialog

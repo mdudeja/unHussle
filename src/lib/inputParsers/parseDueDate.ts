@@ -46,7 +46,7 @@ const months: { [key: string]: number } = {
 
 const weekdayText = Object.keys(weekdays).join('|')
 const weekdayRegex = new RegExp(
-  `due\\s+(this|next)\\s+(${weekdayText})\\b`,
+  `due\\s+(this|next)?\\s*(${weekdayText})\\b`,
   'i',
 )
 const monthsText = Object.keys(months).join('|')
@@ -120,14 +120,14 @@ export const parseDueDate = (input: string): number | undefined => {
   const weekdayMatch = lowerInput.match(weekdayRegex)
 
   if (weekdayMatch) {
-    const keyword = weekdayMatch[1].toLowerCase()
-    const targetDay = weekdays[weekdayMatch[2].toLowerCase()]
+    const keyword = weekdayMatch[1]?.toLowerCase()
+    const targetDay = !weekdayText.includes(keyword)
+      ? weekdays[weekdayMatch[2]?.toLowerCase()]
+      : weekdays[keyword]
     let daysToAdd = targetDay - now.dayOfWeek
     if (keyword === 'next') {
       // "next <day>" always lands on the following occurrence (today -> +7)
-      if (daysToAdd <= 0) {
-        daysToAdd += 7
-      }
+      daysToAdd += 7
     } else if (daysToAdd < 0) {
       // "this <day>" is the current week's occurrence, today included
       daysToAdd += 7

@@ -15,6 +15,7 @@ export interface DbSlice<
   update: (id: string, data: T['Update']) => Promise<void>
   remove: (id: string) => Promise<void>
   reset: () => Promise<void>
+  getById: (id?: string | null) => T['Read'] | null
 }
 
 const fetchLimits: { [key: string]: number } = {
@@ -32,7 +33,7 @@ export default function generateCreateDbConnectedStateSlice<
   T extends InferTableTypes<unknown, SQLiteTableWithColumns<any>>,
   K extends string,
 >(serviceInstance: DbService<T>, sliceName: K) {
-  const creator: StateCreator<{ [key in K]: DbSlice<T> }> = (set) =>
+  const creator: StateCreator<{ [key in K]: DbSlice<T> }> = (set, get) =>
     ({
       [sliceName]: {
         data: [] as T['Read'][],
@@ -258,6 +259,12 @@ export default function generateCreateDbConnectedStateSlice<
             )
             throw error
           }
+        },
+
+        getById: (id?: string) => {
+          if (!id) return null
+          const state = get()
+          return state[sliceName].data.find((d) => d.id === id) ?? null
         },
       },
     }) as unknown as { [key in K]: DbSlice<T> }
