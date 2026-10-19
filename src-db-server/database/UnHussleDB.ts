@@ -8,7 +8,7 @@ import {
   PreparedQueryConfig,
   SQLitePreparedQuery,
 } from 'drizzle-orm/sqlite-core'
-import { eq, sql, desc } from 'drizzle-orm'
+import { eq, sql, desc, or } from 'drizzle-orm'
 
 type preparedQueryType = 'get_all' | 'get_by_id' | 'search' | 'get_paginated'
 
@@ -111,25 +111,28 @@ export class UnHussleDB {
       resources: schema.resources,
     }
 
-    const nameToTagsColumnMap = {
-      projects: schema.projects.project_tag,
-      areas: schema.areas.area_tag,
-      goals: schema.goals.goal_tag,
+    // Columns matched by `search`, beyond the title which every table has.
+    const nameToExtraSearchColumnsMap = {
+      projects: [schema.projects.project_tag],
+      areas: [schema.areas.area_tag],
+      goals: [schema.goals.goal_tag],
+      urls: [schema.urls.url],
     }
 
     const table = nameToTableMap[name as keyof typeof nameToTableMap]
 
-    // Only projects/areas/goals have a hashtag column. Interpolating an
-    // `undefined` column would emit invalid SQL (`... or  LIKE ?`), so the tag
-    // clause is only added for tables that actually have one.
-    const tagColumn =
-      name in nameToTagsColumnMap
-        ? nameToTagsColumnMap[name as keyof typeof nameToTagsColumnMap]
-        : undefined
+    const searchColumns = [
+      table.title,
+      ...(nameToExtraSearchColumnsMap[
+        name as keyof typeof nameToExtraSearchColumnsMap
+      ] ?? []),
+    ]
 
-    const searchCondition = tagColumn
-      ? sql`lower(${table.title}) LIKE ${sql.placeholder('term')} or lower(${tagColumn}) LIKE ${sql.placeholder('term')}`
-      : sql`lower(${table.title}) LIKE ${sql.placeholder('term')}`
+    const searchCondition = or(
+      ...searchColumns.map(
+        (column) => sql`lower(${column}) LIKE ${sql.placeholder('term')}`,
+      ),
+    )
 
     this.preparedStatements[name] = {
       get_all: this.db.select().from(table).prepare(),

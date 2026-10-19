@@ -20,8 +20,6 @@ This project uses `agentic-indexer` MCP. Use the MCP first to explore the projec
 - Package manager: `bun`
 - Tests: Bun test (`bun:test`) with preload `common/testing/test-setup.ts`
 
-This project uses shadcn/ui for UI components. New components as needed can be added using `bunx --bun shadcn@latest add [component-name]`.
-
 ## Commands (bun)
 
 | Script                                          | Purpose                                                                   |
@@ -101,10 +99,13 @@ Apply happens automatically on server startup via `migrate()`.
 
 - Prettier: single quotes, no semicolons, trailing commas `all` (`.prettierrc`).
 - TypeScript strict mode; `noUnusedLocals`, `noUnusedParameters`.
-- ESLint not wired in scripts; rely on `tsc` (`bun run build`).
+- ESLint can be run by calling `bun run lint`.
 - Format on write is handled by harness hooks when enabled.
 - Use path aliases instead of relative deep imports where practical.
 - Shared types live in `common/types`.
+- `common` also has some additional utils (Logger, datetimeUtils). Use these instead of ad-hoc implementations.
+- This project uses shadcn/ui for UI components. New components as needed can be added using `bunx --bun shadcn@latest add [component-name]`.
+- UI Components are available under `src/components/ui` (shadcn) and `src/components/app` (app-specific). Use these as much as possible instead of creating ad-hoc components like <input/>, <button/> etc.
 
 ## Testing
 

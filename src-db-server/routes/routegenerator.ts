@@ -199,8 +199,11 @@ export const routeGenerator = (config: RouteGeneratorConfig) => {
           throw new Error('Prepared statement not found: search')
         }
 
+        // Hashtags are stored without `#`, so `#health` should match `health`.
+        const normalizedTerm = term.trim().replace(/^#/, '').toLowerCase()
+
         const values = ps.all({
-          term: `%${term.toLowerCase()}%`,
+          term: `%${normalizedTerm}%`,
           limit: parsedSearchLimit,
         })
 

@@ -91,4 +91,19 @@ describe('Urls Store', () => {
     const { remove: deleteUrl } = useStore.getState().urls
     expect(deleteUrl('non-existent-id')).rejects.toThrow()
   })
+
+  test('search urls by url as well as title', async () => {
+    const { add, search } = useStore.getState().urls
+    await add({ url: 'https://searchable-host.dev/docs', title: 'Reference' })
+
+    const byUrl = await search('searchable-host')
+    expect(byUrl.map((u) => u.url)).toContain(
+      'https://searchable-host.dev/docs',
+    )
+
+    const byTitle = await search('reference')
+    expect(byTitle.map((u) => u.url)).toContain(
+      'https://searchable-host.dev/docs',
+    )
+  })
 })

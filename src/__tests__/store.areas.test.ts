@@ -91,4 +91,18 @@ describe('Areas Store', () => {
     const { remove } = useStore.getState().areas
     expect(remove('non-existent-id')).rejects.toThrow()
   })
+
+  test('search areas by hashtag, with or without #', async () => {
+    const { add, search } = useStore.getState().areas
+    await add({ title: 'Searchable Area', area_tag: 'searchable_xyz' })
+
+    for (const term of [
+      'searchable_xyz',
+      '#searchable_xyz',
+      'searchable area',
+    ]) {
+      const results = await search(term)
+      expect(results.map((a) => a.title)).toContain('Searchable Area')
+    }
+  })
 })
