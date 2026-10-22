@@ -40,7 +40,7 @@ export const createProjectFields = ({
       type: 'text',
       required: true,
       colSpan: 2,
-      placeholder: 'What is this project about?',
+      placeholder: 'What is this project called?',
       icon: FolderKanban,
     },
     {
@@ -93,15 +93,15 @@ export const createProjectFields = ({
     {
       name: 'color',
       label: 'Color',
-      type: 'text',
-      placeholder: '#aabbcc',
+      type: 'color',
+      placeholder: 'Pick a color',
       icon: Palette,
     },
     {
       name: 'icon',
       label: 'Icon',
-      type: 'text',
-      placeholder: 'e.g. folder-kanban',
+      type: 'icon',
+      placeholder: 'Pick an icon',
       icon: Sparkles,
     },
   ]

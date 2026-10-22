@@ -1,7 +1,14 @@
 import type { LucideIcon } from 'lucide-react'
 
 export type FieldType =
-  'text' | 'textarea' | 'number' | 'select' | 'date' | 'boolean'
+  | 'text'
+  | 'textarea'
+  | 'number'
+  | 'select'
+  | 'date'
+  | 'boolean'
+  | 'color'
+  | 'icon'
 
 export interface FieldOption {
   label: string

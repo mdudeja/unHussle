@@ -17,6 +17,8 @@ import {
   PopoverTrigger,
 } from '@/components/ui/popover'
 import { Calendar } from '@/components/ui/calendar'
+import { ColorPicker } from '@/components/ui/custom/ColorPicker'
+import { IconPicker } from '@/components/ui/custom/IconPicker'
 import { CalendarIcon, Loader2 } from 'lucide-react'
 import { cn } from '@/lib/utils'
 import type { FieldConfig } from './types'
@@ -259,6 +261,28 @@ function FormField<T extends object>({
           <DateFieldControl
             fieldId={fieldId}
             value={value}
+            disabled={disabled}
+            placeholder={field.placeholder}
+            hasError={Boolean(error)}
+            onChange={onChange}
+          />
+        )
+      case 'color':
+        return (
+          <ColorPicker
+            id={fieldId}
+            value={typeof value === 'string' ? value : undefined}
+            disabled={disabled}
+            placeholder={field.placeholder}
+            hasError={Boolean(error)}
+            onChange={onChange}
+          />
+        )
+      case 'icon':
+        return (
+          <IconPicker
+            id={fieldId}
+            value={typeof value === 'string' ? value : undefined}
             disabled={disabled}
             placeholder={field.placeholder}
             hasError={Boolean(error)}

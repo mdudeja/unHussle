@@ -45,15 +45,15 @@ export const createAreaFields = (): FieldConfig<Area['Write']>[] => [
   {
     name: 'color',
     label: 'Color',
-    type: 'text',
-    placeholder: '#aabbcc',
+    type: 'color',
+    placeholder: 'Pick a color',
     icon: Palette,
   },
   {
     name: 'icon',
     label: 'Icon',
-    type: 'text',
-    placeholder: 'e.g. boxes',
+    type: 'icon',
+    placeholder: 'Pick an icon',
     icon: Sparkles,
   },
 ]
