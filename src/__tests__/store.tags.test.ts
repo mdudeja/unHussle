@@ -42,8 +42,8 @@ describe('Tags Store', () => {
     await fetch()
 
     const state = useStore.getState()
-    expect(state.tags.data).toHaveLength(1)
-    expect(state.tags.data[0].title).toBe('New Entity Tag')
+    expect(state.tags.data).toHaveLength(25) // adds 24 tags during seed
+    expect(state.tags.data[0].title).toBe('health')
     expect(state.tags.isLoading).toBe(false)
   })
 
