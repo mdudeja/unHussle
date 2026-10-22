@@ -6,7 +6,6 @@ import {
   Layers,
   Target,
   TrendingUp,
-  TagIcon,
 } from 'lucide-react'
 import { Area, Goal } from '@c/types/index'
 import type { FieldConfig, FieldOption } from '../types'
@@ -31,17 +30,6 @@ export const createGoalFields = ({
       colSpan: 2,
       placeholder: 'What do you want to achieve?',
       icon: Target,
-    },
-    {
-      name: 'goal_tag',
-      label: 'Goal Tag',
-      type: 'text',
-      required: true,
-      colSpan: 2,
-      placeholder:
-        'Unique goal tag for the goal. No spaces. Use dashes or underscores instead.',
-      icon: TagIcon,
-      noSpacesAllowed: true,
     },
     {
       name: 'description',

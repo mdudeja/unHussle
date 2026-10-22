@@ -1,4 +1,9 @@
-import { Area, Goal, Project, Tag } from '@c/types'
+import { Tag } from '@c/types'
+import {
+  HydratedArea,
+  HydratedGoal,
+  HydratedProject,
+} from '@d/database/repositories'
 
 type HashtagParseResult = {
   project_id?: string
@@ -15,9 +20,9 @@ export const parseHashtags = ({
   existingGoals,
 }: {
   text: string
-  existingProjects: Project['Read'][]
-  existingAreas: Area['Read'][]
-  existingGoals: Goal['Read'][]
+  existingProjects: HydratedProject[]
+  existingAreas: HydratedArea[]
+  existingGoals: HydratedGoal[]
 }): HashtagParseResult => {
   const result: HashtagParseResult = {
     textWithoutTags: text,
@@ -38,17 +43,17 @@ export const parseHashtags = ({
     const matchedProject = existingProjects.find(
       (p) =>
         p.title.toLowerCase() === tagName ||
-        p.project_tag?.toLowerCase() === tagName,
+        p.tags?.some((t) => t.title.toLowerCase() === tagName),
     )
     const matchedArea = existingAreas.find(
       (a) =>
         a.title.toLowerCase() === tagName ||
-        a.area_tag?.toLowerCase() === tagName,
+        a.tags?.some((t) => t.title.toLowerCase() === tagName),
     )
     const matchedGoal = existingGoals.find(
       (g) =>
         g.title.toLowerCase() === tagName ||
-        g.goal_tag?.toLowerCase() === tagName,
+        g.tags?.some((t) => t.title.toLowerCase() === tagName),
     )
 
     if (matchedProject && !result.project_id) {

@@ -1,8 +1,8 @@
 {
   "version": "6",
   "dialect": "sqlite",
-  "id": "2bb6a4a9-5b88-41e2-b345-c624f3120351",
-  "prevId": "8b2bc472-7585-410a-8f72-3651a296a869",
+  "id": "a5726a27-ef2c-43eb-af80-b4ce2af2b5a9",
+  "prevId": "00000000-0000-0000-0000-000000000000",
   "tables": {
     "areas": {
       "name": "areas",
@@ -358,6 +358,13 @@
           "autoincrement": false,
           "default": "'medium'"
         },
+        "anchor_id": {
+          "name": "anchor_id",
+          "type": "text",
+          "primaryKey": false,
+          "notNull": false,
+          "autoincrement": false
+        },
         "estimated_minutes": {
           "name": "estimated_minutes",
           "type": "integer",
@@ -388,8 +395,8 @@
           "autoincrement": false,
           "default": false
         },
-        "recurring_rule": {
-          "name": "recurring_rule",
+        "recurrance_rule": {
+          "name": "recurrance_rule",
           "type": "text",
           "primaryKey": false,
           "notNull": false,
@@ -547,6 +554,19 @@
           "tableTo": "goals",
           "columnsFrom": [
             "goal_id"
+          ],
+          "columnsTo": [
+            "id"
+          ],
+          "onDelete": "set null",
+          "onUpdate": "no action"
+        },
+        "tasks_anchor_id_tasks_id_fk": {
+          "name": "tasks_anchor_id_tasks_id_fk",
+          "tableFrom": "tasks",
+          "tableTo": "tasks",
+          "columnsFrom": [
+            "anchor_id"
           ],
           "columnsTo": [
             "id"
@@ -781,13 +801,6 @@
           "type": "integer",
           "primaryKey": false,
           "notNull": true,
-          "autoincrement": false
-        },
-        "project_tag": {
-          "name": "project_tag",
-          "type": "text",
-          "primaryKey": false,
-          "notNull": false,
           "autoincrement": false
         },
         "area_id": {

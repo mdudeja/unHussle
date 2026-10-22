@@ -3,6 +3,7 @@ import { Task, Priority, ProgressStatus } from '@c/types/index'
 import { Button } from '@/components/ui/button'
 import { Input } from '@/components/ui/input'
 import { Textarea } from '@/components/ui/textarea'
+import { RecurranceRuleInput } from '@/components/ui/custom/RecurranceRuleInput'
 import {
   Smile,
   ClipboardList,
@@ -39,7 +40,6 @@ export const TaskFormComponent = ({
     is_fun: false,
     is_chore: false,
     is_recurring: false,
-    recurring_rule: '',
     estimated_minutes: 0,
     ...initialData,
   })
@@ -194,7 +194,12 @@ export const TaskFormComponent = ({
               type="checkbox"
               id="is_recurring"
               checked={!!formData.is_recurring}
-              onChange={(e) => handleChange('is_recurring', e.target.checked)}
+              onChange={(e) => {
+                handleChange('is_recurring', e.target.checked)
+                if (e.target.checked && !formData.recurrance_rule) {
+                  handleChange('recurrance_rule', { type: 'daily', data: {} })
+                }
+              }}
               className="h-4 w-4 rounded border-border text-sage focus:ring-sage2"
             />
             <label
@@ -207,13 +212,11 @@ export const TaskFormComponent = ({
           </div>
 
           {formData.is_recurring && (
-            <div className="ml-6">
-              <Input
-                placeholder="e.g. 'Every Monday' or Cron string"
-                value={formData.recurring_rule || ''}
-                onChange={(e) => handleChange('recurring_rule', e.target.value)}
-              />
-            </div>
+            <RecurranceRuleInput
+              className="ml-6"
+              value={formData.recurrance_rule}
+              onChange={(rule) => handleChange('recurrance_rule', rule)}
+            />
           )}
         </div>
 

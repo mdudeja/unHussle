@@ -1,4 +1,6 @@
+import { TagsRepository } from '@d/database/repositories/tags'
 import { tags } from '@d/database/schemas'
+import { UnHussleDB } from '@d/database/UnHussleDB'
 import {
   insertTagsSchema,
   selectTagsSchema,
@@ -15,4 +17,5 @@ export const tagRoutes = routeGenerator({
     update: updateTagsSchema,
     base: tags,
   },
+  repository: new TagsRepository(UnHussleDB.getInstance()),
 })

@@ -27,7 +27,10 @@ import {
   CircleAlert,
   Crosshair,
   Clock9,
+  Repeat,
 } from 'lucide-react'
+import { RecurranceRule } from '@d/database/schemas'
+import { RecurranceRuleInput } from '@/components/ui/custom/RecurranceRuleInput'
 import { cn } from '@/lib/utils'
 import {
   formatDdMmYyyy,
@@ -55,19 +58,24 @@ type TaskFlags = {
   is_fun: boolean
   is_chore: boolean
   is_quick: boolean
+  is_recurring: boolean
 }
 
 const emptyFlags: TaskFlags = {
   is_fun: false,
   is_chore: false,
   is_quick: false,
+  is_recurring: false,
 }
 
 const flagOptions = [
   { key: 'is_fun', label: 'Fun', icon: Smile },
   { key: 'is_chore', label: 'Chore', icon: ClipboardList },
   { key: 'is_quick', label: 'Quick', icon: Zap },
+  { key: 'is_recurring', label: 'Recurring', icon: Repeat },
 ] as const
+
+const defaultRecurranceRule: RecurranceRule = { type: 'daily', data: {} }
 
 // Formats a JS Date (local time) as DD/MM/YYYY.
 export const BrainDumpInputComponent = () => {
@@ -82,6 +90,9 @@ export const BrainDumpInputComponent = () => {
   const [flags, setFlags] = useState<TaskFlags>(emptyFlags)
   const [dueDate, setDueDate] = useState<Date | undefined>(undefined)
   const [isCalendarOpen, setIsCalendarOpen] = useState(false)
+  const [recurranceRule, setRecurranceRule] = useState<RecurranceRule>(
+    defaultRecurranceRule,
+  )
 
   const tasks = useStore((state) => state.tasks)
   const areas = useStore((state) => state.areas)
@@ -127,6 +138,7 @@ export const BrainDumpInputComponent = () => {
     setPriority(Priority.MEDIUM)
     setFlags(emptyFlags)
     setDueDate(undefined)
+    setRecurranceRule(defaultRecurranceRule)
   }
 
   const toggleFlag = (key: keyof TaskFlags) => {
@@ -178,6 +190,8 @@ export const BrainDumpInputComponent = () => {
         is_fun: flags.is_fun,
         is_chore: flags.is_chore,
         is_quick: flags.is_quick,
+        is_recurring: flags.is_recurring,
+        recurrance_rule: flags.is_recurring ? recurranceRule : undefined,
         estimated_minutes: parsedData.task.estimated_minutes,
         due_date: effectiveDueMillis,
       })
@@ -356,6 +370,15 @@ export const BrainDumpInputComponent = () => {
           </PopoverContent>
         </Popover>
       </div>
+
+      {/* Recurrance rule editor */}
+      {flags.is_recurring && (
+        <RecurranceRuleInput
+          className="rounded-md border border-border p-3"
+          value={recurranceRule}
+          onChange={setRecurranceRule}
+        />
+      )}
 
       {/* Parsed data visualization */}
       {inputValue && (

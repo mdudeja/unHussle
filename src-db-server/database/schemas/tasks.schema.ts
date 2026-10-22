@@ -1,19 +1,24 @@
-import { integer, sqliteTable, text, index } from 'drizzle-orm/sqlite-core'
+import {
+  integer,
+  sqliteTable,
+  text,
+  index,
+  AnySQLiteColumn,
+} from 'drizzle-orm/sqlite-core'
 import { relations } from 'drizzle-orm'
 import {
   entitySchema,
   junctionTimeEntries,
   prioritySchema,
   statusSchema,
-} from '@d/database/schemas/index'
-import { Entity, InferTableTypes } from '@c/types/index'
-import {
   projects,
   areas,
   goals,
   junctionTags,
   junctionUrls,
+  RecurranceRule,
 } from '@d/database/schemas/index'
+import { Entity, InferTableTypes } from '@c/types/index'
 
 export const tasks = sqliteTable(
   'tasks',
@@ -31,11 +36,14 @@ export const tasks = sqliteTable(
     }),
     ...statusSchema,
     ...prioritySchema,
+    anchor_id: text('anchor_id').references((): AnySQLiteColumn => tasks.id, {
+      onDelete: 'set null',
+    }),
     estimated_minutes: integer({ mode: 'number' }),
     spent_minutes: integer({ mode: 'number' }).notNull().default(0),
     due_date: integer({ mode: 'number' }),
     is_recurring: integer({ mode: 'boolean' }).notNull().default(false),
-    recurring_rule: text(),
+    recurrance_rule: text({ mode: 'json' }).$type<RecurranceRule>(),
     is_fun: integer({ mode: 'boolean' }).notNull().default(false),
     is_chore: integer({ mode: 'boolean' }).notNull().default(false),
     is_quick: integer({ mode: 'boolean' }).notNull().default(false),
@@ -69,6 +77,10 @@ export const tasksRelations = relations(tasks, ({ one, many }) => ({
   goal: one(goals, {
     fields: [tasks.goal_id],
     references: [goals.id],
+  }),
+  anchor: one(tasks, {
+    fields: [tasks.anchor_id],
+    references: [tasks.id],
   }),
   tags: many(junctionTags),
   urls: many(junctionUrls),

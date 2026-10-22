@@ -8,7 +8,6 @@ import {
   Palette,
   Sparkles,
   Target,
-  TagIcon,
 } from 'lucide-react'
 import { Area, Goal, Project } from '@c/types/index'
 import type { FieldConfig, FieldOption } from '../types'
@@ -43,17 +42,6 @@ export const createProjectFields = ({
       colSpan: 2,
       placeholder: 'What is this project about?',
       icon: FolderKanban,
-    },
-    {
-      name: 'project_tag',
-      label: 'Project Tag',
-      type: 'text',
-      required: true,
-      colSpan: 2,
-      placeholder:
-        'Unique project tag for the project. No spaces. Use dashes or underscores instead.',
-      icon: TagIcon,
-      noSpacesAllowed: true,
     },
     {
       name: 'description',

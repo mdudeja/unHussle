@@ -1,12 +1,15 @@
+import { UrlsRepository } from '@d/database/repositories/urls'
 import { urls } from '@d/database/schemas'
+import { UnHussleDB } from '@d/database/UnHussleDB'
 import {
   insertUrlsSchema,
   selectUrlsSchema,
   updateUrlsSchema,
 } from '@d/database/validation'
 import { routeGenerator } from '@d/routes/routegenerator'
-import { eq } from 'drizzle-orm'
 import { URL } from 'node:url'
+
+const repository = new UrlsRepository(UnHussleDB.getInstance())
 
 const urlRoutes = routeGenerator({
   name: 'urls',
@@ -17,13 +20,14 @@ const urlRoutes = routeGenerator({
     update: updateUrlsSchema,
     base: urls,
   },
+  repository: repository,
 })
 
 urlRoutes
 
   .post(
     '/',
-    async ({ body, set, db, logger }) => {
+    async ({ body, set, logger }) => {
       logger.debug(`Add url with id: ${body.id}`)
       const url = new URL(body.url)
 
@@ -36,17 +40,14 @@ urlRoutes
         hash: url.hash,
       }
 
-      const result = await db
-        .insert(urls)
-        .values({ ...body, parts: urlParts })
-        .returning()
+      const result = await repository.add({ ...body, parts: urlParts })
 
-      if (!result.length || !result[0]) {
+      if (!result) {
         set.status = 500
         throw new Error('Failed to insert url')
       }
 
-      return result[0]
+      return result
     },
     {
       body: insertUrlsSchema,
@@ -56,7 +57,7 @@ urlRoutes
 
   .patch(
     '/:id',
-    async ({ params: { id }, body, set, db }) => {
+    async ({ params: { id }, body, set }) => {
       console.log(`Update url with id: `, id)
       let updatedBody = body
 
@@ -75,16 +76,12 @@ urlRoutes
         updatedBody = { ...body, parts: urlParts }
       }
 
-      const result = await db
-        .update(urls)
-        .set(updatedBody)
-        .where(eq(urls.id, id))
-        .returning()
-      if (!result.length || !result[0]) {
+      const result = await repository.update(id, updatedBody)
+      if (!result) {
         set.status = 500
         throw new Error('Failed to update url')
       }
-      return result[0]
+      return result
     },
     {
       body: updateUrlsSchema,

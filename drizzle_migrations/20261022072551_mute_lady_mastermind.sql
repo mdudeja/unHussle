@@ -50,11 +50,12 @@ CREATE TABLE `tasks` (
 	`updated_at` integer NOT NULL,
 	`status` text DEFAULT 'planned',
 	`priority` text DEFAULT 'medium',
+	`anchor_id` text,
 	`estimated_minutes` integer,
 	`spent_minutes` integer DEFAULT 0 NOT NULL,
 	`due_date` integer,
 	`is_recurring` integer DEFAULT false NOT NULL,
-	`recurring_rule` text,
+	`recurrance_rule` text,
 	`is_fun` integer DEFAULT false NOT NULL,
 	`is_chore` integer DEFAULT false NOT NULL,
 	`is_quick` integer DEFAULT false NOT NULL,
@@ -64,7 +65,8 @@ CREATE TABLE `tasks` (
 	`completed_at` integer,
 	FOREIGN KEY (`project_id`) REFERENCES `projects`(`id`) ON UPDATE no action ON DELETE set null,
 	FOREIGN KEY (`area_id`) REFERENCES `areas`(`id`) ON UPDATE no action ON DELETE set null,
-	FOREIGN KEY (`goal_id`) REFERENCES `goals`(`id`) ON UPDATE no action ON DELETE set null
+	FOREIGN KEY (`goal_id`) REFERENCES `goals`(`id`) ON UPDATE no action ON DELETE set null,
+	FOREIGN KEY (`anchor_id`) REFERENCES `tasks`(`id`) ON UPDATE no action ON DELETE set null
 );
 --> statement-breakpoint
 CREATE INDEX `tasks_project_idx` ON `tasks` (`project_id`);--> statement-breakpoint

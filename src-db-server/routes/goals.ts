@@ -1,4 +1,6 @@
+import { GoalsRepository } from '@d/database/repositories/goals'
 import { goals } from '@d/database/schemas'
+import { UnHussleDB } from '@d/database/UnHussleDB'
 import {
   insertGoalSchema,
   selectGoalSchema,
@@ -15,4 +17,5 @@ export const goalRoutes = routeGenerator({
     update: updateGoalSchema,
     base: goals,
   },
+  repository: new GoalsRepository(UnHussleDB.getInstance()),
 })

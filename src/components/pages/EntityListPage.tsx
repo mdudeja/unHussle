@@ -6,7 +6,10 @@ import {
   SortingState,
   Updater,
 } from '@tanstack/react-table'
-import { DataTable, DataTableFilter } from '@/components/table/DataTable'
+import {
+  DataTable,
+  DataTableFilter,
+} from '@/components/ui/custom/table/DataTable'
 import { StoreState, useStore } from '@/store'
 import { entitySearchParams } from '@/lib/entityRoutes'
 import { useDebouncedValue } from '@/lib/hooks/useDebouncedValue'

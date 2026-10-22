@@ -36,10 +36,10 @@ import {
 } from '@d/database/validation'
 import { Elysia } from 'elysia'
 import { UnHussleDB } from '@d/database/UnHussleDB'
-import { eq } from 'drizzle-orm'
 import { Type } from '@sinclair/typebox'
 import { Value } from '@sinclair/typebox/value'
 import { Logger } from '@c/Logger'
+import { IRepository } from '@d/database/repositories/IRepository.interface'
 
 export type RouteGeneratorSchemas =
   | {
@@ -101,13 +101,20 @@ const parsedSearchLimit = parseInt(
   10,
 )
 
-export type RouteGeneratorConfig = {
+export type RouteGeneratorConfig<
+  T extends { Read: unknown; Write: unknown; Update: unknown },
+> = {
   name: keyof (typeof db)['query']
   prefix: string
   schemas: RouteGeneratorSchemas
+  repository: IRepository<T>
 }
 
-export const routeGenerator = (config: RouteGeneratorConfig) => {
+export const routeGenerator = <
+  T extends { Read: unknown; Write: unknown; Update: unknown },
+>(
+  config: RouteGeneratorConfig<T>,
+) => {
   return new Elysia({ prefix: config.prefix, name: config.name })
     .decorate('db', db)
     .decorate('logger', Logger.getInstance())
@@ -125,12 +132,8 @@ export const routeGenerator = (config: RouteGeneratorConfig) => {
       '/',
       async ({ logger }) => {
         logger.debug(`Get All ${config.name}`)
-        const ps = uDB.getPreparedStatement(config.name, 'get_all')
-        if (!ps) {
-          throw new Error('Prepared statement not found: get_all')
-        }
-
-        return Value.Parse(Type.Array(config.schemas.select), ps.all())
+        const results = await config.repository.getAll()
+        return Value.Parse(Type.Array(config.schemas.select), results)
       },
       {
         response: Type.Array(config.schemas.select),
@@ -143,19 +146,13 @@ export const routeGenerator = (config: RouteGeneratorConfig) => {
         logger.debug(
           `Get Paged ${config.name} with page: ${page}, pageSize: ${pageSize}`,
         )
-        const ps = uDB.getPreparedStatement(config.name, 'get_paginated')
-        if (!ps) {
-          throw new Error('Prepared statement not found: get_paged')
-        }
-
         try {
-          const limit = parseInt(pageSize, 10)
-          const offset = (parseInt(page, 10) - 1) * limit
+          const psize = parseInt(pageSize, 10)
+          const pg = (parseInt(page, 10) - 1) * psize
 
-          return Value.Parse(
-            Type.Array(config.schemas.select),
-            ps.all({ limit, offset }),
-          )
+          const results = await config.repository.getPaginated(pg, psize)
+
+          return Value.Parse(Type.Array(config.schemas.select), results)
         } catch (error) {
           throw new Error(`Invalid page or pageSize: ${error}`)
         }
@@ -169,13 +166,7 @@ export const routeGenerator = (config: RouteGeneratorConfig) => {
       '/:id',
       async ({ params: { id }, logger }) => {
         logger.debug(`Get ${config.name} with id: ${id}`)
-        const ps = uDB.getPreparedStatement(config.name, 'get_by_id')
-
-        if (!ps) {
-          throw new Error('Prepared statement not found: get_by_id')
-        }
-
-        const result = ps.get({ id })
+        const result = await config.repository.getById(id)
 
         if (!result) {
           throw new Error('NOT_FOUND')
@@ -193,19 +184,13 @@ export const routeGenerator = (config: RouteGeneratorConfig) => {
       async ({ params: { term }, logger }) => {
         logger.debug(`Search ${config.name} with term: ${term}`)
 
-        const ps = uDB.getPreparedStatement(config.name, 'search')
-
-        if (!ps) {
-          throw new Error('Prepared statement not found: search')
-        }
-
         // Hashtags are stored without `#`, so `#health` should match `health`.
         const normalizedTerm = term.trim().replace(/^#/, '').toLowerCase()
 
-        const values = ps.all({
-          term: `%${normalizedTerm}%`,
-          limit: parsedSearchLimit,
-        })
+        const values = await config.repository.search(
+          normalizedTerm,
+          parsedSearchLimit,
+        )
 
         const result = Value.Parse(Type.Array(config.schemas.select), values)
 
@@ -218,19 +203,16 @@ export const routeGenerator = (config: RouteGeneratorConfig) => {
 
     .post(
       '/',
-      async ({ body, set, db, logger }) => {
+      async ({ body, set, logger }) => {
         logger.debug(`Add ${config.name} with id: ${body.id}`)
-        const result = await db
-          .insert(config.schemas.base)
-          .values(body)
-          .returning()
+        const result = await config.repository.add(body)
 
-        if (!result.length || !result[0]) {
+        if (!result) {
           set.status = 500
           throw new Error('Failed to insert task')
         }
 
-        return Value.Parse(config.schemas.select, result[0])
+        return Value.Parse(config.schemas.select, result)
       },
       {
         body: config.schemas.insert,
@@ -240,20 +222,16 @@ export const routeGenerator = (config: RouteGeneratorConfig) => {
 
     .patch(
       '/:id',
-      async ({ params: { id }, body, set, db, logger }) => {
+      async ({ params: { id }, body, set, logger }) => {
         logger.debug(`Update ${config.name} with id: ${id}`)
-        const result = await db
-          .update(config.schemas.base)
-          .set(body)
-          .where(eq(config.schemas.base.id, id))
-          .returning()
+        const result = await config.repository.update(id, body)
 
-        if (!result.length || !result[0]) {
+        if (!result) {
           set.status = 500
           throw new Error('Failed to update task')
         }
 
-        return Value.Parse(config.schemas.select, result[0])
+        return Value.Parse(config.schemas.select, result)
       },
       {
         body: config.schemas.update,
@@ -265,9 +243,9 @@ export const routeGenerator = (config: RouteGeneratorConfig) => {
       '/all',
       async ({ logger }) => {
         logger.debug(`Delete all ${config.name} `)
-        const result = await db.delete(config.schemas.base).returning()
+        const result = await config.repository.deleteAll()
 
-        return { deleted: result.length }
+        return { deleted: result }
       },
       {
         response: Type.Object({ deleted: Type.Number() }),
@@ -276,18 +254,15 @@ export const routeGenerator = (config: RouteGeneratorConfig) => {
 
     .delete(
       '/:id',
-      async ({ params: { id }, db, logger }) => {
+      async ({ params: { id }, logger }) => {
         logger.debug(`Delete ${config.name} with id: ${id}`)
-        const result = await db
-          .delete(config.schemas.base)
-          .where(eq(config.schemas.base.id, id))
-          .returning()
+        const result = await config.repository.delete(id)
 
-        if (!result.length || !result[0]) {
+        if (!result) {
           throw new Error('NOT_FOUND')
         }
 
-        return Value.Parse(config.schemas.select, result[0])
+        return Value.Parse(config.schemas.select, result)
       },
       {
         response: config.schemas.select,

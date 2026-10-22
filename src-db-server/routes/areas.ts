@@ -5,6 +5,8 @@ import {
 } from '@d/database/validation'
 import { routeGenerator } from '@d/routes/routegenerator'
 import { areas } from '@d/database/schemas'
+import { AreasRepository } from '@d/database/repositories/areas'
+import { UnHussleDB } from '@d/database/UnHussleDB'
 
 export const areaRoutes = routeGenerator({
   name: 'areas',
@@ -15,4 +17,5 @@ export const areaRoutes = routeGenerator({
     update: updateAreaSchema,
     base: areas,
   },
+  repository: new AreasRepository(UnHussleDB.getInstance()),
 })

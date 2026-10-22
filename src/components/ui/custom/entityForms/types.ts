@@ -36,6 +36,7 @@ export interface FieldConfig<T extends object> {
   min?: number
   max?: number
   step?: number
+  /** no spaces allowed in the input value. Useful for tags, slugs, etc. */
   noSpacesAllowed?: boolean
 }
 

@@ -6,6 +6,11 @@ import {
   type AutocompleteOption,
   type UseAutocompleteResult,
 } from '@/lib/hooks/useAutocomplete'
+import {
+  HydratedArea,
+  HydratedGoal,
+  HydratedProject,
+} from '@d/database/repositories'
 
 export type APGSuggestionKind = 'area' | 'project' | 'goal'
 
@@ -22,11 +27,11 @@ const tagForEntity = (
 ): string | undefined => {
   switch (kind) {
     case 'area':
-      return (entity as Area['Read']).area_tag ?? undefined
+      return (entity as HydratedArea).tags?.[0]?.title ?? undefined
     case 'project':
-      return (entity as Project['Read']).project_tag ?? undefined
+      return (entity as HydratedProject).tags?.[0]?.title ?? undefined
     case 'goal':
-      return (entity as Goal['Read']).goal_tag ?? undefined
+      return (entity as HydratedGoal).tags?.[0]?.title ?? undefined
   }
 }
 

@@ -75,3 +75,38 @@ export const junctionTableSchema = {
   refId: t.text().notNull(),
   ...timestampsSchema,
 }
+
+export type RecurranceType = 'daily' | 'weekly' | 'monthly' | 'yearly'
+export type DailyRecurranceRule = {
+  type: 'daily'
+  data: {
+    anchorTaskIds?: string[]
+    slots?: {
+      from: number
+      to: number
+    }[]
+  }
+}
+export type WeeklyRecurranceRule = {
+  type: 'weekly'
+  data: DailyRecurranceRule['data'] & {
+    weekDays: number[]
+  }
+}
+export type MonthlyRecurranceRule = {
+  type: 'monthly'
+  data: WeeklyRecurranceRule['data'] & {
+    monthDays: number[]
+  }
+}
+export type YearlyRecurranceRule = {
+  type: 'yearly'
+  data: MonthlyRecurranceRule['data'] & {
+    months: number[]
+  }
+}
+export type RecurranceRule =
+  | DailyRecurranceRule
+  | WeeklyRecurranceRule
+  | MonthlyRecurranceRule
+  | YearlyRecurranceRule

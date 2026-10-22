@@ -15,14 +15,17 @@ import {
   taskFlagFilters,
   textColumn,
   titleColumn,
-} from '@/components/table/columns'
+} from '@/components/ui/custom/table/columns'
 import { Priority, ProgressStatus } from '@c/types/index'
-import { Project } from '@d/database/schemas/projects.schema'
-import { Area } from '@d/database/schemas/areas.schema'
-import { Goal } from '@d/database/schemas/goals.schema'
 import { Task } from '@d/database/schemas/tasks.schema'
 import { Url } from '@d/database/schemas/urls.schema'
 import { Tag } from '@d/database/schemas/tags.schema'
+import {
+  HydratedArea,
+  HydratedGoal,
+  HydratedProject,
+  HydratedTask,
+} from '@d/database/repositories'
 
 const statusFilter = {
   columnId: 'status',
@@ -39,12 +42,12 @@ const priorityFilter = {
 const updatedAtColumn = <TData extends { updated_at: number }>() =>
   dateColumn<TData>('updated_at', 'Updated', (row) => row.updated_at)
 
-const projectsConfig: EntityListPageConfig<Project['Read']> = {
+const projectsConfig: EntityListPageConfig<HydratedProject> = {
   title: 'Projects',
   selectSlice: (state) => state.projects,
   columns: [
     titleColumn(FolderKanban),
-    hashtagColumn((row) => row.project_tag),
+    hashtagColumn((row) => row.tags?.join(', ')) ?? '',
     statusColumn(),
     priorityColumn(),
     entityRefColumn('areas', 'Area', (row) => row.area_id),
@@ -55,12 +58,12 @@ const projectsConfig: EntityListPageConfig<Project['Read']> = {
   filters: [statusFilter, priorityFilter],
 }
 
-const areasConfig: EntityListPageConfig<Area['Read']> = {
+const areasConfig: EntityListPageConfig<HydratedArea> = {
   title: 'Areas',
   selectSlice: (state) => state.areas,
   columns: [
     titleColumn(GitGraph),
-    hashtagColumn((row) => row.area_tag),
+    hashtagColumn((row) => row.tags?.join(', ')) ?? '',
     statusColumn(),
     priorityColumn(),
     updatedAtColumn(),
@@ -68,12 +71,12 @@ const areasConfig: EntityListPageConfig<Area['Read']> = {
   filters: [statusFilter, priorityFilter],
 }
 
-const goalsConfig: EntityListPageConfig<Goal['Read']> = {
+const goalsConfig: EntityListPageConfig<HydratedGoal> = {
   title: 'Goals',
   selectSlice: (state) => state.goals,
   columns: [
     titleColumn(GoalIcon),
-    hashtagColumn((row) => row.goal_tag),
+    hashtagColumn((row) => row.tags?.join(', ')) ?? '',
     statusColumn(),
     priorityColumn(),
     entityRefColumn('areas', 'Area', (row) => row.area_id),
@@ -83,7 +86,7 @@ const goalsConfig: EntityListPageConfig<Goal['Read']> = {
   filters: [statusFilter, priorityFilter],
 }
 
-const tasksConfig: EntityListPageConfig<Task['Read']> = {
+const tasksConfig: EntityListPageConfig<HydratedTask> = {
   title: 'Tasks',
   selectSlice: (state) => state.tasks,
   columns: [

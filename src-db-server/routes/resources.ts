@@ -5,6 +5,8 @@ import {
 } from '@d/database/validation'
 import { routeGenerator } from './routegenerator'
 import { resources } from '@d/database/schemas'
+import { UnHussleDB } from '@d/database/UnHussleDB'
+import { ResourcesRepository } from '@d/database/repositories/resources'
 
 export const resourcesRoutes = routeGenerator({
   name: 'resources',
@@ -15,4 +17,5 @@ export const resourcesRoutes = routeGenerator({
     update: updateResourceSchema,
     base: resources,
   },
+  repository: new ResourcesRepository(UnHussleDB.getInstance()),
 })

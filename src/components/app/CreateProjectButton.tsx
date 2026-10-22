@@ -3,7 +3,10 @@ import { useStore } from '@/store'
 import { Priority, ProgressStatus, Project } from '@c/types/index'
 import { Button } from '@/components/ui/button'
 import { Plus } from 'lucide-react'
-import { createProjectFields, EntityFormDialog } from '@/components/form'
+import {
+  createProjectFields,
+  EntityFormDialog,
+} from '@/components/ui/custom/entityForms'
 
 const projectDefaultValues: Partial<Project['Write']> = {
   status: ProgressStatus.PLANNED,

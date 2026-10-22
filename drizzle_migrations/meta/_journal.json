@@ -5,22 +5,8 @@
     {
       "idx": 0,
       "version": "6",
-      "when": 1770239450781,
-      "tag": "20260204211050_greedy_blue_shield",
-      "breakpoints": true
-    },
-    {
-      "idx": 1,
-      "version": "6",
-      "when": 1792253345894,
-      "tag": "20261017160905_clear_lorna_dane",
-      "breakpoints": true
-    },
-    {
-      "idx": 2,
-      "version": "6",
-      "when": 1792254511807,
-      "tag": "20261017162831_abnormal_miss_america",
+      "when": 1792653951353,
+      "tag": "20261022072551_mute_lady_mastermind",
       "breakpoints": true
     }
   ]

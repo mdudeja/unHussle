@@ -5,7 +5,6 @@ import {
   Flag,
   Palette,
   Sparkles,
-  TagIcon,
 } from 'lucide-react'
 import { Area } from '@c/types/index'
 import type { FieldConfig } from '../types'
@@ -20,17 +19,6 @@ export const createAreaFields = (): FieldConfig<Area['Write']>[] => [
     colSpan: 2,
     placeholder: 'What area of life is this?',
     icon: Boxes,
-  },
-  {
-    name: 'area_tag',
-    label: 'Area Tag',
-    type: 'text',
-    required: true,
-    colSpan: 2,
-    placeholder:
-      'Unique area tag for the area. No spaces. Use dashes or underscores instead.',
-    icon: TagIcon,
-    noSpacesAllowed: true,
   },
   {
     name: 'description',

@@ -1,4 +1,6 @@
+import { TimeEntriesRepository } from '@d/database/repositories/timeEntries'
 import { timeEntries } from '@d/database/schemas'
+import { UnHussleDB } from '@d/database/UnHussleDB'
 import {
   insertTimeEntriesSchema,
   selectTimeEntriesSchema,
@@ -15,4 +17,5 @@ export const timeEntriesRoutes = routeGenerator({
     update: updateTimeEntriesSchema,
     base: timeEntries,
   },
+  repository: new TimeEntriesRepository(UnHussleDB.getInstance()),
 })

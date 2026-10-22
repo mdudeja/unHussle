@@ -1,4 +1,4 @@
-import { index, sqliteTable, text, unique } from 'drizzle-orm/sqlite-core'
+import { index, sqliteTable, unique } from 'drizzle-orm/sqlite-core'
 import { relations } from 'drizzle-orm'
 import { entityCollectionSchema } from './common.schema'
 import { EntityCollection, InferTableTypes } from '@c/types/index'
@@ -12,7 +12,6 @@ export const areas = sqliteTable(
   'areas',
   {
     ...entityCollectionSchema,
-    area_tag: text(),
   },
   (table) => [
     index('areas_title_idx').on(table.title),
@@ -21,7 +20,6 @@ export const areas = sqliteTable(
     index('areas_created_at_idx').on(table.created_at),
     index('areas_updated_at_idx').on(table.updated_at),
     unique('areas_title_unique').on(table.title),
-    unique('areas_area_tag_unique').on(table.area_tag),
   ],
 )
 

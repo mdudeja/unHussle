@@ -1,1 +1,0 @@
-ALTER TABLE `projects` ADD `project_tag` text;
