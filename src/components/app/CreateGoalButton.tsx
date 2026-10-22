@@ -1,6 +1,6 @@
 import { useMemo, useState } from 'react'
 import { useStore } from '@/store'
-import { Priority, ProgressStatus, Goal } from '@c/types/index'
+import { Priority, ProgressStatus, Goal, WithAttachments } from '@c/types/index'
 import { Button } from '@/components/ui/button'
 import { Plus } from 'lucide-react'
 import {
@@ -8,7 +8,7 @@ import {
   EntityFormDialog,
 } from '@/components/ui/custom/entityForms'
 
-const goalDefaultValues: Partial<Goal['Write']> = {
+const goalDefaultValues: Partial<WithAttachments<Goal['Write']>> = {
   status: ProgressStatus.PLANNED,
   priority: Priority.MEDIUM,
 }
@@ -33,11 +33,19 @@ export const CreateGoalButtonComponent = () => {
     setIsDialogOpen(true)
   }
 
-  const handleSubmit = async (values: Partial<Goal['Write']>) => {
+  const handleSubmit = async (
+    values: Partial<WithAttachments<Goal['Write']>>,
+  ) => {
     setIsSubmitting(true)
     setErrorMessage(undefined)
     try {
-      await goals.add(values as Goal['Write'])
+      await goals.add(values as WithAttachments<Goal['Write']>)
+      // Newly created tags should show up in the tag list and pickers
+      if (values.tags?.length)
+        useStore
+          .getState()
+          .tags.fetch()
+          .catch(() => {})
       setIsDialogOpen(false)
     } catch (error) {
       console.error('Failed to create goal:', error)

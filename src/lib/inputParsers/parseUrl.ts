@@ -11,15 +11,19 @@ type UrlParseResult = {
 const urlRegex = /(?:(?:https?|file):\/\/|www\.)\S+/gi
 const trailingPunctuationRegex = /[.,;:!?)\]}>'"]+$/
 
+// The server only accepts absolute URIs, so `www.` input gets a scheme.
+export const normalizeUrl = (url: string): string =>
+  /^www\./i.test(url) ? `https://${url}` : url
+
 export const parseUrl = (inputText: string): UrlParseResult => {
-  const matches = inputText.match(urlRegex) ?? []
-  const urls = matches.map((raw) => ({
-    url: raw.replace(trailingPunctuationRegex, ''),
-  }))
+  const matches = (inputText.match(urlRegex) ?? []).map((raw) =>
+    raw.replace(trailingPunctuationRegex, ''),
+  )
+  const urls = matches.map((raw) => ({ url: normalizeUrl(raw) }))
 
   let textMinusUrls = inputText
-  urls.forEach(({ url }) => {
-    textMinusUrls = textMinusUrls.split(url).join('')
+  matches.forEach((raw) => {
+    textMinusUrls = textMinusUrls.split(raw).join('')
   })
 
   return { urls, textMinusUrls }

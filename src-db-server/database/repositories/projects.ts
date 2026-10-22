@@ -10,7 +10,7 @@ import {
 } from '../schemas'
 import { UnHussleDB } from '../UnHussleDB'
 import { IRepository } from './IRepository.interface'
-import { BaseRepository } from './BaseRepository'
+import { AttachableRepository } from './AttachableRepository'
 import { taggedIds, unwrapJunctions, withTags, withUrls } from './helpers'
 
 type ProjectRelations = {
@@ -25,7 +25,7 @@ type ProjectRelations = {
 export type HydratedProject = Project['Read'] & ProjectRelations
 
 export class ProjectsRepository
-  extends BaseRepository<typeof projects>
+  extends AttachableRepository<typeof projects, HydratedProject>
   implements IRepository<Project>
 {
   private readonly relations = {

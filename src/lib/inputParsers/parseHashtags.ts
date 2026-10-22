@@ -5,6 +5,15 @@ import {
   HydratedProject,
 } from '@d/database/repositories'
 
+// Mirrors the `#\S+` hashtag grammar so a title without a tag can still be
+// inserted as a valid hashtag.
+export const slugifyTag = (value: string): string =>
+  value
+    .trim()
+    .toLowerCase()
+    .replace(/[^a-z0-9]+/g, '_')
+    .replace(/^_+|_+$/g, '')
+
 type HashtagParseResult = {
   project_id?: string
   area_id?: string

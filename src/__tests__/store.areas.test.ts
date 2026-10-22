@@ -94,7 +94,10 @@ describe('Areas Store', () => {
 
   test('search areas by hashtag, with or without #', async () => {
     const { add, search } = useStore.getState().areas
-    await add({ title: 'Searchable Area' })
+    await add({
+      title: 'Searchable Area',
+      tags: [{ title: 'searchable_xyz' }],
+    })
 
     for (const term of [
       'searchable_xyz',

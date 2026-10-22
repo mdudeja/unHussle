@@ -6,8 +6,10 @@ import {
   Layers,
   Target,
   TrendingUp,
+  Hash,
+  Link,
 } from 'lucide-react'
-import { Area, Goal } from '@c/types/index'
+import { Area, Goal, WithAttachments } from '@c/types/index'
 import type { FieldConfig, FieldOption } from '../types'
 import { priorityOptions, statusOptions } from '../utils'
 
@@ -15,7 +17,7 @@ export const createGoalFields = ({
   areas,
 }: {
   areas: Area['Read'][]
-}): FieldConfig<Goal['Write']>[] => {
+}): FieldConfig<WithAttachments<Goal['Write']>>[] => {
   const areaOptions: FieldOption[] = areas.map((area) => ({
     label: area.title,
     value: area.id,
@@ -78,6 +80,20 @@ export const createGoalFields = ({
       step: 1,
       placeholder: '0',
       icon: TrendingUp,
+    },
+    {
+      name: 'tags',
+      label: 'Tags',
+      type: 'tags',
+      colSpan: 2,
+      icon: Hash,
+    },
+    {
+      name: 'urls',
+      label: 'Links',
+      type: 'urls',
+      colSpan: 2,
+      icon: Link,
     },
   ]
 }

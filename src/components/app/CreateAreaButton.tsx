@@ -1,6 +1,6 @@
 import { useMemo, useState } from 'react'
 import { useStore } from '@/store'
-import { Priority, ProgressStatus, Area } from '@c/types/index'
+import { Priority, ProgressStatus, Area, WithAttachments } from '@c/types/index'
 import { Button } from '@/components/ui/button'
 import { Plus } from 'lucide-react'
 import {
@@ -8,7 +8,7 @@ import {
   EntityFormDialog,
 } from '@/components/ui/custom/entityForms'
 
-const areaDefaultValues: Partial<Area['Write']> = {
+const areaDefaultValues: Partial<WithAttachments<Area['Write']>> = {
   status: ProgressStatus.PLANNED,
   priority: Priority.MEDIUM,
 }
@@ -29,11 +29,19 @@ export const CreateAreaButtonComponent = () => {
     setIsDialogOpen(true)
   }
 
-  const handleSubmit = async (values: Partial<Area['Write']>) => {
+  const handleSubmit = async (
+    values: Partial<WithAttachments<Area['Write']>>,
+  ) => {
     setIsSubmitting(true)
     setErrorMessage(undefined)
     try {
-      await areas.add(values as Area['Write'])
+      await areas.add(values as WithAttachments<Area['Write']>)
+      // Newly created tags should show up in the tag list and pickers
+      if (values.tags?.length)
+        useStore
+          .getState()
+          .tags.fetch()
+          .catch(() => {})
       setIsDialogOpen(false)
     } catch (error) {
       console.error('Failed to create area:', error)

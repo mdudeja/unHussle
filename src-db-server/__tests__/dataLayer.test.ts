@@ -8,6 +8,12 @@ import { unlink } from 'fs/promises'
 import { tmpdir } from 'os'
 import { join } from 'path'
 import { getNowMillis } from '@c/datetimeUtils'
+import {
+  AreasRepository,
+  GoalsRepository,
+  ProjectsRepository,
+  TasksRepository,
+} from '@d/database/repositories'
 
 describe('Data Layer Tests', () => {
   let db: BunSQLiteDatabase<typeof schema>
@@ -397,5 +403,151 @@ describe('Data Layer Tests', () => {
     expect(resource).toBeUndefined()
     expect(tag).toBeUndefined()
     expect(url).toBeUndefined()
+  })
+
+  describe('Tags and URLs written with an entity', () => {
+    const repositories = () => {
+      const uDB = UnHussleDB.getInstance(testDbPath)
+      return [
+        ['task', new TasksRepository(uDB)],
+        ['project', new ProjectsRepository(uDB)],
+        ['area', new AreasRepository(uDB)],
+        ['goal', new GoalsRepository(uDB)],
+      ] as const
+    }
+
+    const junctionTagIds = (attachedToId: string) =>
+      db
+        .select({ refId: schema.junctionTags.refId })
+        .from(schema.junctionTags)
+        .where(eq(schema.junctionTags.attachedToId, attachedToId))
+        .all()
+    const junctionUrlIds = (attachedToId: string) =>
+      db
+        .select({ refId: schema.junctionUrls.refId })
+        .from(schema.junctionUrls)
+        .where(eq(schema.junctionUrls.attachedToId, attachedToId))
+        .all()
+
+    test('add creates missing tags/urls and links them', async () => {
+      const [existing] = await db
+        .insert(schema.tags)
+        .values({ title: 'existing', color: '#123456' })
+        .returning()
+
+      for (const [name, repository] of repositories()) {
+        const added = await repository.add({
+          title: `Attached ${name}`,
+          tags: [
+            { title: '#Existing', color: '#ffffff' },
+            { title: `new_${name}` },
+            { title: `NEW_${name}` },
+          ],
+          urls: [
+            { url: 'https://example.com/shared' },
+            { url: `https://example.com/${name}`, title: name },
+          ],
+        })
+
+        expect(added).toBeTruthy()
+        expect(added!.tags?.map((tag) => tag.title).sort()).toEqual(
+          ['existing', `new_${name}`].sort(),
+        )
+        expect(added!.urls?.map((url) => url.url).sort()).toEqual(
+          ['https://example.com/shared', `https://example.com/${name}`].sort(),
+        )
+        expect(
+          added!.urls?.find((url) => url.url.endsWith(name))?.parts?.hostname,
+        ).toBe('example.com')
+        expect(junctionTagIds(added!.id)).toHaveLength(2)
+        expect(junctionUrlIds(added!.id)).toHaveLength(2)
+      }
+
+      // Existing tag/url rows are reused, not duplicated or overwritten
+      const existingRows = db
+        .select()
+        .from(schema.tags)
+        .where(eq(schema.tags.title, 'existing'))
+        .all()
+      expect(existingRows).toHaveLength(1)
+      expect(existingRows[0].id).toBe(existing.id)
+      expect(existingRows[0].color).toBe('#123456')
+      expect(
+        db
+          .select()
+          .from(schema.urls)
+          .where(eq(schema.urls.url, 'https://example.com/shared'))
+          .all(),
+      ).toHaveLength(1)
+    })
+
+    test('update replaces only the relations present in the body', async () => {
+      for (const [name, repository] of repositories()) {
+        const added = await repository.add({
+          title: `Replace ${name}`,
+          tags: [{ title: 'keep' }, { title: 'drop' }],
+          urls: [{ url: 'https://example.com/keep' }],
+        })
+
+        // Absent keys leave relations untouched
+        const renamed = await repository.update(added!.id, {
+          title: `Renamed ${name}`,
+        })
+        expect(renamed!.title).toBe(`Renamed ${name}`)
+        expect(renamed!.tags).toHaveLength(2)
+        expect(renamed!.urls).toHaveLength(1)
+
+        const replaced = await repository.update(added!.id, {
+          tags: [{ title: 'keep' }, { title: 'added' }],
+        })
+        expect(replaced!.tags?.map((tag) => tag.title).sort()).toEqual([
+          'added',
+          'keep',
+        ])
+        expect(replaced!.urls).toHaveLength(1)
+
+        const cleared = await repository.update(added!.id, {
+          tags: [],
+          urls: [],
+        })
+        expect(cleared!.tags).toEqual([])
+        expect(cleared!.urls).toEqual([])
+        expect(junctionTagIds(added!.id)).toHaveLength(0)
+        expect(junctionUrlIds(added!.id)).toHaveLength(0)
+      }
+    })
+
+    test('update of a missing entity returns null', async () => {
+      for (const [, repository] of repositories()) {
+        expect(
+          await repository.update('missing-id', { tags: [{ title: 'x' }] }),
+        ).toBeNull()
+      }
+      expect(junctionTagIds('missing-id')).toHaveLength(0)
+    })
+
+    test('delete removes junction rows', async () => {
+      for (const [name, repository] of repositories()) {
+        const added = await repository.add({
+          title: `Delete ${name}`,
+          tags: [{ title: 'doomed' }],
+          urls: [{ url: 'https://example.com/doomed' }],
+        })
+
+        const deleted = await repository.delete(added!.id)
+        expect(deleted?.id).toBe(added!.id)
+        expect(junctionTagIds(added!.id)).toHaveLength(0)
+        expect(junctionUrlIds(added!.id)).toHaveLength(0)
+
+        // The tag/url records themselves stay
+        expect(
+          db
+            .select()
+            .from(schema.tags)
+            .where(eq(schema.tags.title, 'doomed'))
+            .all(),
+        ).toHaveLength(1)
+      }
+    })
   })
 })

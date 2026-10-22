@@ -7,7 +7,7 @@ import {
   updateUrlsSchema,
 } from '@d/database/validation'
 import { routeGenerator } from '@d/routes/routegenerator'
-import { URL } from 'node:url'
+import { toUrlParts } from '@d/database/repositories/helpers'
 
 const repository = new UrlsRepository(UnHussleDB.getInstance())
 
@@ -29,18 +29,10 @@ urlRoutes
     '/',
     async ({ body, set, logger }) => {
       logger.debug(`Add url with id: ${body.id}`)
-      const url = new URL(body.url)
-
-      const urlParts = {
-        protocol: url.protocol,
-        hostname: url.hostname,
-        port: url.port,
-        pathname: url.pathname,
-        search: url.search,
-        hash: url.hash,
-      }
-
-      const result = await repository.add({ ...body, parts: urlParts })
+      const result = await repository.add({
+        ...body,
+        parts: toUrlParts(body.url),
+      })
 
       if (!result) {
         set.status = 500
@@ -62,18 +54,7 @@ urlRoutes
       let updatedBody = body
 
       if (body.url) {
-        const url = new URL(body.url)
-
-        const urlParts = {
-          protocol: url.protocol,
-          hostname: url.hostname,
-          port: url.port,
-          pathname: url.pathname,
-          search: url.search,
-          hash: url.hash,
-        }
-
-        updatedBody = { ...body, parts: urlParts }
+        updatedBody = { ...body, parts: toUrlParts(body.url) }
       }
 
       const result = await repository.update(id, updatedBody)

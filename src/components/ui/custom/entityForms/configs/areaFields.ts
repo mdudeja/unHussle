@@ -5,12 +5,16 @@ import {
   Flag,
   Palette,
   Sparkles,
+  Hash,
+  Link,
 } from 'lucide-react'
-import { Area } from '@c/types/index'
+import { Area, WithAttachments } from '@c/types/index'
 import type { FieldConfig } from '../types'
 import { priorityOptions, statusOptions } from '../utils'
 
-export const createAreaFields = (): FieldConfig<Area['Write']>[] => [
+export const createAreaFields = (): FieldConfig<
+  WithAttachments<Area['Write']>
+>[] => [
   {
     name: 'title',
     label: 'Name',
@@ -55,5 +59,19 @@ export const createAreaFields = (): FieldConfig<Area['Write']>[] => [
     type: 'icon',
     placeholder: 'Pick an icon',
     icon: Sparkles,
+  },
+  {
+    name: 'tags',
+    label: 'Tags',
+    type: 'tags',
+    colSpan: 2,
+    icon: Hash,
+  },
+  {
+    name: 'urls',
+    label: 'Links',
+    type: 'urls',
+    colSpan: 2,
+    icon: Link,
   },
 ]

@@ -1,6 +1,6 @@
 import { useMemo, useState } from 'react'
 import { useStore } from '@/store'
-import { Priority, ProgressStatus, Task } from '@c/types/index'
+import { Priority, ProgressStatus, Task, WithAttachments } from '@c/types/index'
 import { Button } from '@/components/ui/button'
 import { Plus } from 'lucide-react'
 import {
@@ -10,7 +10,7 @@ import {
 
 // The rule only gets submitted while `is_recurring` is on (see `visibleWhen`
 // in the task fields), so seeding it here just gives the editor a starting value.
-const taskDefaultValues: Partial<Task['Write']> = {
+const taskDefaultValues: Partial<WithAttachments<Task['Write']>> = {
   status: ProgressStatus.PLANNED,
   priority: Priority.MEDIUM,
   is_recurring: false,
@@ -44,11 +44,19 @@ export const CreateTaskButtonComponent = () => {
     setIsDialogOpen(true)
   }
 
-  const handleSubmit = async (values: Partial<Task['Write']>) => {
+  const handleSubmit = async (
+    values: Partial<WithAttachments<Task['Write']>>,
+  ) => {
     setIsSubmitting(true)
     setErrorMessage(undefined)
     try {
-      await tasks.add(values as Task['Write'])
+      await tasks.add(values as WithAttachments<Task['Write']>)
+      // Newly created tags should show up in the tag list and pickers
+      if (values.tags?.length)
+        useStore
+          .getState()
+          .tags.fetch()
+          .catch(() => {})
       setIsDialogOpen(false)
     } catch (error) {
       console.error('Failed to create task:', error)

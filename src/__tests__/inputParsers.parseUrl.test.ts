@@ -14,9 +14,15 @@ describe('parseUrl', () => {
     expect(result.textMinusUrls).toBe('Buy milk ')
   })
 
-  test('extracts a www. URL', () => {
-    expect(parseUrl('go to www.example.com').urls).toEqual([
-      { url: 'www.example.com' },
+  test('extracts a www. URL and prefixes https://', () => {
+    const result = parseUrl('go to www.example.com')
+    expect(result.urls).toEqual([{ url: 'https://www.example.com' }])
+    expect(result.textMinusUrls).toBe('go to ')
+  })
+
+  test('keeps an explicit scheme on www. hosts', () => {
+    expect(parseUrl('see http://www.example.com').urls).toEqual([
+      { url: 'http://www.example.com' },
     ])
   })
 

@@ -98,14 +98,21 @@ export const BrainDumpInputComponent = () => {
   const areas = useStore((state) => state.areas)
   const projects = useStore((state) => state.projects)
   const goals = useStore((state) => state.goals)
+  const tags = useStore((state) => state.tags)
 
-  // `#` autocomplete for areas, projects and goals. Selecting a suggestion
+  // `#` autocomplete for areas, projects, goals and tags. Selecting a suggestion
   // inserts its hashtag (e.g. `#health_fitness`) at the cursor token.
   const autocomplete = useAPGHashtagAutocomplete({
     inputValue,
     enabled: !isSubmitting,
     onSelect: (_suggestion, nextInputValue) => setInputValue(nextInputValue),
   })
+
+  // Plain tags are offered in the `#` dropdown alongside areas/projects/goals.
+  useEffect(() => {
+    if (tags.data.length === 0) tags.fetch().catch(() => {})
+    // eslint-disable-next-line react-hooks/exhaustive-deps
+  }, [])
 
   useEffect(() => {
     const parsed = parseDataFromTaskInput({
@@ -194,7 +201,12 @@ export const BrainDumpInputComponent = () => {
         recurrance_rule: flags.is_recurring ? recurranceRule : undefined,
         estimated_minutes: parsedData.task.estimated_minutes,
         due_date: effectiveDueMillis,
+        tags: parsedData.tags,
+        urls: parsedData.urls,
       })
+
+      // Newly created tags should show up in the tag list and pickers
+      if (parsedData.tags.length > 0) tags.fetch().catch(() => {})
 
       // Reset form
       resetForm()
@@ -240,7 +252,7 @@ export const BrainDumpInputComponent = () => {
               value={inputValue}
               onChange={(e) => setInputValue(e.target.value)}
               onKeyDown={handleKeyDown}
-              placeholder="Quick brain dump... (Ctrl+Enter to save, Esc to cancel)"
+              placeholder="Quick brain dump... #tags, links (Ctrl+Enter to save, Esc to cancel)"
               className="flex-1"
               disabled={isSubmitting}
             />
@@ -275,7 +287,7 @@ export const BrainDumpInputComponent = () => {
               value={inputValue}
               onChange={(e) => setInputValue(e.target.value)}
               onKeyDown={handleKeyDown}
-              placeholder="Write your extended thoughts here... Use # for tags/projects/areas/goals. Add 'high priority', 'fun', 'quick', etc. Include URLs. Add time estimates like '30m' or '2h'. Add due dates like 'tomorrow' or '4th January'."
+              placeholder="Write your extended thoughts here... Use # for tags/projects/areas/goals. Add 'high priority', 'fun', 'quick', etc. Include links (https://... or www....) to attach them. Add time estimates like '30m' or '2h'. Add due dates like 'tomorrow' or '4th January'."
               rows={8}
               disabled={isSubmitting}
             />
@@ -515,9 +527,10 @@ export const BrainDumpInputComponent = () => {
       )}
 
       <p className="text-xs text-muted-foreground">
-        Use # for tags/projects/areas/goals • Add priority (high/low) • Mark as
-        fun/chore/quick • Add time (est:|et: 30m, 2h) • Set due date (today,
-        tomorrow, next Friday) or pick due date from a date picker
+        Use # for tags/projects/areas/goals • Paste links to attach them • Add
+        priority (high/low) • Mark as fun/chore/quick • Add time (est:|et: 30m,
+        2h) • Set due date (today, tomorrow, next Friday) or pick due date from
+        a date picker
       </p>
     </div>
   )

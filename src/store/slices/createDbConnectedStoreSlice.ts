@@ -1,5 +1,5 @@
 import { DbService } from '@/services/database/DbService'
-import { InferTableTypes } from '@c/types/index'
+import { InferTableTypes, WithAttachments } from '@c/types/index'
 import { SQLiteTableWithColumns } from 'drizzle-orm/sqlite-core'
 import { StateCreator } from 'zustand'
 
@@ -11,8 +11,8 @@ export interface DbSlice<
   error: string | null
   fetch: (pageNumber?: number) => Promise<void>
   search: (query: string) => Promise<T['Read'][]>
-  add: (data: T['Write']) => Promise<T['Read']>
-  update: (id: string, data: T['Update']) => Promise<void>
+  add: (data: WithAttachments<T['Write']>) => Promise<T['Read']>
+  update: (id: string, data: WithAttachments<T['Update']>) => Promise<void>
   remove: (id: string) => Promise<void>
   reset: () => Promise<void>
   getById: (id?: string | null) => T['Read'] | null
@@ -115,7 +115,7 @@ export default function generateCreateDbConnectedStateSlice<
           }
         },
 
-        add: async (data: T['Write']) => {
+        add: async (data: WithAttachments<T['Write']>) => {
           set(
             (state) =>
               ({
@@ -154,7 +154,7 @@ export default function generateCreateDbConnectedStateSlice<
           }
         },
 
-        update: async (id: string, data: T['Update']) => {
+        update: async (id: string, data: WithAttachments<T['Update']>) => {
           set(
             (state) =>
               ({

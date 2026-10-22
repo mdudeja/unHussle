@@ -8,8 +8,10 @@ import {
   Palette,
   Sparkles,
   Target,
+  Hash,
+  Link,
 } from 'lucide-react'
-import { Area, Goal, Project } from '@c/types/index'
+import { Area, Goal, Project, WithAttachments } from '@c/types/index'
 import type { FieldConfig, FieldOption } from '../types'
 import { priorityOptions, statusOptions } from '../utils'
 
@@ -23,7 +25,7 @@ export const createProjectFields = ({
 }: {
   areas: Area['Read'][]
   goals: Goal['Read'][]
-}): FieldConfig<Project['Write']>[] => {
+}): FieldConfig<WithAttachments<Project['Write']>>[] => {
   const areaOptions: FieldOption[] = areas.map((area) => ({
     label: area.title,
     value: area.id,
@@ -103,6 +105,20 @@ export const createProjectFields = ({
       type: 'icon',
       placeholder: 'Pick an icon',
       icon: Sparkles,
+    },
+    {
+      name: 'tags',
+      label: 'Tags',
+      type: 'tags',
+      colSpan: 2,
+      icon: Hash,
+    },
+    {
+      name: 'urls',
+      label: 'Links',
+      type: 'urls',
+      colSpan: 2,
+      icon: Link,
     },
   ]
 }

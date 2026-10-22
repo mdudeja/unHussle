@@ -2,7 +2,7 @@ import { eq } from 'drizzle-orm'
 import { SQLiteColumn, SQLiteTable } from 'drizzle-orm/sqlite-core'
 import { UnHussleDB } from '../UnHussleDB'
 
-type TableWithId = SQLiteTable & { id: SQLiteColumn }
+export type TableWithId = SQLiteTable & { id: SQLiteColumn }
 
 // Shared db access and write methods; read methods stay in each repository
 // since they depend on the entity's relations and searchable columns.

@@ -78,7 +78,7 @@ describe('Seed Data Tests', () => {
       due_date: Date.now(),
       icon: '🎯',
       mapToArea: 'Area That Does Not Exist',
-      goal_tag: 'nonexistent-area-goal',
+      tags: [{ title: 'nonexistent-area-goal', color: '#000000' }],
     }
 
     await db.delete(schema.goals)

@@ -10,7 +10,7 @@ import {
 } from '../schemas'
 import { UnHussleDB } from '../UnHussleDB'
 import { IRepository } from './IRepository.interface'
-import { BaseRepository } from './BaseRepository'
+import { AttachableRepository } from './AttachableRepository'
 import {
   taggedIds,
   unwrapJunctions,
@@ -32,7 +32,7 @@ type TaskRelations = {
 export type HydratedTask = Task['Read'] & TaskRelations
 
 export class TasksRepository
-  extends BaseRepository<typeof tasks>
+  extends AttachableRepository<typeof tasks, HydratedTask>
   implements IRepository<Task>
 {
   private readonly relations = {

@@ -1,5 +1,5 @@
 import { makeJSONRequest } from '@/lib/server'
-import { InferTableTypes } from '@c/types/index'
+import { InferTableTypes, WithAttachments } from '@c/types/index'
 import { SQLiteTableWithColumns } from 'drizzle-orm/sqlite-core'
 
 export class DbService<
@@ -44,7 +44,7 @@ export class DbService<
     })
   }
 
-  async create(data: T['Write']) {
+  async create(data: WithAttachments<T['Write']>) {
     return makeJSONRequest<T['Read']>({
       url: `${this.dbUrl}/${this.baseEndpoint}`,
       method: 'POST',
@@ -52,7 +52,7 @@ export class DbService<
     })
   }
 
-  async update(id: string, data: T['Update']) {
+  async update(id: string, data: WithAttachments<T['Update']>) {
     return makeJSONRequest<T['Read']>({
       url: `${this.dbUrl}/${this.baseEndpoint}/${id}`,
       method: 'PATCH',

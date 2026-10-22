@@ -1,4 +1,5 @@
-import { areas, goals, junctionTags, tags } from '@d/database/schemas'
+import { areas, goals } from '@d/database/schemas'
+import { syncAttachments } from '@d/database/repositories/helpers'
 import { UnHussleDB } from '@d/database/UnHussleDB'
 import { areasData, goalsData } from '@d/database/seed/data'
 import { eq } from 'drizzle-orm'
@@ -50,37 +51,8 @@ export const runSeed = async ({
     }
 
     if (area.tags && area.tags.length > 0) {
-      for (const tag of area.tags) {
-        const addedTag = await db
-          .insert(tags)
-          .values({
-            title: tag.title,
-            color: tag.color,
-          })
-          .onConflictDoNothing()
-          .returning()
-
-        if (!addedTag || addedTag.length === 0) {
-          logger.warn(
-            `Tag with title "${tag.title}" could not be inserted. Trying to find existing tag to associate with area "${area.title}".`,
-          )
-          const existingTag = await db.query.tags.findFirst({
-            where: (tags, { eq }) => eq(tags.title, tag.title),
-          })
-          if (existingTag) {
-            await db.insert(junctionTags).values({
-              attachedToId: addedArea[0].id,
-              refId: existingTag.id,
-            })
-          }
-          continue
-        }
-
-        await db.insert(junctionTags).values({
-          attachedToId: addedArea[0].id,
-          refId: addedTag[0].id,
-        })
-      }
+      const areaId = addedArea[0].id
+      db.transaction((tx) => syncAttachments(tx, areaId, { tags: area.tags }))
     }
   }
 
@@ -118,38 +90,8 @@ export const runSeed = async ({
     }
 
     if (goal.tags && goal.tags.length > 0) {
-      for (const tag of goal.tags) {
-        const addedTag = await db
-          .insert(tags)
-          .values({
-            title: tag.title,
-            color: tag.color,
-          })
-          .onConflictDoNothing()
-          .returning()
-
-        if (!addedTag || addedTag.length === 0) {
-          logger.warn(
-            `Tag with title "${tag.title}" could not be inserted. Trying to find existing tag to associate with goal "${goal.title}".`,
-          )
-          const existingTag = await db.query.tags.findFirst({
-            where: (tags, { eq }) => eq(tags.title, tag.title),
-          })
-
-          if (existingTag) {
-            await db.insert(junctionTags).values({
-              attachedToId: addedGoal[0].id,
-              refId: existingTag.id,
-            })
-          }
-          continue
-        }
-
-        await db.insert(junctionTags).values({
-          attachedToId: addedGoal[0].id,
-          refId: addedTag[0].id,
-        })
-      }
+      const goalId = addedGoal[0].id
+      db.transaction((tx) => syncAttachments(tx, goalId, { tags: goal.tags }))
     }
   }
 

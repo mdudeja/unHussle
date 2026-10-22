@@ -10,6 +10,8 @@ export type FieldType =
   | 'color'
   | 'icon'
   | 'recurrance'
+  | 'tags'
+  | 'urls'
 
 export interface FieldOption {
   label: string

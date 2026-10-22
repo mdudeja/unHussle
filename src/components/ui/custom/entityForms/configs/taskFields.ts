@@ -14,8 +14,10 @@ import {
   Target,
   WashingMachine,
   Zap,
+  Hash,
+  Link,
 } from 'lucide-react'
-import { Area, Goal, Project, Task } from '@c/types/index'
+import { Area, Goal, Project, Task, WithAttachments } from '@c/types/index'
 import type { FieldConfig, FieldOption } from '../types'
 import { priorityOptions, statusOptions } from '../utils'
 
@@ -32,7 +34,7 @@ export const createTaskFields = ({
   projects: Project['Read'][]
   areas: Area['Read'][]
   goals: Goal['Read'][]
-}): FieldConfig<Task['Write']>[] => {
+}): FieldConfig<WithAttachments<Task['Write']>>[] => {
   const projectOptions: FieldOption[] = projects.map((project) => ({
     label: project.title,
     value: project.id,
@@ -159,6 +161,20 @@ export const createTaskFields = ({
       colSpan: 2,
       icon: CalendarSync,
       visibleWhen: (values) => Boolean(values.is_recurring),
+    },
+    {
+      name: 'tags',
+      label: 'Tags',
+      type: 'tags',
+      colSpan: 2,
+      icon: Hash,
+    },
+    {
+      name: 'urls',
+      label: 'Links',
+      type: 'urls',
+      colSpan: 2,
+      icon: Link,
     },
   ]
 }

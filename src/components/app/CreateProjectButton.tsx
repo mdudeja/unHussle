@@ -1,6 +1,11 @@
 import { useMemo, useState } from 'react'
 import { useStore } from '@/store'
-import { Priority, ProgressStatus, Project } from '@c/types/index'
+import {
+  Priority,
+  ProgressStatus,
+  Project,
+  WithAttachments,
+} from '@c/types/index'
 import { Button } from '@/components/ui/button'
 import { Plus } from 'lucide-react'
 import {
@@ -8,7 +13,7 @@ import {
   EntityFormDialog,
 } from '@/components/ui/custom/entityForms'
 
-const projectDefaultValues: Partial<Project['Write']> = {
+const projectDefaultValues: Partial<WithAttachments<Project['Write']>> = {
   status: ProgressStatus.PLANNED,
   priority: Priority.MEDIUM,
 }
@@ -34,11 +39,19 @@ export const CreateProjectButtonComponent = () => {
     setIsDialogOpen(true)
   }
 
-  const handleSubmit = async (values: Partial<Project['Write']>) => {
+  const handleSubmit = async (
+    values: Partial<WithAttachments<Project['Write']>>,
+  ) => {
     setIsSubmitting(true)
     setErrorMessage(undefined)
     try {
-      await projects.add(values as Project['Write'])
+      await projects.add(values as WithAttachments<Project['Write']>)
+      // Newly created tags should show up in the tag list and pickers
+      if (values.tags?.length)
+        useStore
+          .getState()
+          .tags.fetch()
+          .catch(() => {})
       setIsDialogOpen(false)
     } catch (error) {
       console.error('Failed to create project:', error)

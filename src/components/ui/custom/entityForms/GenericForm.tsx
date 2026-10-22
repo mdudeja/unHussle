@@ -20,7 +20,10 @@ import { Calendar } from '@/components/ui/calendar'
 import { ColorPicker } from '@/components/ui/custom/ColorPicker'
 import { IconPicker } from '@/components/ui/custom/IconPicker'
 import { RecurranceRuleInput } from '@/components/ui/custom/RecurranceRuleInput'
+import { TagsInput } from '@/components/ui/custom/TagsInput'
+import { UrlsInput } from '@/components/ui/custom/UrlsInput'
 import { RecurranceRule } from '@d/database/schemas'
+import type { TagInput, UrlInput } from '@c/types/index'
 import { CalendarIcon, Loader2 } from 'lucide-react'
 import { cn } from '@/lib/utils'
 import type { FieldConfig } from './types'
@@ -322,6 +325,28 @@ function FormField<T extends object>({
               onChange={onChange}
             />
           </fieldset>
+        )
+      case 'tags':
+        return (
+          <TagsInput
+            id={fieldId}
+            value={value as TagInput[] | null | undefined}
+            disabled={disabled}
+            placeholder={field.placeholder}
+            hasError={Boolean(error)}
+            onChange={onChange}
+          />
+        )
+      case 'urls':
+        return (
+          <UrlsInput
+            id={fieldId}
+            value={value as UrlInput[] | null | undefined}
+            disabled={disabled}
+            placeholder={field.placeholder}
+            hasError={Boolean(error)}
+            onChange={onChange}
+          />
         )
       case 'text':
       default:
