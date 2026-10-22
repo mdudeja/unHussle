@@ -14,6 +14,14 @@ import { StoreState, useStore } from '@/store'
 import { entitySearchParams } from '@/lib/entityRoutes'
 import { useDebouncedValue } from '@/lib/hooks/useDebouncedValue'
 import { Logger } from '@c/Logger'
+import {
+  CreateAreaButtonComponent,
+  CreateGoalButtonComponent,
+  CreateProjectButtonComponent,
+  CreateTagButtonComponent,
+  CreateTaskButtonComponent,
+  CreateUrlButtonComponent,
+} from '../app'
 
 const SEARCH_DEBOUNCE_MS = 300
 
@@ -32,6 +40,15 @@ export type EntityListPageConfig<TData extends { id: string }> = {
   filters?: DataTableFilter[]
   hiddenColumns?: string[]
   initialSorting?: SortingState
+}
+
+const titleToCreateButton: Record<string, React.ReactNode> = {
+  Projects: <CreateProjectButtonComponent />,
+  Areas: <CreateAreaButtonComponent />,
+  Goals: <CreateGoalButtonComponent />,
+  Tasks: <CreateTaskButtonComponent />,
+  URLs: <CreateUrlButtonComponent />,
+  Tags: <CreateTagButtonComponent />,
 }
 
 // Generic list page for an entity. Search (`q`), column filters (keyed by
@@ -152,11 +169,14 @@ export function EntityListPage<TData extends { id: string }>({
 
   return (
     <div className="mx-auto w-full max-w-6xl space-y-6 px-4 py-8">
-      <div className="space-y-1">
-        <h1 className="text-2xl font-semibold">{title}</h1>
-        {description && (
-          <p className="text-sm text-muted-foreground">{description}</p>
-        )}
+      <div className="flex items-center justify-between">
+        <div className="space-y-1">
+          <h1 className="text-2xl font-semibold">{title}</h1>
+          {description && (
+            <p className="text-sm text-muted-foreground">{description}</p>
+          )}
+        </div>
+        {titleToCreateButton[title] ?? null}
       </div>
       <DataTable
         columns={columns}

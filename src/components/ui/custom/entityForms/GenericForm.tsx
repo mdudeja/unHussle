@@ -19,6 +19,8 @@ import {
 import { Calendar } from '@/components/ui/calendar'
 import { ColorPicker } from '@/components/ui/custom/ColorPicker'
 import { IconPicker } from '@/components/ui/custom/IconPicker'
+import { RecurranceRuleInput } from '@/components/ui/custom/RecurranceRuleInput'
+import { RecurranceRule } from '@d/database/schemas'
 import { CalendarIcon, Loader2 } from 'lucide-react'
 import { cn } from '@/lib/utils'
 import type { FieldConfig } from './types'
@@ -74,9 +76,13 @@ export function GenericForm<T extends object>({
     })
   }
 
+  const visibleFields = fields.filter(
+    (field) => !field.visibleWhen || field.visibleWhen(values),
+  )
+
   const validate = (): boolean => {
     const nextErrors: Record<string, string> = {}
-    for (const field of fields) {
+    for (const field of visibleFields) {
       if (field.required && isBlank(values[field.name])) {
         nextErrors[field.name] = `${field.label} is required`
       }
@@ -90,6 +96,15 @@ export function GenericForm<T extends object>({
           nextErrors[field.name] = `${field.label} cannot contain spaces`
         }
       }
+
+      if (
+        field.validate &&
+        !nextErrors[field.name] &&
+        !isBlank(values[field.name])
+      ) {
+        const message = field.validate(values[field.name])
+        if (message) nextErrors[field.name] = message
+      }
     }
     setErrors(nextErrors)
     return Object.keys(nextErrors).length === 0
@@ -99,7 +114,12 @@ export function GenericForm<T extends object>({
     event.preventDefault()
     if (readOnly || isSubmitting) return
     if (!validate()) return
-    await onSubmit(values)
+    // Hidden fields are reset to null so that edits clear any stale value.
+    const submitted: Record<string, unknown> = { ...values }
+    for (const field of fields) {
+      if (!visibleFields.includes(field)) submitted[field.name] = null
+    }
+    await onSubmit(submitted as Partial<T>)
   }
 
   return (
@@ -109,7 +129,7 @@ export function GenericForm<T extends object>({
       className={cn('space-y-4', className)}
     >
       <div className="grid grid-cols-1 gap-4 sm:grid-cols-2">
-        {fields.map((field) => (
+        {visibleFields.map((field) => (
           <FormField
             key={field.name}
             field={field}
@@ -288,6 +308,20 @@ function FormField<T extends object>({
             hasError={Boolean(error)}
             onChange={onChange}
           />
+        )
+      case 'recurrance':
+        // A disabled fieldset disables every control inside the editor.
+        return (
+          <fieldset
+            id={fieldId}
+            disabled={disabled}
+            className="min-w-0 rounded-md border p-3"
+          >
+            <RecurranceRuleInput
+              value={value as RecurranceRule | null | undefined}
+              onChange={onChange}
+            />
+          </fieldset>
         )
       case 'text':
       default:

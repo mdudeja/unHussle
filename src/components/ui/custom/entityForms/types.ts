@@ -9,6 +9,7 @@ export type FieldType =
   | 'boolean'
   | 'color'
   | 'icon'
+  | 'recurrance'
 
 export interface FieldOption {
   label: string
@@ -45,6 +46,17 @@ export interface FieldConfig<T extends object> {
   step?: number
   /** no spaces allowed in the input value. Useful for tags, slugs, etc. */
   noSpacesAllowed?: boolean
+  /**
+   * Custom validation, run when the value is not blank. Return an error
+   * message to block submission, or `undefined` when the value is valid.
+   */
+  validate?: (value: unknown) => string | undefined
+  /**
+   * Only render the field when this returns true for the current form values.
+   * Hidden fields are skipped during validation and submitted as `null`, so
+   * only use this on fields whose column is nullable.
+   */
+  visibleWhen?: (values: Partial<T>) => boolean
 }
 
 export type FormValues<T extends object> = Partial<T>
