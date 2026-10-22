@@ -25,7 +25,11 @@ export abstract class BaseRepository<TTable extends TableWithId> {
     entity: TTable['$inferInsert'],
   ): Promise<TTable['$inferSelect'] | null> {
     const db = await this.getDb()
-    const rows = await db?.insert(this.table).values(entity).returning()
+    const rows = await db
+      ?.insert(this.table)
+      .values(entity)
+      .onConflictDoNothing()
+      .returning()
     return rows?.[0] ?? null
   }
 

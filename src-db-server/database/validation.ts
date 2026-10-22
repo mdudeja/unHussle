@@ -11,6 +11,7 @@ import {
 } from '@d/database/schemas/index'
 import { t } from 'elysia'
 import { ProgressStatus, Priority } from '@c/types/index'
+import { Type } from '@sinclair/typebox'
 
 // Tasks
 export const insertTaskSchema = createInsertSchema(tasks, {
@@ -19,13 +20,13 @@ export const insertTaskSchema = createInsertSchema(tasks, {
 })
 
 export const updateTaskSchema = t.Partial(insertTaskSchema)
-export const selectTaskSchema = createSelectSchema(tasks)
+export const selectTaskBaseSchema = createSelectSchema(tasks)
 
 // Resources
 export const insertResourceSchema = createInsertSchema(resources)
 
 export const updateResourceSchema = t.Partial(insertResourceSchema)
-export const selectResourceSchema = createSelectSchema(resources)
+export const selectResourceBaseSchema = createSelectSchema(resources)
 
 // Areas
 export const insertAreaSchema = createInsertSchema(areas, {
@@ -33,7 +34,7 @@ export const insertAreaSchema = createInsertSchema(areas, {
   priority: t.Optional(t.Enum(Priority)),
 })
 export const updateAreaSchema = t.Partial(insertAreaSchema)
-export const selectAreaSchema = createSelectSchema(areas)
+export const selectAreaBaseSchema = createSelectSchema(areas)
 
 // Goals
 export const insertGoalSchema = createInsertSchema(goals, {
@@ -41,7 +42,7 @@ export const insertGoalSchema = createInsertSchema(goals, {
   priority: t.Optional(t.Enum(Priority)),
 })
 export const updateGoalSchema = t.Partial(insertGoalSchema)
-export const selectGoalSchema = createSelectSchema(goals)
+export const selectGoalBaseSchema = createSelectSchema(goals)
 
 // Projects
 export const insertProjectSchema = createInsertSchema(projects, {
@@ -49,7 +50,7 @@ export const insertProjectSchema = createInsertSchema(projects, {
   priority: t.Optional(t.Enum(Priority)),
 })
 export const updateProjectSchema = t.Partial(insertProjectSchema)
-export const selectProjectSchema = createSelectSchema(projects)
+export const selectProjectBaseSchema = createSelectSchema(projects)
 
 // Tags
 export const insertTagsSchema = createInsertSchema(tags)
@@ -67,3 +68,53 @@ export const selectUrlsSchema = createSelectSchema(urls)
 export const insertTimeEntriesSchema = createInsertSchema(timeEntries)
 export const updateTimeEntriesSchema = t.Partial(insertTimeEntriesSchema)
 export const selectTimeEntriesSchema = createSelectSchema(timeEntries)
+
+// select schemas with relations
+export const selectTaskSchema = Type.Object({
+  ...selectTaskBaseSchema.properties,
+  project: Type.Optional(selectProjectBaseSchema),
+  area: Type.Optional(selectAreaBaseSchema),
+  goal: Type.Optional(selectGoalBaseSchema),
+  anchor: Type.Optional(selectTaskBaseSchema),
+  tags: Type.Optional(Type.Array(selectTagsSchema)),
+  urls: Type.Optional(Type.Array(selectUrlsSchema)),
+  timeEntries: Type.Optional(Type.Array(selectTimeEntriesSchema)),
+})
+
+export const selectResourceSchema = Type.Object({
+  ...selectResourceBaseSchema.properties,
+  project: Type.Optional(selectProjectBaseSchema),
+  area: Type.Optional(selectAreaBaseSchema),
+  goal: Type.Optional(selectGoalBaseSchema),
+  tags: Type.Optional(Type.Array(selectTagsSchema)),
+  urls: Type.Optional(Type.Array(selectUrlsSchema)),
+})
+
+export const selectAreaSchema = Type.Object({
+  ...selectAreaBaseSchema.properties,
+  tasks: Type.Optional(Type.Array(selectTaskBaseSchema)),
+  resources: Type.Optional(Type.Array(selectResourceBaseSchema)),
+  projects: Type.Optional(Type.Array(selectProjectBaseSchema)),
+  tags: Type.Optional(Type.Array(selectTagsSchema)),
+  urls: Type.Optional(Type.Array(selectUrlsSchema)),
+})
+
+export const selectGoalSchema = Type.Object({
+  ...selectGoalBaseSchema.properties,
+  area: Type.Optional(selectAreaBaseSchema),
+  tasks: Type.Optional(Type.Array(selectTaskBaseSchema)),
+  resources: Type.Optional(Type.Array(selectResourceBaseSchema)),
+  projects: Type.Optional(Type.Array(selectProjectBaseSchema)),
+  tags: Type.Optional(Type.Array(selectTagsSchema)),
+  urls: Type.Optional(Type.Array(selectUrlsSchema)),
+})
+
+export const selectProjectSchema = Type.Object({
+  ...selectProjectBaseSchema.properties,
+  area: Type.Optional(selectAreaBaseSchema),
+  goal: Type.Optional(selectGoalBaseSchema),
+  tasks: Type.Optional(Type.Array(selectTaskBaseSchema)),
+  resources: Type.Optional(Type.Array(selectResourceBaseSchema)),
+  tags: Type.Optional(Type.Array(selectTagsSchema)),
+  urls: Type.Optional(Type.Array(selectUrlsSchema)),
+})

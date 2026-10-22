@@ -18,7 +18,7 @@ import { IconResolver } from '@/components/ui/utils/IconResolver'
 import { DataTableFilterOption } from '@/components/ui/custom/table/DataTable'
 import { useStore } from '@/store'
 import { getEntityItemRoute } from '@/lib/entityRoutes'
-import { Priority, ProgressStatus } from '@c/types/index'
+import { Priority, ProgressStatus, Tag } from '@c/types/index'
 import { formatMillisAsDdMmYyyy } from '@c/datetimeUtils'
 
 // `in_progress` -> `In progress`
@@ -78,15 +78,28 @@ export const textColumn = <TData,>(
 
 // Hashtag stored without `#` (e.g. `health_fitness`), shown as `#health_fitness`.
 export const hashtagColumn = <TData,>(
-  accessor: (row: TData) => string | null | undefined,
+  accessor: (row: TData) => Tag['Read'][] | null | undefined,
 ): ColumnDef<TData, any> => ({
   id: 'hashtag',
-  accessorFn: (row) => accessor(row) ?? '',
-  header: ({ column }) => <SortableHeader column={column} title="Hashtag" />,
+  accessorFn: (row) => accessor(row) ?? undefined,
+  header: ({ column }) => <SortableHeader column={column} title="Tags" />,
   cell: ({ getValue }) => {
-    const tag = getValue<string>()
-    return tag ? (
-      <span className="font-mono text-xs text-muted-foreground">#{tag}</span>
+    const tags = getValue<Tag['Read'][]>()
+    return tags ? (
+      <div className="flex flex-wrap gap-1">
+        {tags?.map((tag) => (
+          <Badge
+            key={tag.id}
+            variant="outline"
+            style={{
+              borderColor: tag.color ?? undefined,
+              color: tag.color ?? undefined,
+            }}
+          >
+            #{tag.title.trim()}
+          </Badge>
+        ))}
+      </div>
     ) : null
   },
 })
@@ -216,6 +229,10 @@ function EntityRefBadge({ kind, id }: { kind: EntityRefKind; id: string }) {
             <FallbackIcon className="h-3 w-3" />
           )
         }
+        style={{
+          color: record.color ?? undefined,
+          borderColor: record.color ?? undefined,
+        }}
       >
         {record.title}
       </Badge>
