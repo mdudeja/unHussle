@@ -1,5 +1,6 @@
-import { useEffect, useState } from 'react'
+import { ReactNode, useEffect, useState } from 'react'
 import { useSearchParams } from 'react-router'
+import { LucideIcon } from 'lucide-react'
 import {
   ColumnDef,
   ColumnFiltersState,
@@ -12,6 +13,12 @@ import {
 } from '@/components/ui/custom/table/DataTable'
 import { StoreState, useStore } from '@/store'
 import { entitySearchParams } from '@/lib/entityRoutes'
+import {
+  EntityAction,
+  EntityKind,
+  getEntityTitle,
+  useCommonActions,
+} from '@/lib/entityActions'
 import { useDebouncedValue } from '@/lib/hooks/useDebouncedValue'
 import { Logger } from '@c/Logger'
 import {
@@ -21,6 +28,7 @@ import {
   CreateTagButtonComponent,
   CreateTaskButtonComponent,
   CreateUrlButtonComponent,
+  EntityActionBar,
 } from '../app'
 
 const SEARCH_DEBOUNCE_MS = 300
@@ -30,9 +38,11 @@ type EntitySliceState<TData> = {
   isLoading: boolean
   fetch: (pageNumber?: number) => Promise<void>
   search: (query: string) => Promise<TData[]>
+  getById: (id?: string | null) => TData | null
 }
 
 export type EntityListPageConfig<TData extends { id: string }> = {
+  kind: EntityKind
   title: string
   description?: string
   selectSlice: (state: StoreState) => EntitySliceState<TData>
@@ -40,19 +50,30 @@ export type EntityListPageConfig<TData extends { id: string }> = {
   filters?: DataTableFilter[]
   hiddenColumns?: string[]
   initialSorting?: SortingState
+  // Entity-specific actions shown before Edit/Delete for the selected item.
+  // Called as a hook, so it must be the same function on every render.
+  useActions?: () => EntityAction<TData>[]
+  // Items linked to the selected one, toggled from the action bar and shown
+  // below the table.
+  related?: {
+    label: string
+    icon: LucideIcon
+    render: (item: TData) => ReactNode
+  }
 }
 
-const titleToCreateButton: Record<string, React.ReactNode> = {
-  Projects: <CreateProjectButtonComponent />,
-  Areas: <CreateAreaButtonComponent />,
-  Goals: <CreateGoalButtonComponent />,
-  Tasks: <CreateTaskButtonComponent />,
-  URLs: <CreateUrlButtonComponent />,
-  Tags: <CreateTagButtonComponent />,
+const createButtons: Record<EntityKind, ReactNode> = {
+  projects: <CreateProjectButtonComponent />,
+  areas: <CreateAreaButtonComponent />,
+  goals: <CreateGoalButtonComponent />,
+  tasks: <CreateTaskButtonComponent />,
+  urls: <CreateUrlButtonComponent />,
+  tags: <CreateTagButtonComponent />,
 }
 
 // Generic list page for an entity. Search (`q`), column filters (keyed by
-// column id) and the selected item (`id`) all live in the URL query string.
+// column id), the selected item (`id`) and whether its related items are
+// shown (`related`) all live in the URL query string.
 // Without a search term the table shows the items already loaded in the
 // store; with one, it shows the server's search results instead.
 export function EntityListPage<TData extends { id: string }>({
@@ -61,6 +82,7 @@ export function EntityListPage<TData extends { id: string }>({
   config: EntityListPageConfig<TData>
 }) {
   const {
+    kind,
     title,
     description,
     selectSlice,
@@ -68,6 +90,8 @@ export function EntityListPage<TData extends { id: string }>({
     filters = [],
     hiddenColumns,
     initialSorting = [{ id: 'updated_at', desc: true }],
+    useActions,
+    related,
   } = config
 
   const slice = useStore(selectSlice)
@@ -84,6 +108,7 @@ export function EntityListPage<TData extends { id: string }>({
   }, [selectSlice, title])
 
   const selectedId = searchParams.get(entitySearchParams.id)
+  const isRelatedShown = searchParams.has(entitySearchParams.related)
   const searchValue = searchParams.get(entitySearchParams.search) ?? ''
   const searchTerm = useDebouncedValue(searchValue.trim(), SEARCH_DEBOUNCE_MS)
 
@@ -93,6 +118,8 @@ export function EntityListPage<TData extends { id: string }>({
     data: TData[]
   } | null>(null)
 
+  // Also re-runs when the store's items change (edits, deletes, status
+  // changes) so the results don't go stale.
   useEffect(() => {
     if (!searchTerm) {
       return
@@ -108,13 +135,17 @@ export function EntityListPage<TData extends { id: string }>({
     return () => {
       isCurrent = false
     }
-  }, [searchTerm, selectSlice])
+  }, [searchTerm, selectSlice, slice.data])
 
   // While a new search is pending, keep showing the previous results.
   const isSearchActive = searchValue.trim() !== ''
   const isSearching =
     isSearchActive && searchResults?.term !== searchValue.trim()
   const tableData = isSearchActive ? (searchResults?.data ?? []) : slice.data
+  const selectedItem = selectedId
+    ? (tableData.find((row) => row.id === selectedId) ??
+      slice.getById(selectedId))
+    : null
 
   const columnFilters: ColumnFiltersState = filters.flatMap((filter) => {
     const value = searchParams.get(filter.columnId)
@@ -156,16 +187,45 @@ export function EntityListPage<TData extends { id: string }>({
   }
 
   // Selecting pushes a history entry so Back returns to the previous item.
-  const handleRowClick = (row: TData) =>
+  // A new selection starts with its related items hidden.
+  const selectItem = (id: string | null, options?: { replace?: boolean }) =>
     setSearchParams((prev) => {
       const next = new URLSearchParams(prev)
-      if (row.id === selectedId) {
-        next.delete(entitySearchParams.id)
+      next.delete(entitySearchParams.related)
+      if (id) {
+        next.set(entitySearchParams.id, id)
       } else {
-        next.set(entitySearchParams.id, row.id)
+        next.delete(entitySearchParams.id)
       }
       return next
-    })
+    }, options)
+
+  const handleRowClick = (row: TData) =>
+    selectItem(row.id === selectedId ? null : row.id)
+
+  const relatedAction: EntityAction<TData>[] = related
+    ? [
+        {
+          id: 'related',
+          label: `${isRelatedShown ? 'Hide' : 'Show'} ${related.label}`,
+          icon: related.icon,
+          variant: isRelatedShown ? 'default' : 'outline',
+          run: () =>
+            setParam(entitySearchParams.related, isRelatedShown ? null : '1'),
+        },
+      ]
+    : []
+  const actions = [
+    ...(useActions?.() ?? []),
+    ...relatedAction,
+    ...useCommonActions<TData>(kind, {
+      onDeleted: (item) => {
+        if (item.id === selectedId) {
+          selectItem(null, { replace: true })
+        }
+      },
+    }),
+  ]
 
   return (
     <div className="mx-auto w-full max-w-6xl space-y-6 px-4 py-8">
@@ -176,7 +236,7 @@ export function EntityListPage<TData extends { id: string }>({
             <p className="text-sm text-muted-foreground">{description}</p>
           )}
         </div>
-        {titleToCreateButton[title] ?? null}
+        {createButtons[kind]}
       </div>
       <DataTable
         columns={columns}
@@ -193,7 +253,22 @@ export function EntityListPage<TData extends { id: string }>({
         selectedId={selectedId}
         onRowClick={handleRowClick}
         isLoading={isSearchActive ? isSearching : slice.isLoading}
+        selectionBar={
+          selectedItem && (
+            <EntityActionBar
+              key={selectedItem.id}
+              item={selectedItem}
+              actions={actions}
+              title={getEntityTitle(selectedItem)}
+              onClose={() => selectItem(null)}
+            />
+          )
+        }
       />
+      {related &&
+        selectedItem &&
+        isRelatedShown &&
+        related.render(selectedItem)}
     </div>
   )
 }

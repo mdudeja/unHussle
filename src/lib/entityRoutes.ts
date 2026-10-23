@@ -14,6 +14,8 @@ export type EntityRouteKey = keyof typeof entityRoutes
 export const entitySearchParams = {
   id: 'id',
   search: 'q',
+  // Present when the selected item's related items are shown.
+  related: 'related',
 } as const
 
 export const getEntityItemRoute = (entity: EntityRouteKey, id: string) =>

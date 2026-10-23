@@ -1,8 +1,18 @@
-import { FolderKanban, GitGraph, Goal as GoalIcon, Hash } from 'lucide-react'
+import {
+  FolderKanban,
+  GitGraph,
+  Goal as GoalIcon,
+  Hash,
+  ListTodo,
+  Tags,
+} from 'lucide-react'
 import {
   EntityListPage,
   EntityListPageConfig,
 } from '@/components/pages/EntityListPage'
+import { RelatedEntityTable } from '@/components/app'
+import { useTaskActions } from '@/lib/entityActions'
+import { useRelatedTasks, useTaggedItems } from '@/lib/hooks/useRelatedItems'
 import {
   dateColumn,
   entityRefColumn,
@@ -42,9 +52,17 @@ const priorityFilter = {
 const updatedAtColumn = <TData extends { updated_at: number }>() =>
   dateColumn<TData>('updated_at', 'Updated', (row) => row.updated_at)
 
-const projectsConfig: EntityListPageConfig<HydratedProject> = {
+export const projectsConfig: EntityListPageConfig<HydratedProject> = {
+  kind: 'projects',
   title: 'Projects',
   selectSlice: (state) => state.projects,
+  related: {
+    label: 'tasks',
+    icon: ListTodo,
+    render: (item) => (
+      <RelatedTasks key={item.id} kind="projects" id={item.id} />
+    ),
+  },
   columns: [
     titleColumn(FolderKanban),
     statusColumn(),
@@ -58,9 +76,15 @@ const projectsConfig: EntityListPageConfig<HydratedProject> = {
   filters: [statusFilter, priorityFilter],
 }
 
-const areasConfig: EntityListPageConfig<HydratedArea> = {
+export const areasConfig: EntityListPageConfig<HydratedArea> = {
+  kind: 'areas',
   title: 'Areas',
   selectSlice: (state) => state.areas,
+  related: {
+    label: 'tasks',
+    icon: ListTodo,
+    render: (item) => <RelatedTasks key={item.id} kind="areas" id={item.id} />,
+  },
   columns: [
     titleColumn(GitGraph),
     statusColumn(),
@@ -71,9 +95,15 @@ const areasConfig: EntityListPageConfig<HydratedArea> = {
   filters: [statusFilter, priorityFilter],
 }
 
-const goalsConfig: EntityListPageConfig<HydratedGoal> = {
+export const goalsConfig: EntityListPageConfig<HydratedGoal> = {
+  kind: 'goals',
   title: 'Goals',
   selectSlice: (state) => state.goals,
+  related: {
+    label: 'tasks',
+    icon: ListTodo,
+    render: (item) => <RelatedTasks key={item.id} kind="goals" id={item.id} />,
+  },
   columns: [
     titleColumn(GoalIcon),
     statusColumn(),
@@ -86,9 +116,11 @@ const goalsConfig: EntityListPageConfig<HydratedGoal> = {
   filters: [statusFilter, priorityFilter],
 }
 
-const tasksConfig: EntityListPageConfig<HydratedTask> = {
+export const tasksConfig: EntityListPageConfig<HydratedTask> = {
+  kind: 'tasks',
   title: 'Tasks',
   selectSlice: (state) => state.tasks,
+  useActions: useTaskActions,
   columns: [
     textColumn('title', 'Title', (row) => row.title),
     statusColumn(),
@@ -104,7 +136,8 @@ const tasksConfig: EntityListPageConfig<HydratedTask> = {
   hiddenColumns: hiddenTaskFlagColumns,
 }
 
-const urlsConfig: EntityListPageConfig<Url['Read']> = {
+export const urlsConfig: EntityListPageConfig<Url['Read']> = {
+  kind: 'urls',
   title: 'URLs',
   selectSlice: (state) => state.urls,
   columns: [
@@ -115,14 +148,98 @@ const urlsConfig: EntityListPageConfig<Url['Read']> = {
   ],
 }
 
-const tagsConfig: EntityListPageConfig<Tag['Read']> = {
+export const tagsConfig: EntityListPageConfig<Tag['Read']> = {
+  kind: 'tags',
   title: 'Tags',
   selectSlice: (state) => state.tags,
+  related: {
+    label: 'items',
+    icon: Tags,
+    render: (item) => <TaggedItems key={item.id} id={item.id} />,
+  },
   columns: [
     titleColumn(Hash),
     textColumn('description', 'Description', (row) => row.description),
     updatedAtColumn(),
   ],
+}
+
+const RelatedTasks = ({
+  kind,
+  id,
+}: {
+  kind: 'areas' | 'projects' | 'goals'
+  id: string
+}) => {
+  const { data, isLoading } = useRelatedTasks(kind, id)
+  return (
+    <RelatedEntityTable
+      title="Tasks"
+      kind="tasks"
+      data={data ?? []}
+      columns={tasksConfig.columns}
+      filters={tasksConfig.filters}
+      hiddenColumns={tasksConfig.hiddenColumns}
+      isLoading={isLoading}
+    />
+  )
+}
+
+const TaggedItems = ({ id }: { id: string }) => {
+  const { data, isLoading } = useTaggedItems(id)
+  if (!data) {
+    return isLoading ? null : (
+      <p className="text-sm text-muted-foreground">Could not load items.</p>
+    )
+  }
+  const tables = [
+    data.tasks.length > 0 && (
+      <RelatedEntityTable
+        key="tasks"
+        title="Tasks"
+        kind="tasks"
+        data={data.tasks}
+        columns={tasksConfig.columns}
+        filters={tasksConfig.filters}
+        hiddenColumns={tasksConfig.hiddenColumns}
+      />
+    ),
+    data.projects.length > 0 && (
+      <RelatedEntityTable
+        key="projects"
+        title="Projects"
+        kind="projects"
+        data={data.projects}
+        columns={projectsConfig.columns}
+        filters={projectsConfig.filters}
+      />
+    ),
+    data.areas.length > 0 && (
+      <RelatedEntityTable
+        key="areas"
+        title="Areas"
+        kind="areas"
+        data={data.areas}
+        columns={areasConfig.columns}
+        filters={areasConfig.filters}
+      />
+    ),
+    data.goals.length > 0 && (
+      <RelatedEntityTable
+        key="goals"
+        title="Goals"
+        kind="goals"
+        data={data.goals}
+        columns={goalsConfig.columns}
+        filters={goalsConfig.filters}
+      />
+    ),
+  ].filter(Boolean)
+  return tables.length > 0 ? (
+    <div className="space-y-6">{tables}</div>
+  ) : (
+    <p className="text-sm text-muted-foreground">No linked items.</p>
+  )
 }
 
 export const ProjectsPage = () => <EntityListPage config={projectsConfig} />

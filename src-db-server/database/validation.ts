@@ -142,3 +142,11 @@ export const selectProjectSchema = Type.Object({
   tags: Type.Optional(Type.Array(selectTagsSchema)),
   urls: Type.Optional(Type.Array(selectUrlsSchema)),
 })
+
+// Items linked to a tag, grouped by entity type
+export const selectTagItemsSchema = Type.Object({
+  tasks: Type.Array(selectTaskSchema),
+  projects: Type.Array(selectProjectSchema),
+  areas: Type.Array(selectAreaSchema),
+  goals: Type.Array(selectGoalSchema),
+})

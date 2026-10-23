@@ -90,4 +90,15 @@ export class GoalsRepository
     })
     return goals.map(unwrapJunctions)
   }
+
+  async getByIds(ids: string[]): Promise<HydratedGoal[]> {
+    const db = await this.getDb()
+    if (!db || ids.length === 0) return []
+
+    const goals = await db.query.goals.findMany({
+      where: (goals, { inArray }) => inArray(goals.id, ids),
+      with: this.relations,
+    })
+    return goals.map(unwrapJunctions)
+  }
 }

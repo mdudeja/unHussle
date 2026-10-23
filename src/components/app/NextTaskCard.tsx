@@ -7,6 +7,8 @@ import { Play, Coffee } from 'lucide-react'
 import { TaskTimerComponent } from '@/components/app/TaskTimer'
 import { Badge } from '@/components/ui/badge'
 import { cn } from '@/lib/utils'
+import { startTask } from '@/lib/taskLifecycle'
+import { Logger } from '@c/Logger'
 
 export const NextTaskCardComponent = ({ ref }: React.ComponentProps<'div'>) => {
   const { tasks, projects, areas } = useStore()
@@ -149,15 +151,11 @@ export const NextTaskCardComponent = ({ ref }: React.ComponentProps<'div'>) => {
                 'gap-2 shadow-sm font-semibold transition-all',
                 isHighPriority ? 'bg-danger hover:bg-danger/90 text-white' : '',
               )}
-              onClick={async () => {
-                // Dynamically import to avoid circular dep if any, though not expected here
-                const { timeTrackingService } =
-                  await import('@/services/TimeTrackingService')
-                await timeTrackingService.startTracking(nextTask.id)
-                await tasks.update(nextTask.id, {
-                  status: ProgressStatus.IN_PROGRESS,
-                })
-              }}
+              onClick={() =>
+                startTask(nextTask.id).catch((error) =>
+                  Logger.getInstance().error(`Failed to start task: ${error}`),
+                )
+              }
             >
               <Play className="size-4 fill-current" />
               Start

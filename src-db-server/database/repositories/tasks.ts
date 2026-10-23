@@ -18,6 +18,7 @@ import {
   withTimeEntries,
   withUrls,
 } from './helpers'
+import { AnySQLiteColumn } from 'drizzle-orm/sqlite-core'
 
 type TaskRelations = {
   project?: Project['Read'] | null
@@ -94,6 +95,47 @@ export class TasksRepository
           inArray(tasks.id, taggedIds(db, pattern)),
         ),
       limit,
+      with: this.relations,
+    })
+    return tasks.map(unwrapJunctions)
+  }
+
+  async getByIds(ids: string[]): Promise<HydratedTask[]> {
+    const db = await this.getDb()
+    if (!db || ids.length === 0) return []
+
+    const tasks = await db.query.tasks.findMany({
+      where: (tasks, { inArray }) => inArray(tasks.id, ids),
+      with: this.relations,
+    })
+    return tasks.map(unwrapJunctions)
+  }
+
+  async getByQuery(
+    query: Partial<{
+      [K in keyof Task['Read']]: Task['Read'][K] | Task['Read'][K][]
+    }>,
+  ): Promise<HydratedTask[]> {
+    const db = await this.getDb()
+    if (!db) return []
+
+    const tasks = await db.query.tasks.findMany({
+      where: (tasks, { or, eq, inArray }) =>
+        or(
+          ...Object.entries(query).map(([key, value]) => {
+            if (Array.isArray(value)) {
+              return inArray(
+                tasks[key as keyof typeof tasks] as AnySQLiteColumn,
+                value,
+              )
+            }
+
+            return eq(
+              tasks[key as keyof typeof tasks] as AnySQLiteColumn,
+              value,
+            )
+          }),
+        ),
       with: this.relations,
     })
     return tasks.map(unwrapJunctions)

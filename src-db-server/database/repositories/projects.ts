@@ -93,4 +93,15 @@ export class ProjectsRepository
     })
     return projects.map(unwrapJunctions)
   }
+
+  async getByIds(ids: string[]): Promise<HydratedProject[]> {
+    const db = await this.getDb()
+    if (!db || ids.length === 0) return []
+
+    const projects = await db.query.projects.findMany({
+      where: (projects, { inArray }) => inArray(projects.id, ids),
+      with: this.relations,
+    })
+    return projects.map(unwrapJunctions)
+  }
 }

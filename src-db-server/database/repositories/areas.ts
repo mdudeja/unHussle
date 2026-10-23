@@ -79,4 +79,15 @@ export class AreasRepository
     })
     return areas.map(unwrapJunctions)
   }
+
+  async getByIds(ids: string[]): Promise<HydratedArea[]> {
+    const db = await this.getDb()
+    if (!db || ids.length === 0) return []
+
+    const areas = await db.query.areas.findMany({
+      where: (areas, { inArray }) => inArray(areas.id, ids),
+      with: this.relations,
+    })
+    return areas.map(unwrapJunctions)
+  }
 }

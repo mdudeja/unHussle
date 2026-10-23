@@ -18,6 +18,7 @@ import { IconResolver } from '@/components/ui/utils/IconResolver'
 import { DataTableFilterOption } from '@/components/ui/custom/table/DataTable'
 import { useStore } from '@/store'
 import { getEntityItemRoute } from '@/lib/entityRoutes'
+import { cn } from '@/lib/utils'
 import { Priority, ProgressStatus, Tag } from '@c/types/index'
 import { formatMillisAsDdMmYyyy } from '@c/datetimeUtils'
 
@@ -155,6 +156,10 @@ export const statusColumn = <
             ? 'secondary'
             : 'outline'
         }
+        className={cn(
+          row.original.status === ProgressStatus.CANCELLED &&
+            'text-muted-foreground line-through',
+        )}
       >
         {toLabel(row.original.status)}
       </Badge>

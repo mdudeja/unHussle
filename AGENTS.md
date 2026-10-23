@@ -56,7 +56,6 @@ common/              Shared Logger, datetimeUtils, types, testing setup
 src-tauri/           Rust Tauri shell (sidecar lifecycle)
 drizzle_migrations/  SQL migrations (bundled as Tauri resource)
 drizzle.config.ts
-docs/                developer docs, plans, diagrams
 ```
 
 ## Path Aliases
@@ -130,7 +129,6 @@ Apply happens automatically on server startup via `migrate()`.
   junction tables if relations, route file, register in `server.ts`, prepared statements
   in `UnHussleDB.prepareStatements` if using search, service in `src/services/database`,
   Zustand slice.
-- Update `docs/plan/frontend_tasks.md` checklist when implementing a tracked task.
 - Run `bun run build` (tsc) before finishing non-trivial TS changes.
 - Do not edit generated migrations by hand; regenerate via drizzle-kit.
 - Do not delete user's uncommitted work; repo may have staged changes.

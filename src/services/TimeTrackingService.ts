@@ -5,8 +5,12 @@ export class TimeTrackingService {
 
   // Start tracking time for a task
   async startTracking(taskId: string): Promise<string> {
-    if (this.activeTimerId) {
+    if (this.activeTimerId && this.activeTimerId !== taskId) {
       await this.stopTracking()
+    }
+
+    if (this.activeTimerId === taskId) {
+      return taskId // Already tracking this task
     }
 
     const startTime = Date.now()
@@ -41,6 +45,12 @@ export class TimeTrackingService {
     }
 
     // Clear active tracking
+    this.activeTimerId = null
+    localStorage.removeItem('active_tracking_task')
+  }
+
+  // Drops the active session without saving its time (e.g. the task is gone).
+  discardTracking(): void {
     this.activeTimerId = null
     localStorage.removeItem('active_tracking_task')
   }

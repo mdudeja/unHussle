@@ -59,6 +59,8 @@ type DataTableProps<TData extends { id: string }> = {
   onRowClick?: (row: TData) => void
   isLoading?: boolean
   pageSize?: number
+  // Rendered between the toolbar and the table, e.g. actions for the selection.
+  selectionBar?: React.ReactNode
 }
 
 // Sentinel for the "no filter" select item; Radix Select disallows ''.
@@ -84,6 +86,7 @@ export function DataTable<TData extends { id: string }>({
   onRowClick,
   isLoading = false,
   pageSize = 20,
+  selectionBar,
 }: DataTableProps<TData>) {
   const [sorting, setSorting] = useState<SortingState>(initialSorting)
   const [pagination, setPagination] = useState({ pageIndex: 0, pageSize })
@@ -202,6 +205,8 @@ export function DataTable<TData extends { id: string }>({
           </Button>
         )}
       </div>
+
+      {selectionBar}
 
       {/* Table */}
       <div className="rounded-md border">

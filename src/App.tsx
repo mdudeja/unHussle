@@ -7,7 +7,7 @@ import {
   SidebarProvider,
   SidebarTrigger,
 } from '@/components/ui/sidebar'
-import { AppSidebarComponent } from '@/components/app'
+import { AppSidebarComponent, EntityEditDialogHost } from '@/components/app'
 
 function App() {
   const { isDBReady, checkDBReady, dbError } = useStore()
@@ -42,6 +42,7 @@ function App() {
         </div>
 
         <Outlet />
+        <EntityEditDialogHost />
       </SidebarInset>
     </SidebarProvider>
   )

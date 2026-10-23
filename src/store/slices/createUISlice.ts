@@ -1,5 +1,9 @@
 import { makeTextRequest } from '@/lib/server'
+import { EntityRouteKey } from '@/lib/entityRoutes'
 import { StateCreator } from 'zustand'
+
+// The entity shown in the global edit dialog (see EntityEditDialogHost).
+export type EditingEntity = { kind: EntityRouteKey; id: string }
 
 export interface UISlice {
   isDBReady: boolean
@@ -10,6 +14,9 @@ export interface UISlice {
   activeModal: string | null
   openModal: (modalId: string) => void
   closeModal: () => void
+  editing: EditingEntity | null
+  openEditor: (kind: EntityRouteKey, id: string) => void
+  closeEditor: () => void
 }
 
 export const createUISlice: StateCreator<UISlice> = (set) => ({
@@ -59,4 +66,7 @@ export const createUISlice: StateCreator<UISlice> = (set) => ({
   activeModal: null,
   openModal: (modalId) => set({ activeModal: modalId }),
   closeModal: () => set({ activeModal: null }),
+  editing: null,
+  openEditor: (kind, id) => set({ editing: { kind, id } }),
+  closeEditor: () => set({ editing: null }),
 })

@@ -9,6 +9,7 @@ export enum ProgressStatus {
   ARCHIVED = 'archived',
   PAUSED = 'paused',
   ON_HOLD = 'on_hold',
+  CANCELLED = 'cancelled',
 }
 
 export enum Priority {
