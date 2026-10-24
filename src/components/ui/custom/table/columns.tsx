@@ -89,16 +89,22 @@ export const hashtagColumn = <TData,>(
     return tags ? (
       <div className="flex flex-wrap gap-1">
         {tags?.map((tag) => (
-          <Badge
+          <Link
             key={tag.id}
-            variant="outline"
-            style={{
-              borderColor: tag.color ?? undefined,
-              color: tag.color ?? undefined,
-            }}
+            to={`${getEntityItemRoute('tags', tag.id)}&related=1`}
+            onClick={(e) => e.stopPropagation()}
           >
-            #{tag.title.trim()}
-          </Badge>
+            <Badge
+              variant="outline"
+              style={{
+                borderColor: tag.color ?? undefined,
+                color: tag.color ?? undefined,
+                cursor: 'pointer',
+              }}
+            >
+              #{tag.title.trim()}
+            </Badge>
+          </Link>
         ))}
       </div>
     ) : null
