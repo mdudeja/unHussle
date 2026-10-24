@@ -65,7 +65,6 @@ const SidebarRecentGroup = ({
   <SidebarGroup>
     <SidebarGroupLabel>{label}</SidebarGroupLabel>
     <SidebarGroupAction
-      asChild
       title={`View all ${label.toLowerCase()}`}
       className="aspect-auto h-5 w-auto px-1.5 text-xs text-muted-foreground"
     >
@@ -75,11 +74,13 @@ const SidebarRecentGroup = ({
       {items.map((item) => (
         <SidebarMenuItem key={item.id}>
           <SidebarMenuButton
-            asChild
             tooltip={item.label}
             isActive={item.id === activeId}
           >
-            <Link to={getEntityItemRoute(route, item.id)}>
+            <Link
+              to={getEntityItemRoute(route, item.id)}
+              className="flex items-center gap-2 px-2 py-1"
+            >
               {item.icon ? (
                 <IconResolver
                   icon={item.icon as any}
