@@ -113,7 +113,7 @@ export function GenericForm<T extends object>({
     return Object.keys(nextErrors).length === 0
   }
 
-  const handleSubmit = async (event: React.FormEvent<HTMLFormElement>) => {
+  const handleSubmit = async (event: React.SubmitEvent<HTMLFormElement>) => {
     event.preventDefault()
     if (readOnly || isSubmitting) return
     if (!validate()) return
@@ -410,23 +410,25 @@ function DateFieldControl({
 
   return (
     <Popover open={isOpen} onOpenChange={setIsOpen}>
-      <PopoverTrigger asChild>
-        <Button
-          id={fieldId}
-          type="button"
-          variant="outline"
-          disabled={disabled}
-          aria-invalid={hasError}
-          className={cn(
-            'w-full justify-start gap-2 font-normal',
-            !selectedDate && 'text-muted-foreground',
-          )}
-        >
-          <CalendarIcon className="size-4" />
-          {selectedDate
-            ? formatDdMmYyyy(selectedDate)
-            : (placeholder ?? 'Pick a date')}
-        </Button>
+      <PopoverTrigger
+        render={
+          <Button
+            id={fieldId}
+            type="button"
+            variant="outline"
+            disabled={disabled}
+            aria-invalid={hasError}
+            className={cn(
+              'w-full justify-start gap-2 font-normal',
+              !selectedDate && 'text-muted-foreground',
+            )}
+          />
+        }
+      >
+        <CalendarIcon className="size-4" />
+        {selectedDate
+          ? formatDdMmYyyy(selectedDate)
+          : (placeholder ?? 'Pick a date')}
       </PopoverTrigger>
       <PopoverContent align="start" className="w-auto p-0">
         <Calendar

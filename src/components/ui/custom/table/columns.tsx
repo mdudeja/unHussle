@@ -21,6 +21,7 @@ import { getEntityItemRoute } from '@/lib/entityRoutes'
 import { cn } from '@/lib/utils'
 import { Priority, ProgressStatus, Tag } from '@c/types/index'
 import { formatMillisAsDdMmYyyy } from '@c/datetimeUtils'
+import IconBadge from '@/components/ui/custom/IconBadge'
 
 // `in_progress` -> `In progress`
 export const toLabel = (value: string) => {
@@ -230,7 +231,7 @@ function EntityRefBadge({ kind, id }: { kind: EntityRefKind; id: string }) {
       to={getEntityItemRoute(kind, record.id)}
       onClick={(e) => e.stopPropagation()}
     >
-      <Badge
+      <IconBadge
         variant={variant}
         className="cursor-pointer"
         icon={
@@ -246,7 +247,7 @@ function EntityRefBadge({ kind, id }: { kind: EntityRefKind; id: string }) {
         }}
       >
         {record.title}
-      </Badge>
+      </IconBadge>
     </Link>
   )
 }
@@ -289,13 +290,13 @@ export const taskFlagColumns = <TData extends TaskFlagsRecord>(): ColumnDef<
         {taskFlags
           .filter((flag) => row.original[flag.id])
           .map(({ id, label, icon: Icon }) => (
-            <Badge
+            <IconBadge
               key={id}
               variant="outline"
               icon={<Icon className="h-3 w-3" />}
             >
               {label}
-            </Badge>
+            </IconBadge>
           ))}
       </div>
     ),

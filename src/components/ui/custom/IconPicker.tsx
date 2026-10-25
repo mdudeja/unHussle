@@ -95,21 +95,23 @@ export function IconPicker({
 
   return (
     <Popover open={isOpen} onOpenChange={handleOpenChange}>
-      <PopoverTrigger asChild>
-        <Button
-          id={id}
-          type="button"
-          variant="outline"
-          disabled={disabled}
-          aria-invalid={hasError}
-          className={cn(
-            'w-full justify-start gap-2 font-normal',
-            !selected && 'text-muted-foreground',
-          )}
-        >
-          {selected && <IconResolver icon={selected} size={16} />}
-          {selected ?? placeholder ?? 'Pick an icon'}
-        </Button>
+      <PopoverTrigger
+        render={
+          <Button
+            id={id}
+            type="button"
+            variant="outline"
+            disabled={disabled}
+            aria-invalid={hasError}
+            className={cn(
+              'w-full justify-start gap-2 font-normal',
+              !selected && 'text-muted-foreground',
+            )}
+          />
+        }
+      >
+        {selected && <IconResolver icon={selected} size={16} />}
+        {selected ?? placeholder ?? 'Pick an icon'}
       </PopoverTrigger>
       <PopoverContent align="start" className="w-80 space-y-3 p-3">
         <div className="relative">

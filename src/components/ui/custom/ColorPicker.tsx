@@ -61,24 +61,26 @@ export function ColorPicker({
 
   return (
     <Popover open={isOpen} onOpenChange={handleOpenChange}>
-      <PopoverTrigger asChild>
-        <Button
-          id={id}
-          type="button"
-          variant="outline"
-          disabled={disabled}
-          aria-invalid={hasError}
-          className={cn(
-            'w-full justify-start gap-2 font-normal',
-            !color && 'text-muted-foreground',
-          )}
-        >
-          <span
-            className="size-4 shrink-0 rounded-sm border"
-            style={{ backgroundColor: color }}
+      <PopoverTrigger
+        render={
+          <Button
+            id={id}
+            type="button"
+            variant="outline"
+            disabled={disabled}
+            aria-invalid={hasError}
+            className={cn(
+              'w-full justify-start gap-2 font-normal',
+              !color && 'text-muted-foreground',
+            )}
           />
-          {color ?? placeholder ?? 'Pick a color'}
-        </Button>
+        }
+      >
+        <span
+          className="size-4 shrink-0 rounded-sm border"
+          style={{ backgroundColor: color }}
+        />
+        {color ?? placeholder ?? 'Pick a color'}
       </PopoverTrigger>
       <PopoverContent align="start" className="w-auto space-y-3 p-3">
         <div className="grid grid-cols-5 gap-2">

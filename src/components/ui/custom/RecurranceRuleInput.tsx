@@ -152,11 +152,11 @@ export function RecurranceRuleInput({
       {/* Months */}
       {rule.type === 'yearly' && (
         <div className="space-y-1.5">
-          <Label asChild className="text-sm text-muted-foreground">
+          <Label className="text-sm text-muted-foreground">
             <span id={`${id}-months`}>Months</span>
           </Label>
           <ToggleGroup
-            type="multiple"
+            multiple={true}
             variant="outline"
             size="sm"
             className="grid w-full grid-cols-6"
@@ -180,11 +180,11 @@ export function RecurranceRuleInput({
       {/* Days of month */}
       {(rule.type === 'monthly' || rule.type === 'yearly') && (
         <div className="space-y-1.5">
-          <Label asChild className="text-sm text-muted-foreground">
+          <Label className="text-sm text-muted-foreground">
             <span id={`${id}-monthDays`}>Days of month</span>
           </Label>
           <ToggleGroup
-            type="multiple"
+            multiple={true}
             variant="outline"
             size="sm"
             className="grid w-full grid-cols-7"
@@ -208,11 +208,11 @@ export function RecurranceRuleInput({
       {/* Days of week */}
       {rule.type !== 'daily' && (
         <div className="space-y-1.5">
-          <Label asChild className="text-sm text-muted-foreground">
+          <Label className="text-sm text-muted-foreground">
             <span id={`${id}-weekDays`}>Days of week</span>
           </Label>
           <ToggleGroup
-            type="multiple"
+            multiple={true}
             variant="outline"
             size="sm"
             className="grid w-full grid-cols-7"
@@ -235,7 +235,7 @@ export function RecurranceRuleInput({
 
       {/* Time slots */}
       <div role="group" aria-labelledby={`${id}-slots`} className="space-y-1.5">
-        <Label asChild className="text-sm text-muted-foreground">
+        <Label className="text-sm text-muted-foreground">
           <span id={`${id}-slots`}>Time slots</span>
         </Label>
         {slots.map((slot, i) => (

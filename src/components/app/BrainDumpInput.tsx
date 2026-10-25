@@ -3,7 +3,6 @@ import { useStore } from '@/store'
 import { Input } from '@/components/ui/input'
 import { Textarea } from '@/components/ui/textarea'
 import { Button } from '@/components/ui/button'
-import { Badge } from '@/components/ui/badge'
 import { Calendar } from '@/components/ui/calendar'
 import {
   Popover,
@@ -44,6 +43,8 @@ import {
 import { useAPGHashtagAutocomplete } from '@/lib/hooks/useAPGHashtagAutocomplete'
 import { AutocompleteList } from '@/components/ui/custom/AutocompleteList'
 import { IconResolver } from '../ui/utils/IconResolver'
+import IconBadge from '@/components/ui/custom/IconBadge'
+import IconButton from '@/components/ui/custom/IconButton'
 
 const starterParsedData: ParsedData = {
   task: {
@@ -329,7 +330,7 @@ export const BrainDumpInputComponent = () => {
 
         {/* Fun / Chore / Quick toggles */}
         {flagOptions.map(({ key, label, icon: Icon }) => (
-          <Button
+          <IconButton
             key={key}
             type="button"
             onClick={() => toggleFlag(key)}
@@ -339,27 +340,29 @@ export const BrainDumpInputComponent = () => {
             className="rounded-full"
           >
             {label}
-          </Button>
+          </IconButton>
         ))}
 
         {/* Due date selector */}
         <Popover open={isCalendarOpen} onOpenChange={setIsCalendarOpen}>
-          <PopoverTrigger asChild>
-            <Button
-              type="button"
-              variant="outline"
-              size="sm"
-              disabled={isSubmitting}
-              className={cn(
-                'gap-1.5',
-                !selectedDate && 'text-muted-foreground',
-              )}
-            >
-              <CalendarIcon className="h-4 w-4" />
-              {selectedDate ? formatDdMmYyyy(selectedDate) : 'Due date'}
-            </Button>
+          <PopoverTrigger
+            render={
+              <Button
+                type="button"
+                variant="outline"
+                size="sm"
+                disabled={isSubmitting}
+                className={cn(
+                  'gap-1.5',
+                  !selectedDate && 'text-muted-foreground',
+                )}
+              />
+            }
+          >
+            <CalendarIcon className="h-4 w-4" />
+            {selectedDate ? formatDdMmYyyy(selectedDate) : 'Due date'}
           </PopoverTrigger>
-          <PopoverContent align="start" className="w-auto p-0">
+          <PopoverContent align="start" side="bottom" className="w-auto p-0">
             <Calendar
               mode="single"
               selected={selectedDate}
@@ -396,27 +399,27 @@ export const BrainDumpInputComponent = () => {
       {inputValue && (
         <div className="flex flex-wrap gap-2 text-sm">
           {priority === Priority.HIGH && (
-            <Badge
+            <IconBadge
               variant="destructive"
               className="text-xs"
               icon={<CircleAlert className="h-4 w-4" />}
             >
               {priority}
-            </Badge>
+            </IconBadge>
           )}
           {parsedData.task.title && (
-            <Badge
+            <IconBadge
               variant="outline"
               className="text-xs"
               icon={<ListTodo className="h-4 w-4" />}
             >
               {parsedData.task.title.substring(0, 30)}
               {parsedData.task.title.length > 30 ? '...' : ''}
-            </Badge>
+            </IconBadge>
           )}
           <div className="basis-full h-0" />
           {selectedProject && (
-            <Badge
+            <IconBadge
               variant="project"
               className="text-xs"
               icon={
@@ -431,10 +434,10 @@ export const BrainDumpInputComponent = () => {
               }
             >
               {selectedProject.title}
-            </Badge>
+            </IconBadge>
           )}
           {selectedArea && (
-            <Badge
+            <IconBadge
               variant="area"
               className="text-xs"
               icon={
@@ -449,10 +452,10 @@ export const BrainDumpInputComponent = () => {
               }
             >
               {selectedArea.title}
-            </Badge>
+            </IconBadge>
           )}
           {selectedGoal && (
-            <Badge
+            <IconBadge
               variant="goal"
               className="text-xs"
               icon={
@@ -467,38 +470,38 @@ export const BrainDumpInputComponent = () => {
               }
             >
               {selectedGoal.title}
-            </Badge>
+            </IconBadge>
           )}
           <div className="basis-full h-0" />
           {parsedData.task.estimated_minutes && (
-            <Badge
+            <IconBadge
               variant="muted"
               className="text-xs"
               icon={<Clock9 className="h-4 w-4" />}
             >
               {parsedData.task.estimated_minutes}m
-            </Badge>
+            </IconBadge>
           )}
           {effectiveDueMillis !== undefined && (
-            <Badge
+            <IconBadge
               variant="muted"
               className="text-xs"
               icon={<Crosshair className="h-4 w-4" />}
             >
               {formatMillisAsDdMmYyyy(effectiveDueMillis)}
-            </Badge>
+            </IconBadge>
           )}
           <div className="basis-full h-0" />
           {parsedData.tags.map((tag, idx) => (
-            <Badge key={idx} variant="primary_outline" className="text-xs">
+            <IconBadge key={idx} variant="primary_outline" className="text-xs">
               #{tag.title}
-            </Badge>
+            </IconBadge>
           ))}
           <div className="basis-full h-0" />
           {parsedData.urls.map((url, idx) => (
-            <Badge key={idx} variant="link_border" className="text-xs">
+            <IconBadge key={idx} variant="link_border" className="text-xs">
               Link: {url.url.substring(0, 20)}...
-            </Badge>
+            </IconBadge>
           ))}
         </div>
       )}
