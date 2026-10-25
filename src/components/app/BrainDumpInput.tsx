@@ -20,15 +20,12 @@ import {
   Flag,
   CalendarIcon,
   ListTodo,
-  FolderKanban,
-  Goal,
-  GitGraph,
-  CircleAlert,
   Crosshair,
   Clock9,
   Repeat,
+  LinkIcon,
 } from 'lucide-react'
-import { RecurranceRule } from '@d/database/schemas'
+import { RecurranceRule, Tag } from '@d/database/schemas'
 import { RecurranceRuleInput } from '@/components/ui/custom/RecurranceRuleInput'
 import { cn } from '@/lib/utils'
 import {
@@ -42,9 +39,12 @@ import {
 } from '@/lib/inputParsers/parseDataFromTaskInput'
 import { useAPGHashtagAutocomplete } from '@/lib/hooks/useAPGHashtagAutocomplete'
 import { AutocompleteList } from '@/components/ui/custom/AutocompleteList'
-import { IconResolver } from '../ui/utils/IconResolver'
 import IconBadge from '@/components/ui/custom/IconBadge'
 import IconButton from '@/components/ui/custom/IconButton'
+import PriorityView from '@/components/ui/custom/PriorityView'
+import EntityRefBadge from '@/components/ui/custom/EntityRefBadge'
+import { trimString } from '@/components/ui/utils/misc'
+import TagsView from '@/components/ui/custom/TagsView'
 
 const starterParsedData: ParsedData = {
   task: {
@@ -100,13 +100,16 @@ export const BrainDumpInputComponent = () => {
   const projects = useStore((state) => state.projects)
   const goals = useStore((state) => state.goals)
   const tags = useStore((state) => state.tags)
+  const urls = useStore((state) => state.urls)
 
   // `#` autocomplete for areas, projects, goals and tags. Selecting a suggestion
   // inserts its hashtag (e.g. `#health_fitness`) at the cursor token.
   const autocomplete = useAPGHashtagAutocomplete({
     inputValue,
     enabled: !isSubmitting,
-    onSelect: (_suggestion, nextInputValue) => setInputValue(nextInputValue),
+    onSelect: (_suggestion, nextInputValue) => {
+      setInputValue(nextInputValue)
+    },
   })
 
   // Plain tags are offered in the `#` dropdown alongside areas/projects/goals.
@@ -159,6 +162,18 @@ export const BrainDumpInputComponent = () => {
   }
 
   const handleSubmit = async () => {
+    // the user may have pasted a URL and nothing else, in which case we just add the URL(s) to the store and don't create a task.
+    if (!parsedData.task.title.trim() && parsedData.urls.length) {
+      setIsSubmitting(true)
+      await Promise.all(
+        parsedData.urls.map((url) => urls.add({ url: url.url })),
+      )
+      await urls.fetch().catch(() => {})
+      setIsSubmitting(false)
+      resetForm()
+      return
+    }
+
     if (!parsedData.task.title.trim() && inputValue.trim()) {
       // If all text was parsed out, use original
       parsedData.task.title = inputValue.trim()
@@ -206,8 +221,9 @@ export const BrainDumpInputComponent = () => {
         urls: parsedData.urls,
       })
 
-      // Newly created tags should show up in the tag list and pickers
+      // Newly created tags and urls should show up in the tag list and pickers
       if (parsedData.tags.length > 0) tags.fetch().catch(() => {})
+      if (parsedData.urls.length > 0) urls.fetch().catch(() => {})
 
       // Reset form
       resetForm()
@@ -398,80 +414,22 @@ export const BrainDumpInputComponent = () => {
       {/* Parsed data visualization */}
       {inputValue && (
         <div className="flex flex-wrap gap-2 text-sm">
-          {priority === Priority.HIGH && (
-            <IconBadge
-              variant="destructive"
-              className="text-xs"
-              icon={<CircleAlert className="h-4 w-4" />}
-            >
-              {priority}
-            </IconBadge>
-          )}
+          {priority !== Priority.MEDIUM && <PriorityView priority={priority} />}
           {parsedData.task.title && (
             <IconBadge
               variant="outline"
               className="text-xs"
               icon={<ListTodo className="h-4 w-4" />}
             >
-              {parsedData.task.title.substring(0, 30)}
-              {parsedData.task.title.length > 30 ? '...' : ''}
+              {trimString(parsedData.task.title, 30)}
             </IconBadge>
           )}
           <div className="basis-full h-0" />
           {selectedProject && (
-            <IconBadge
-              variant="project"
-              className="text-xs"
-              icon={
-                selectedProject.icon ? (
-                  <IconResolver
-                    icon={selectedProject.icon as any}
-                    className="h-4 w-4"
-                  />
-                ) : (
-                  <FolderKanban className="h-4 w-4" />
-                )
-              }
-            >
-              {selectedProject.title}
-            </IconBadge>
+            <EntityRefBadge kind="projects" id={selectedProject.id} />
           )}
-          {selectedArea && (
-            <IconBadge
-              variant="area"
-              className="text-xs"
-              icon={
-                selectedArea.icon ? (
-                  <IconResolver
-                    icon={selectedArea.icon as any}
-                    className="h-4 w-4"
-                  />
-                ) : (
-                  <GitGraph className="h-4 w-4" />
-                )
-              }
-            >
-              {selectedArea.title}
-            </IconBadge>
-          )}
-          {selectedGoal && (
-            <IconBadge
-              variant="goal"
-              className="text-xs"
-              icon={
-                selectedGoal.icon ? (
-                  <IconResolver
-                    icon={selectedGoal.icon as any}
-                    className="h-4 w-4"
-                  />
-                ) : (
-                  <Goal className="h-4 w-4" />
-                )
-              }
-            >
-              {selectedGoal.title}
-            </IconBadge>
-          )}
+          {selectedArea && <EntityRefBadge kind="areas" id={selectedArea.id} />}
+          {selectedGoal && <EntityRefBadge kind="goals" id={selectedGoal.id} />}
           <div className="basis-full h-0" />
           {parsedData.task.estimated_minutes && (
             <IconBadge
@@ -492,15 +450,18 @@ export const BrainDumpInputComponent = () => {
             </IconBadge>
           )}
           <div className="basis-full h-0" />
-          {parsedData.tags.map((tag, idx) => (
-            <IconBadge key={idx} variant="primary_outline" className="text-xs">
-              #{tag.title}
-            </IconBadge>
-          ))}
+          {parsedData.tags && (
+            <TagsView tags={parsedData.tags as Tag['Read'][]} />
+          )}
           <div className="basis-full h-0" />
           {parsedData.urls.map((url, idx) => (
-            <IconBadge key={idx} variant="link_border" className="text-xs">
-              Link: {url.url.substring(0, 20)}...
+            <IconBadge
+              key={idx}
+              variant="link_border"
+              className="text-xs"
+              icon={<LinkIcon className="h-4 w-4" />}
+            >
+              {trimString(url.url, 24)}...
             </IconBadge>
           ))}
         </div>
@@ -511,7 +472,10 @@ export const BrainDumpInputComponent = () => {
         <div className="flex gap-2">
           <Button
             onClick={handleSubmit}
-            disabled={isSubmitting || !parsedData.task.title.trim()}
+            disabled={
+              isSubmitting ||
+              (!parsedData.task.title.trim() && !parsedData.urls.length)
+            }
             className="flex-1"
           >
             {isSubmitting ? (

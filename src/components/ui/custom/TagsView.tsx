@@ -6,9 +6,9 @@ import { getEntityItemRoute } from '@/lib/entityRoutes'
 export default function TagsView({ tags }: { tags: Tag['Read'][] }) {
   return (
     <div className="flex flex-wrap gap-1">
-      {tags?.map((tag) => (
+      {tags.map((tag, idx) => (
         <Link
-          key={tag.id}
+          key={tag.id ?? idx}
           to={`${getEntityItemRoute('tags', tag.id)}&related=1`}
           onClick={(e) => e.stopPropagation()}
         >

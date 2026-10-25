@@ -52,16 +52,19 @@ export const parseHashtags = ({
     const matchedProject = existingProjects.find(
       (p) =>
         p.title.toLowerCase() === tagName ||
+        p.title.toLowerCase() === tagName.replace(/_/g, ' ') ||
         p.tags?.some((t) => t.title.toLowerCase() === tagName),
     )
     const matchedArea = existingAreas.find(
       (a) =>
         a.title.toLowerCase() === tagName ||
+        a.title.toLowerCase() === tagName.replace(/_/g, ' ') ||
         a.tags?.some((t) => t.title.toLowerCase() === tagName),
     )
     const matchedGoal = existingGoals.find(
       (g) =>
         g.title.toLowerCase() === tagName ||
+        g.title.toLowerCase() === tagName.replace(/_/g, ' ') ||
         g.tags?.some((t) => t.title.toLowerCase() === tagName),
     )
 

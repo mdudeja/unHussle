@@ -21,6 +21,7 @@ import EntityRefBadge, {
   EntityRefKind,
 } from '@/components/ui/custom/EntityRefBadge'
 import TagsView from '@/components/ui/custom/TagsView'
+import { Link } from 'react-router'
 
 export const enumFilterOptions = (
   values: Record<string, string>,
@@ -69,6 +70,26 @@ export const textColumn = <TData,>(
   cell: ({ getValue }) => (
     <span className="line-clamp-1 max-w-md">{getValue<string>()}</span>
   ),
+})
+
+export const urlColumn = <TData,>(
+  id: string,
+  title: string,
+  accessor: (row: TData) => string | null | undefined,
+): ColumnDef<TData, any> => ({
+  id,
+  accessorFn: (row) => accessor(row) ?? '',
+  header: ({ column }) => <SortableHeader column={column} title={title} />,
+  cell: ({ getValue }) => {
+    const url = getValue<string>()
+    return url ? (
+      <Link to={url} target="_blank" rel="noopener noreferrer">
+        <span className="line-clamp-1 max-w-md text-blue-600 hover:underline">
+          {url}
+        </span>
+      </Link>
+    ) : null
+  },
 })
 
 // Hashtag stored without `#` (e.g. `health_fitness`), shown as `#health_fitness`.

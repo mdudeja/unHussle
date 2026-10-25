@@ -25,6 +25,7 @@ import {
   taskFlagFilters,
   textColumn,
   titleColumn,
+  urlColumn,
 } from '@/components/ui/custom/table/columns'
 import { Priority, ProgressStatus } from '@c/types/index'
 import { Task } from '@d/database/schemas/tasks.schema'
@@ -144,8 +145,8 @@ export const urlsConfig: EntityListPageConfig<Url['Read']> = {
   selectSlice: (state) => state.urls,
   columns: [
     textColumn('title', 'Title', (row) => row.title),
-    textColumn('url', 'URL', (row) => row.url),
-    textColumn('hostname', 'Host', (row) => row.parts?.hostname),
+    urlColumn('url', 'URL', (row) => row.url),
+    textColumn('description', 'Description', (row) => row.description),
     updatedAtColumn(),
   ],
   hiddenColumns: ['updated_at'],
