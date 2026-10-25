@@ -12,7 +12,10 @@ import { Button } from '@/components/ui/button'
 import { IconResolver } from '@/components/ui/utils/IconResolver'
 import { DataTableFilterOption } from '@/components/ui/custom/table/DataTable'
 import { Priority, ProgressStatus, Tag } from '@c/types/index'
-import { formatMillisAsDdMmYyyy } from '@c/datetimeUtils'
+import {
+  formatMillisAsDdMmYyyy,
+  formatMillisAsDdMmYyyyHhMm,
+} from '@c/datetimeUtils'
 import IconBadge from '@/components/ui/custom/IconBadge'
 import StatusView from '@/components/ui/custom/StatusView'
 import { toLabel } from '@/components/ui/utils/misc'
@@ -184,6 +187,19 @@ export const dateColumn = <TData,>(
   cell: ({ getValue }) => {
     const millis = getValue<number | undefined>()
     return millis !== undefined ? formatMillisAsDdMmYyyy(millis) : null
+  },
+})
+
+// Like `dateColumn`, but also shows the time of day.
+export const dateTimeColumn = <TData,>(
+  id: string,
+  title: string,
+  accessor: (row: TData) => number | null | undefined,
+): ColumnDef<TData, any> => ({
+  ...dateColumn(id, title, accessor),
+  cell: ({ getValue }) => {
+    const millis = getValue<number | undefined>()
+    return millis !== undefined ? formatMillisAsDdMmYyyyHhMm(millis) : null
   },
 })
 

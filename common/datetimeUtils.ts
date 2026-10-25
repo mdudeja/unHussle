@@ -74,6 +74,37 @@ const dateToStartOfDayMillis = (date: Date): number =>
     day: date.getDate(),
   })
 
+// Formats a JS Date (local time) as HH:MM (24h), the format of `<input type="time">`.
+const formatHhMm = (date: Date): string =>
+  `${String(date.getHours()).padStart(2, '0')}:${String(
+    date.getMinutes(),
+  ).padStart(2, '0')}`
+
+// Formats an epoch-millis timestamp as DD/MM/YYYY HH:MM in the local timezone.
+const formatMillisAsDdMmYyyyHhMm = (millis: number): string => {
+  const zoned = Temporal.Instant.fromEpochMilliseconds(
+    millis,
+  ).toZonedDateTimeISO(Temporal.Now.timeZoneId())
+  return `${formatMillisAsDdMmYyyy(millis)} ${String(zoned.hour).padStart(
+    2,
+    '0',
+  )}:${String(zoned.minute).padStart(2, '0')}`
+}
+
+/** Combines the day of a JS Date (local time) with an HH:MM time into epoch millis. */
+const dateAndTimeToMillis = (date: Date, time: string): number => {
+  const [hour = 0, minute = 0] = time.split(':').map(Number)
+  return Temporal.PlainDateTime.from({
+    year: date.getFullYear(),
+    month: date.getMonth() + 1,
+    day: date.getDate(),
+    hour,
+    minute,
+  })
+    .toZonedDateTime(Temporal.Now.timeZoneId())
+    .toInstant().epochMilliseconds
+}
+
 export {
   getNow,
   getNowMillis,
@@ -84,4 +115,7 @@ export {
   formatDdMmYyyy,
   formatMillisAsDdMmYyyy,
   dateToStartOfDayMillis,
+  formatHhMm,
+  formatMillisAsDdMmYyyyHhMm,
+  dateAndTimeToMillis,
 }

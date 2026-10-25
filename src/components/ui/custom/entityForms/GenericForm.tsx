@@ -22,6 +22,7 @@ import { IconPicker } from '@/components/ui/custom/IconPicker'
 import { RecurranceRuleInput } from '@/components/ui/custom/RecurranceRuleInput'
 import { TagsInput } from '@/components/ui/custom/TagsInput'
 import { UrlsInput } from '@/components/ui/custom/UrlsInput'
+import { DateTimePicker } from '@/components/ui/custom/DateTimePicker'
 import { RecurranceRule } from '@d/database/schemas'
 import type { TagInput, UrlInput } from '@c/types/index'
 import { CalendarIcon, Loader2 } from 'lucide-react'
@@ -37,6 +38,8 @@ export interface GenericFormProps<T extends object> {
   /** Initial values used to seed the form. Resets whenever the form remounts. */
   initialValues?: Partial<T>
   onSubmit: (values: Partial<T>) => void | Promise<void>
+  /** Derives/normalizes values after validation, right before `onSubmit`. */
+  transformValues?: (values: Partial<T>) => Partial<T>
   onCancel?: () => void
   submitLabel?: string
   cancelLabel?: string
@@ -57,6 +60,7 @@ export function GenericForm<T extends object>({
   fields,
   initialValues,
   onSubmit,
+  transformValues,
   onCancel,
   submitLabel = 'Save',
   cancelLabel = 'Cancel',
@@ -105,7 +109,7 @@ export function GenericForm<T extends object>({
         !nextErrors[field.name] &&
         !isBlank(values[field.name])
       ) {
-        const message = field.validate(values[field.name])
+        const message = field.validate(values[field.name], values)
         if (message) nextErrors[field.name] = message
       }
     }
@@ -122,8 +126,8 @@ export function GenericForm<T extends object>({
     for (const field of fields) {
       if (!visibleFields.includes(field)) submitted[field.name] = null
     }
-    console.log({ submitted })
-    await onSubmit(submitted as Partial<T>)
+    const finalValues = submitted as Partial<T>
+    await onSubmit(transformValues ? transformValues(finalValues) : finalValues)
   }
 
   return (
@@ -288,6 +292,18 @@ function FormField<T extends object>({
             placeholder={field.placeholder}
             hasError={Boolean(error)}
             onChange={onChange}
+          />
+        )
+      case 'datetime':
+        return (
+          <DateTimePicker
+            id={fieldId}
+            value={typeof value === 'number' ? value : undefined}
+            disabled={disabled}
+            placeholder={field.placeholder}
+            hasError={Boolean(error)}
+            className="w-full"
+            onChange={(next) => onChange(next ?? null)}
           />
         )
       case 'color':

@@ -24,6 +24,7 @@ import {
   Clock9,
   Repeat,
   LinkIcon,
+  CalendarClock,
 } from 'lucide-react'
 import { RecurranceRule, Tag } from '@d/database/schemas'
 import { RecurranceRuleInput } from '@/components/ui/custom/RecurranceRuleInput'
@@ -31,8 +32,10 @@ import { cn } from '@/lib/utils'
 import {
   formatDdMmYyyy,
   formatMillisAsDdMmYyyy,
+  formatMillisAsDdMmYyyyHhMm,
   getStartOfDayMillis,
 } from '@c/datetimeUtils'
+import { resolveTaskSchedule, validateTaskSchedule } from '@c/taskSchedule'
 import {
   parseDataFromTaskInput,
   ParsedData,
@@ -45,6 +48,7 @@ import PriorityView from '@/components/ui/custom/PriorityView'
 import EntityRefBadge from '@/components/ui/custom/EntityRefBadge'
 import { trimString } from '@/components/ui/utils/misc'
 import TagsView from '@/components/ui/custom/TagsView'
+import { DateTimePicker } from '@/components/ui/custom/DateTimePicker'
 
 const starterParsedData: ParsedData = {
   task: {
@@ -94,6 +98,8 @@ export const BrainDumpInputComponent = () => {
   const [recurranceRule, setRecurranceRule] = useState<RecurranceRule>(
     defaultRecurranceRule,
   )
+  const [scheduledStart, setScheduledStart] = useState<number | undefined>()
+  const [scheduledEnd, setScheduledEnd] = useState<number | undefined>()
 
   const tasks = useStore((state) => state.tasks)
   const areas = useStore((state) => state.areas)
@@ -142,6 +148,14 @@ export const BrainDumpInputComponent = () => {
         })
       : parsedDueMillis
 
+  // Start or end + the parsed estimate is enough; the missing part is derived.
+  const schedule = resolveTaskSchedule({
+    scheduled_start: scheduledStart,
+    scheduled_end: scheduledEnd,
+    estimated_minutes: parsedData.task.estimated_minutes,
+  })
+  const scheduleError = validateTaskSchedule(schedule)
+
   const resetForm = () => {
     setInputValue('')
     setIsExpanded(false)
@@ -150,6 +164,8 @@ export const BrainDumpInputComponent = () => {
     setFlags(emptyFlags)
     setDueDate(undefined)
     setRecurranceRule(defaultRecurranceRule)
+    setScheduledStart(undefined)
+    setScheduledEnd(undefined)
   }
 
   const toggleFlag = (key: keyof TaskFlags) => {
@@ -179,7 +195,7 @@ export const BrainDumpInputComponent = () => {
       parsedData.task.title = inputValue.trim()
     }
 
-    if (!parsedData.task.title.trim()) {
+    if (!parsedData.task.title.trim() || scheduleError) {
       return
     }
 
@@ -215,8 +231,10 @@ export const BrainDumpInputComponent = () => {
         is_quick: flags.is_quick,
         is_recurring: flags.is_recurring,
         recurrance_rule: flags.is_recurring ? recurranceRule : undefined,
-        estimated_minutes: parsedData.task.estimated_minutes,
+        estimated_minutes: schedule.estimated_minutes,
         due_date: effectiveDueMillis,
+        scheduled_start: schedule.scheduled_start,
+        scheduled_end: schedule.scheduled_end,
         tags: parsedData.tags,
         urls: parsedData.urls,
       })
@@ -400,7 +418,29 @@ export const BrainDumpInputComponent = () => {
             )}
           </PopoverContent>
         </Popover>
+
+        {/* Scheduled start / end */}
+        <DateTimePicker
+          size="sm"
+          value={scheduledStart}
+          onChange={setScheduledStart}
+          disabled={isSubmitting}
+          placeholder="Start"
+          hasError={Boolean(scheduleError)}
+        />
+        <DateTimePicker
+          size="sm"
+          value={scheduledEnd}
+          onChange={setScheduledEnd}
+          disabled={isSubmitting}
+          placeholder="End"
+          hasError={Boolean(scheduleError)}
+        />
       </div>
+
+      {scheduleError && (
+        <p className="text-xs text-destructive">{scheduleError}</p>
+      )}
 
       {/* Recurrance rule editor */}
       {flags.is_recurring && (
@@ -431,13 +471,29 @@ export const BrainDumpInputComponent = () => {
           {selectedArea && <EntityRefBadge kind="areas" id={selectedArea.id} />}
           {selectedGoal && <EntityRefBadge kind="goals" id={selectedGoal.id} />}
           <div className="basis-full h-0" />
-          {parsedData.task.estimated_minutes && (
+          {schedule.estimated_minutes && (
             <IconBadge
               variant="muted"
               className="text-xs"
               icon={<Clock9 className="h-4 w-4" />}
             >
-              {parsedData.task.estimated_minutes}m
+              {schedule.estimated_minutes}m
+            </IconBadge>
+          )}
+          {(schedule.scheduled_start !== undefined ||
+            schedule.scheduled_end !== undefined) && (
+            <IconBadge
+              variant="muted"
+              className="text-xs"
+              icon={<CalendarClock className="h-4 w-4" />}
+            >
+              {schedule.scheduled_start
+                ? formatMillisAsDdMmYyyyHhMm(schedule.scheduled_start)
+                : '?'}
+              {' → '}
+              {schedule.scheduled_end
+                ? formatMillisAsDdMmYyyyHhMm(schedule.scheduled_end)
+                : '?'}
             </IconBadge>
           )}
           {effectiveDueMillis !== undefined && (
@@ -474,6 +530,7 @@ export const BrainDumpInputComponent = () => {
             onClick={handleSubmit}
             disabled={
               isSubmitting ||
+              Boolean(scheduleError) ||
               (!parsedData.task.title.trim() && !parsedData.urls.length)
             }
             className="flex-1"
@@ -497,7 +554,8 @@ export const BrainDumpInputComponent = () => {
         Use # for tags/projects/areas/goals • Paste links to attach them • Add
         priority (high/low) • Mark as fun/chore/quick • Add time (est:|et: 30m,
         2h) • Set due date (today, tomorrow, next Friday) or pick due date from
-        a date picker
+        a date picker • Schedule a start or end (with an estimate, the other is
+        calculated)
       </p>
     </div>
   )

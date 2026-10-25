@@ -16,6 +16,7 @@ export interface EntityFormDialogProps<T extends object> {
   fields: FieldConfig<T>[]
   initialValues?: Partial<T>
   onSubmit: (values: Partial<T>) => void | Promise<void>
+  transformValues?: (values: Partial<T>) => Partial<T>
   submitLabel?: string
   cancelLabel?: string
   isSubmitting?: boolean
@@ -36,6 +37,7 @@ export function EntityFormDialog<T extends object>({
   fields,
   initialValues,
   onSubmit,
+  transformValues,
   submitLabel,
   cancelLabel,
   isSubmitting,
@@ -53,6 +55,7 @@ export function EntityFormDialog<T extends object>({
           fields={fields}
           initialValues={initialValues}
           onSubmit={onSubmit}
+          transformValues={transformValues}
           onCancel={() => onOpenChange(false)}
           submitLabel={submitLabel}
           cancelLabel={cancelLabel}

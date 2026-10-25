@@ -2,6 +2,7 @@ import {
   Activity,
   AlignLeft,
   Calendar,
+  CalendarCheck,
   CalendarClock,
   CalendarSync,
   CheckSquare,
@@ -18,6 +19,7 @@ import {
   Link,
 } from 'lucide-react'
 import { Area, Goal, Project, Task, WithAttachments } from '@c/types/index'
+import { validateTaskSchedule } from '@c/taskSchedule'
 import type { FieldConfig, FieldOption } from '../types'
 import { priorityOptions, statusOptions } from '../utils'
 
@@ -124,11 +126,20 @@ export const createTaskFields = ({
       icon: Calendar,
     },
     {
-      name: 'scheduled_for',
-      label: 'Scheduled for',
-      type: 'date',
+      name: 'scheduled_start',
+      label: 'Scheduled start',
+      type: 'datetime',
       placeholder: 'Not scheduled',
+      description: 'Set start or end + estimate; the other is calculated',
       icon: CalendarClock,
+    },
+    {
+      name: 'scheduled_end',
+      label: 'Scheduled end',
+      type: 'datetime',
+      placeholder: 'Not scheduled',
+      icon: CalendarCheck,
+      validate: (_value, values) => validateTaskSchedule(values),
     },
     {
       name: 'is_quick',

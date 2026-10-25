@@ -118,6 +118,7 @@ export const EntityEditDialogHost = () => {
       fields={fields}
       initialValues={initialValues ?? {}}
       onSubmit={handleSubmit}
+      transformValues={entry.transformValues}
       submitLabel="Save changes"
       isSubmitting={isSubmitting || !initialValues}
       errorMessage={errorMessage}

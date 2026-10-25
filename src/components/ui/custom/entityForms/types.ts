@@ -6,6 +6,7 @@ export type FieldType =
   | 'number'
   | 'select'
   | 'date'
+  | 'datetime'
   | 'boolean'
   | 'color'
   | 'icon'
@@ -51,8 +52,9 @@ export interface FieldConfig<T extends object> {
   /**
    * Custom validation, run when the value is not blank. Return an error
    * message to block submission, or `undefined` when the value is valid.
+   * `values` holds the whole form, for checks that span several fields.
    */
-  validate?: (value: unknown) => string | undefined
+  validate?: (value: unknown, values: Partial<T>) => string | undefined
   /**
    * Only render the field when this returns true for the current form values.
    * Hidden fields are skipped during validation and submitted as `null`, so

@@ -1,4 +1,5 @@
 import { Priority, ProgressStatus } from '@c/types/index'
+import { resolveTaskSchedule } from '@c/taskSchedule'
 import { StoreState } from '@/store'
 import { DbSlice } from '@/store/slices/createDbConnectedStoreSlice'
 import { DbService } from '@/services/database/DbService'
@@ -32,6 +33,8 @@ export type EntityRegistryEntry = {
   createFields: (sources: FieldSources) => FieldConfig<any>[]
   /** Used for form fields whose stored value is empty. */
   formDefaults?: Record<string, unknown>
+  /** Derives values (e.g. a task's schedule) right before they are saved. */
+  transformValues?: (values: Record<string, unknown>) => Record<string, unknown>
 }
 
 const statusDefaults = {
@@ -55,6 +58,7 @@ export const entityRegistry: Record<EntityKind, EntityRegistryEntry> = {
       ...statusDefaults,
       recurrance_rule: { type: 'daily', data: {} },
     },
+    transformValues: resolveTaskSchedule,
   },
   projects: {
     label: 'project',

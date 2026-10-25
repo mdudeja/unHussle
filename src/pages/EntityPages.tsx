@@ -15,6 +15,7 @@ import { useTaskActions } from '@/lib/entityActions'
 import { useRelatedTasks, useTaggedItems } from '@/lib/hooks/useRelatedItems'
 import {
   dateColumn,
+  dateTimeColumn,
   entityRefColumn,
   enumFilterOptions,
   hashtagColumn,
@@ -133,6 +134,8 @@ export const tasksConfig: EntityListPageConfig<HydratedTask> = {
     entityRefColumn('goals', 'Goal', (row) => row.goal_id),
     ...taskFlagColumns<Task['Read']>(),
     dateColumn('due_date', 'Due', (row) => row.due_date),
+    dateTimeColumn('scheduled_start', 'Start', (row) => row.scheduled_start),
+    dateTimeColumn('scheduled_end', 'End', (row) => row.scheduled_end),
     updatedAtColumn(),
   ],
   filters: [statusFilter, priorityFilter, ...taskFlagFilters],

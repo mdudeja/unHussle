@@ -1,6 +1,7 @@
 import { useMemo, useState } from 'react'
 import { useStore } from '@/store'
 import { Priority, ProgressStatus, Task, WithAttachments } from '@c/types/index'
+import { resolveTaskSchedule } from '@c/taskSchedule'
 import { Button } from '@/components/ui/button'
 import { Plus } from 'lucide-react'
 import {
@@ -83,6 +84,7 @@ export const CreateTaskButtonComponent = () => {
         fields={fields}
         initialValues={taskDefaultValues}
         onSubmit={handleSubmit}
+        transformValues={resolveTaskSchedule}
         submitLabel="Create task"
         isSubmitting={isSubmitting}
         errorMessage={errorMessage}
