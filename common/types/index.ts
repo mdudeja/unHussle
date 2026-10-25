@@ -18,6 +18,13 @@ export enum Priority {
   HIGH = 'high',
 }
 
+export enum AnchorType {
+  before = 'before',
+  after = 'after',
+  any_before = 'any_before',
+  any_after = 'any_after',
+}
+
 export type InferTableTypes<B, T extends SQLiteTableWithColumns<any>> = {
   Parent: B
   Read: T['$inferSelect']

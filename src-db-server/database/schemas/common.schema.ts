@@ -1,5 +1,5 @@
 import { createId } from '@paralleldrive/cuid2'
-import { Priority, ProgressStatus } from '@c/types/index'
+import { AnchorType, Priority, ProgressStatus } from '@c/types/index'
 import * as t from 'drizzle-orm/sqlite-core'
 import { getNowMillis } from '@c/datetimeUtils'
 
@@ -31,6 +31,12 @@ export const prioritySchema = {
 
 export const statusSchema = {
   status: customEnum<ProgressStatus>('status').default(ProgressStatus.PLANNED),
+}
+
+export const anchorTypeSchema = {
+  anchor_type: customEnum<AnchorType>('anchor_type').default(
+    AnchorType.any_after,
+  ),
 }
 
 // Parent Schemas
@@ -79,7 +85,6 @@ export type RecurranceType = 'daily' | 'weekly' | 'monthly' | 'yearly'
 export type DailyRecurranceRule = {
   type: 'daily'
   data: {
-    anchorTaskIds?: string[]
     slots?: {
       from: number
       to: number

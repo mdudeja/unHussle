@@ -17,6 +17,7 @@ import {
   junctionTags,
   junctionUrls,
   RecurranceRule,
+  anchorTypeSchema,
 } from '@d/database/schemas/index'
 import { Entity, InferTableTypes } from '@c/types/index'
 
@@ -39,6 +40,7 @@ export const tasks = sqliteTable(
     anchor_id: text('anchor_id').references((): AnySQLiteColumn => tasks.id, {
       onDelete: 'set null',
     }),
+    ...anchorTypeSchema,
     estimated_minutes: integer({ mode: 'number' }),
     spent_minutes: integer({ mode: 'number' }).notNull().default(0),
     due_date: integer({ mode: 'number' }),
@@ -48,7 +50,8 @@ export const tasks = sqliteTable(
     is_chore: integer({ mode: 'boolean' }).notNull().default(false),
     is_quick: integer({ mode: 'boolean' }).notNull().default(false),
     stack_order: integer({ mode: 'number' }).notNull().default(0),
-    scheduled_for: integer({ mode: 'number' }),
+    scheduled_start: integer({ mode: 'number' }),
+    scheduled_end: integer({ mode: 'number' }),
     started_at: integer({ mode: 'number' }),
     completed_at: integer({ mode: 'number' }),
   },
@@ -58,7 +61,8 @@ export const tasks = sqliteTable(
     index('tasks_goal_idx').on(table.goal_id),
     index('tasks_status_idx').on(table.status),
     index('tasks_due_date_idx').on(table.due_date),
-    index('tasks_scheduled_for_idx').on(table.scheduled_for),
+    index('tasks_scheduled_start_idx').on(table.scheduled_start),
+    index('tasks_scheduled_end_idx').on(table.scheduled_end),
     index('tasks_title_idx').on(table.title),
     index('tasks_created_at_idx').on(table.created_at),
     index('tasks_updated_at_idx').on(table.updated_at),
