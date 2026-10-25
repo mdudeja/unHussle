@@ -10,6 +10,9 @@ import {
   Goal,
   Smile,
   Zap,
+  ChevronDown,
+  Minus,
+  AlertCircle,
 } from 'lucide-react'
 import { Link } from 'react-router'
 import { Badge } from '@/components/ui/badge'
@@ -175,6 +178,16 @@ export const statusColumn = <
 
 const priorityOrder = Object.values(Priority)
 
+export const priorityIcon = ({ priority }: { priority: Priority }) => {
+  return priority === Priority.HIGH ? (
+    <AlertCircle className="h-3 w-3 text-destructive" />
+  ) : priority === Priority.MEDIUM ? (
+    <Minus className="h-3 w-3 text-muted-foreground" />
+  ) : (
+    <ChevronDown className="h-3 w-3 text-muted-foreground" />
+  )
+}
+
 export const priorityColumn = <
   TData extends { priority?: Priority | null },
 >(): ColumnDef<TData, any> => ({
@@ -186,13 +199,12 @@ export const priorityColumn = <
     priorityOrder.indexOf(b.original.priority as Priority),
   cell: ({ row }) =>
     row.original.priority ? (
-      <Badge
-        variant={
-          row.original.priority === Priority.HIGH ? 'destructive' : 'muted'
-        }
+      <span
+        className={`flex items-center gap-1 ${row.original.priority === Priority.HIGH ? 'text-destructive' : 'text-muted-foreground'}`}
       >
+        {priorityIcon({ priority: row.original.priority })}
         {toLabel(row.original.priority)}
-      </Badge>
+      </span>
     ) : null,
 })
 

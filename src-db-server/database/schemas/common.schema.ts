@@ -53,7 +53,6 @@ export const entityCollectionSchema = {
     .primaryKey()
     .$defaultFn(() => createId()),
   title: t.text().notNull(),
-  ...statusSchema,
   ...prioritySchema,
   icon: t.text(),
   color: t.text(),

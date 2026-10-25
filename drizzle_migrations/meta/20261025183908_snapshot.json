@@ -1,7 +1,7 @@
 {
   "version": "6",
   "dialect": "sqlite",
-  "id": "a5726a27-ef2c-43eb-af80-b4ce2af2b5a9",
+  "id": "2cafa72e-bf47-44ad-99e1-4d7d76ad4dcf",
   "prevId": "00000000-0000-0000-0000-000000000000",
   "tables": {
     "areas": {
@@ -20,14 +20,6 @@
           "primaryKey": false,
           "notNull": true,
           "autoincrement": false
-        },
-        "status": {
-          "name": "status",
-          "type": "text",
-          "primaryKey": false,
-          "notNull": false,
-          "autoincrement": false,
-          "default": "'planned'"
         },
         "priority": {
           "name": "priority",
@@ -78,13 +70,6 @@
           "name": "areas_title_idx",
           "columns": [
             "title"
-          ],
-          "isUnique": false
-        },
-        "areas_status_idx": {
-          "name": "areas_status_idx",
-          "columns": [
-            "status"
           ],
           "isUnique": false
         },
@@ -139,14 +124,6 @@
           "notNull": true,
           "autoincrement": false
         },
-        "status": {
-          "name": "status",
-          "type": "text",
-          "primaryKey": false,
-          "notNull": false,
-          "autoincrement": false,
-          "default": "'planned'"
-        },
         "priority": {
           "name": "priority",
           "type": "text",
@@ -189,6 +166,14 @@
           "primaryKey": false,
           "notNull": true,
           "autoincrement": false
+        },
+        "status": {
+          "name": "status",
+          "type": "text",
+          "primaryKey": false,
+          "notNull": false,
+          "autoincrement": false,
+          "default": "'planned'"
         },
         "area_id": {
           "name": "area_id",
@@ -752,14 +737,6 @@
           "notNull": true,
           "autoincrement": false
         },
-        "status": {
-          "name": "status",
-          "type": "text",
-          "primaryKey": false,
-          "notNull": false,
-          "autoincrement": false,
-          "default": "'planned'"
-        },
         "priority": {
           "name": "priority",
           "type": "text",
@@ -802,6 +779,14 @@
           "primaryKey": false,
           "notNull": true,
           "autoincrement": false
+        },
+        "status": {
+          "name": "status",
+          "type": "text",
+          "primaryKey": false,
+          "notNull": false,
+          "autoincrement": false,
+          "default": "'planned'"
         },
         "area_id": {
           "name": "area_id",

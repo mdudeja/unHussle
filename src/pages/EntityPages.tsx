@@ -74,6 +74,7 @@ export const projectsConfig: EntityListPageConfig<HydratedProject> = {
     updatedAtColumn(),
   ],
   filters: [statusFilter, priorityFilter],
+  hiddenColumns: ['updated_at'],
 }
 
 export const areasConfig: EntityListPageConfig<HydratedArea> = {
@@ -87,12 +88,12 @@ export const areasConfig: EntityListPageConfig<HydratedArea> = {
   },
   columns: [
     titleColumn(GitGraph),
-    statusColumn(),
     priorityColumn(),
     hashtagColumn((row) => row.tags),
     updatedAtColumn(),
   ],
-  filters: [statusFilter, priorityFilter],
+  filters: [priorityFilter],
+  hiddenColumns: ['updated_at'],
 }
 
 export const goalsConfig: EntityListPageConfig<HydratedGoal> = {
@@ -114,6 +115,7 @@ export const goalsConfig: EntityListPageConfig<HydratedGoal> = {
     updatedAtColumn(),
   ],
   filters: [statusFilter, priorityFilter],
+  hiddenColumns: ['updated_at'],
 }
 
 export const tasksConfig: EntityListPageConfig<HydratedTask> = {
@@ -133,7 +135,7 @@ export const tasksConfig: EntityListPageConfig<HydratedTask> = {
     updatedAtColumn(),
   ],
   filters: [statusFilter, priorityFilter, ...taskFlagFilters],
-  hiddenColumns: hiddenTaskFlagColumns,
+  hiddenColumns: [...hiddenTaskFlagColumns, 'updated_at'],
 }
 
 export const urlsConfig: EntityListPageConfig<Url['Read']> = {
@@ -146,6 +148,7 @@ export const urlsConfig: EntityListPageConfig<Url['Read']> = {
     textColumn('hostname', 'Host', (row) => row.parts?.hostname),
     updatedAtColumn(),
   ],
+  hiddenColumns: ['updated_at'],
 }
 
 export const tagsConfig: EntityListPageConfig<Tag['Read']> = {
@@ -162,6 +165,7 @@ export const tagsConfig: EntityListPageConfig<Tag['Read']> = {
     textColumn('description', 'Description', (row) => row.description),
     updatedAtColumn(),
   ],
+  hiddenColumns: ['updated_at'],
 }
 
 const RelatedTasks = ({

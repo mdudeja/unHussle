@@ -6,7 +6,7 @@ import {
   unique,
 } from 'drizzle-orm/sqlite-core'
 import { relations } from 'drizzle-orm'
-import { entityCollectionSchema } from './common.schema'
+import { entityCollectionSchema, statusSchema } from './common.schema'
 import { goals } from './goals.schema'
 import { areas } from './areas.schema'
 import { EntityCollection, InferTableTypes } from '@c/types/index'
@@ -19,6 +19,7 @@ export const projects = sqliteTable(
   'projects',
   {
     ...entityCollectionSchema,
+    ...statusSchema,
     area_id: text().references(() => areas.id),
     goal_id: text().references(() => goals.id),
     due_date: integer({ mode: 'number' }),

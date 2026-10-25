@@ -30,7 +30,7 @@ import type { FieldConfig } from './types'
 import { isBlank } from './utils'
 import { dateToStartOfDayMillis, formatDdMmYyyy } from '@c/datetimeUtils'
 
-const NONE_VALUE = '__none__'
+const NONE_VALUE = 'None'
 
 export interface GenericFormProps<T extends object> {
   fields: FieldConfig<T>[]
@@ -122,6 +122,7 @@ export function GenericForm<T extends object>({
     for (const field of fields) {
       if (!visibleFields.includes(field)) submitted[field.name] = null
     }
+    console.log({ submitted })
     await onSubmit(submitted as Partial<T>)
   }
 
@@ -224,9 +225,7 @@ function FormField<T extends object>({
             aria-describedby={error ? errorId : undefined}
             onChange={(event) =>
               onChange(
-                event.target.value === ''
-                  ? undefined
-                  : Number(event.target.value),
+                event.target.value === '' ? null : Number(event.target.value),
               )
             }
           />
@@ -234,6 +233,7 @@ function FormField<T extends object>({
       case 'select':
         return (
           <Select
+            items={field.options ?? []}
             value={
               value === undefined || value === null || value === ''
                 ? NONE_VALUE
@@ -241,7 +241,7 @@ function FormField<T extends object>({
             }
             disabled={disabled}
             onValueChange={(next) =>
-              onChange(next === NONE_VALUE ? undefined : next)
+              onChange(next === NONE_VALUE ? null : next)
             }
           >
             <SelectTrigger

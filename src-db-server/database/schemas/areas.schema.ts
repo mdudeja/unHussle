@@ -15,7 +15,6 @@ export const areas = sqliteTable(
   },
   (table) => [
     index('areas_title_idx').on(table.title),
-    index('areas_status_idx').on(table.status),
     index('areas_priority_idx').on(table.priority),
     index('areas_created_at_idx').on(table.created_at),
     index('areas_updated_at_idx').on(table.updated_at),

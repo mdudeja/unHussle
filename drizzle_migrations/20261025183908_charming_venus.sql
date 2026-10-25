@@ -1,7 +1,6 @@
 CREATE TABLE `areas` (
 	`id` text PRIMARY KEY NOT NULL,
 	`title` text NOT NULL,
-	`status` text DEFAULT 'planned',
 	`priority` text DEFAULT 'medium',
 	`icon` text,
 	`color` text,
@@ -11,7 +10,6 @@ CREATE TABLE `areas` (
 );
 --> statement-breakpoint
 CREATE INDEX `areas_title_idx` ON `areas` (`title`);--> statement-breakpoint
-CREATE INDEX `areas_status_idx` ON `areas` (`status`);--> statement-breakpoint
 CREATE INDEX `areas_priority_idx` ON `areas` (`priority`);--> statement-breakpoint
 CREATE INDEX `areas_created_at_idx` ON `areas` (`created_at`);--> statement-breakpoint
 CREATE INDEX `areas_updated_at_idx` ON `areas` (`updated_at`);--> statement-breakpoint
@@ -19,13 +17,13 @@ CREATE UNIQUE INDEX `areas_title_unique` ON `areas` (`title`);--> statement-brea
 CREATE TABLE `goals` (
 	`id` text PRIMARY KEY NOT NULL,
 	`title` text NOT NULL,
-	`status` text DEFAULT 'planned',
 	`priority` text DEFAULT 'medium',
 	`icon` text,
 	`color` text,
 	`description` text,
 	`created_at` integer NOT NULL,
 	`updated_at` integer NOT NULL,
+	`status` text DEFAULT 'planned',
 	`area_id` text,
 	`due_date` integer,
 	`progress` real DEFAULT 0 NOT NULL,
@@ -102,13 +100,13 @@ CREATE UNIQUE INDEX `resources_title_unique` ON `resources` (`title`);--> statem
 CREATE TABLE `projects` (
 	`id` text PRIMARY KEY NOT NULL,
 	`title` text NOT NULL,
-	`status` text DEFAULT 'planned',
 	`priority` text DEFAULT 'medium',
 	`icon` text,
 	`color` text,
 	`description` text,
 	`created_at` integer NOT NULL,
 	`updated_at` integer NOT NULL,
+	`status` text DEFAULT 'planned',
 	`area_id` text,
 	`goal_id` text,
 	`due_date` integer,

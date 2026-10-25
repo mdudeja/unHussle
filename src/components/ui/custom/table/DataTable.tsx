@@ -64,7 +64,7 @@ type DataTableProps<TData extends { id: string }> = {
 }
 
 // Sentinel for the "no filter" select item; Radix Select disallows ''.
-const ALL_FILTER_VALUE = '__all__'
+const ALL_FILTER_VALUE = 'All'
 
 // Filter values come from select options (and the URL), so compare as strings.
 const equalsStringFilter: FilterFn<unknown> = (row, columnId, value) =>
@@ -172,9 +172,12 @@ export function DataTable<TData extends { id: string }>({
         </div>
         {filters.map((filter) => (
           <Select
+            items={filter.options ?? []}
             key={filter.columnId}
             value={getFilterValue(filter.columnId)}
-            onValueChange={(value) => setFilterValue(filter.columnId, value)}
+            onValueChange={(value) =>
+              value && setFilterValue(filter.columnId, value)
+            }
           >
             <SelectTrigger size="sm">
               <span className="text-muted-foreground">{filter.label}:</span>
