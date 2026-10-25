@@ -5,32 +5,22 @@ import {
   ArrowUp,
   ArrowUpDown,
   ClipboardList,
-  FolderKanban,
-  GitGraph,
-  Goal,
   Smile,
   Zap,
-  ChevronDown,
-  Minus,
-  AlertCircle,
 } from 'lucide-react'
-import { Link } from 'react-router'
-import { Badge } from '@/components/ui/badge'
 import { Button } from '@/components/ui/button'
 import { IconResolver } from '@/components/ui/utils/IconResolver'
 import { DataTableFilterOption } from '@/components/ui/custom/table/DataTable'
-import { useStore } from '@/store'
-import { getEntityItemRoute } from '@/lib/entityRoutes'
-import { cn } from '@/lib/utils'
 import { Priority, ProgressStatus, Tag } from '@c/types/index'
 import { formatMillisAsDdMmYyyy } from '@c/datetimeUtils'
 import IconBadge from '@/components/ui/custom/IconBadge'
-
-// `in_progress` -> `In progress`
-export const toLabel = (value: string) => {
-  const spaced = value.replace(/_/g, ' ')
-  return spaced.charAt(0).toUpperCase() + spaced.slice(1)
-}
+import StatusView from '@/components/ui/custom/StatusView'
+import { toLabel } from '@/components/ui/utils/misc'
+import PriorityView from '@/components/ui/custom/PriorityView'
+import EntityRefBadge, {
+  EntityRefKind,
+} from '@/components/ui/custom/EntityRefBadge'
+import TagsView from '@/components/ui/custom/TagsView'
 
 export const enumFilterOptions = (
   values: Record<string, string>,
@@ -90,28 +80,7 @@ export const hashtagColumn = <TData,>(
   header: ({ column }) => <SortableHeader column={column} title="Tags" />,
   cell: ({ getValue }) => {
     const tags = getValue<Tag['Read'][]>()
-    return tags ? (
-      <div className="flex flex-wrap gap-1">
-        {tags?.map((tag) => (
-          <Link
-            key={tag.id}
-            to={`${getEntityItemRoute('tags', tag.id)}&related=1`}
-            onClick={(e) => e.stopPropagation()}
-          >
-            <Badge
-              variant="outline"
-              style={{
-                borderColor: tag.color ?? undefined,
-                color: tag.color ?? undefined,
-                cursor: 'pointer',
-              }}
-            >
-              #{tag.title.trim()}
-            </Badge>
-          </Link>
-        ))}
-      </div>
-    ) : null
+    return tags ? <TagsView tags={tags} /> : null
   },
 })
 
@@ -160,33 +129,11 @@ export const statusColumn = <
     statusOrder.indexOf(b.original.status as ProgressStatus),
   cell: ({ row }) =>
     row.original.status ? (
-      <Badge
-        variant={
-          row.original.status === ProgressStatus.COMPLETED
-            ? 'secondary'
-            : 'outline'
-        }
-        className={cn(
-          row.original.status === ProgressStatus.CANCELLED &&
-            'text-muted-foreground line-through',
-        )}
-      >
-        {toLabel(row.original.status)}
-      </Badge>
+      <StatusView status={row.original.status as ProgressStatus} />
     ) : null,
 })
 
 const priorityOrder = Object.values(Priority)
-
-export const priorityIcon = ({ priority }: { priority: Priority }) => {
-  return priority === Priority.HIGH ? (
-    <AlertCircle className="h-3 w-3 text-destructive" />
-  ) : priority === Priority.MEDIUM ? (
-    <Minus className="h-3 w-3 text-muted-foreground" />
-  ) : (
-    <ChevronDown className="h-3 w-3 text-muted-foreground" />
-  )
-}
 
 export const priorityColumn = <
   TData extends { priority?: Priority | null },
@@ -199,12 +146,7 @@ export const priorityColumn = <
     priorityOrder.indexOf(b.original.priority as Priority),
   cell: ({ row }) =>
     row.original.priority ? (
-      <span
-        className={`flex items-center gap-1 ${row.original.priority === Priority.HIGH ? 'text-destructive' : 'text-muted-foreground'}`}
-      >
-        {priorityIcon({ priority: row.original.priority })}
-        {toLabel(row.original.priority)}
-      </span>
+      <PriorityView priority={row.original.priority as Priority} />
     ) : null,
 })
 
@@ -223,46 +165,6 @@ export const dateColumn = <TData,>(
     return millis !== undefined ? formatMillisAsDdMmYyyy(millis) : null
   },
 })
-
-const entityRefConfig = {
-  projects: { variant: 'project', icon: FolderKanban },
-  areas: { variant: 'area', icon: GitGraph },
-  goals: { variant: 'goal', icon: Goal },
-} as const
-
-type EntityRefKind = keyof typeof entityRefConfig
-
-function EntityRefBadge({ kind, id }: { kind: EntityRefKind; id: string }) {
-  const record = useStore((state) => state[kind].getById(id))
-  if (!record) {
-    return null
-  }
-  const { variant, icon: FallbackIcon } = entityRefConfig[kind]
-  return (
-    <Link
-      to={getEntityItemRoute(kind, record.id)}
-      onClick={(e) => e.stopPropagation()}
-    >
-      <IconBadge
-        variant={variant}
-        className="cursor-pointer"
-        icon={
-          record.icon ? (
-            <IconResolver icon={record.icon as any} className="h-3 w-3" />
-          ) : (
-            <FallbackIcon className="h-3 w-3" />
-          )
-        }
-        style={{
-          color: record.color ?? undefined,
-          borderColor: record.color ?? undefined,
-        }}
-      >
-        {record.title}
-      </IconBadge>
-    </Link>
-  )
-}
 
 // Link to a related project/area/goal. Filterable by id, not sortable.
 export const entityRefColumn = <TData,>(

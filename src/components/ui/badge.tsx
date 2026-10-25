@@ -26,7 +26,7 @@ const badgeVariants = cva(
         project:
           'border-blue-500 text-blue-500 [&]:hover:bg-blue-600 [&]:hover:text-white focus-visible:ring-blue-500/50 dark:focus-visible:ring-blue-400/40 dark:border-blue-400/60 dark:text-blue-400',
         area: 'border-green-500 text-green-500 [&]:hover:bg-green-600 [&]:hover:text-white focus-visible:ring-green-500/50 dark:focus-visible:ring-green-400/40 dark:border-green-400/60 dark:text-green-400',
-        goal: 'border-yellow-600 text-yellow-600 [&]:hover:bg-yellow-700 [&]:hover:text-white focus-visible:ring-yellow-600/50 dark:focus-visible:ring-yellow-400/40 dark:border-yellow-400/60 dark:text-yellow-400',
+        goal: 'border-yellow-600 text-yellow-600 [&]:hover:bg-yellow-400 [&]:hover:text-white focus-visible:ring-yellow-600/50 dark:focus-visible:ring-yellow-400/40 dark:border-yellow-400/60 dark:text-yellow-400',
       },
     },
     defaultVariants: {
