@@ -31,18 +31,18 @@ const getEndOfDayMillis = (date: Temporal.PlainDateLike): number => {
   return zonedDateTime.toInstant().epochMilliseconds
 }
 
-const formatTimeDuration = (durationMs: number): string => {
-  const totalSeconds = Math.floor(durationMs / 1000)
-  const hours = Math.floor(totalSeconds / 3600)
-  const minutes = Math.floor((totalSeconds % 3600) / 60)
-  const seconds = totalSeconds % 60
+const formatTimeDuration = (durationSeconds: number): string => {
+  const hours = Math.floor(durationSeconds / 3600)
+  const minutes = Math.floor((durationSeconds % 3600) / 60)
+  const seconds = durationSeconds % 60
 
-  const parts = []
-  if (hours > 0) parts.push(`${hours}h`)
-  if (minutes > 0) parts.push(`${minutes}m`)
-  if (seconds > 0 || parts.length === 0) parts.push(`${seconds}s`)
+  // Format parts to always be at least 2 digits (00)
+  const pad = (n: number) => n.toString().padStart(2, '0')
 
-  return parts.join(' ')
+  if (hours > 0) {
+    return `${hours}:${pad(minutes)}:${pad(seconds)}`
+  }
+  return `${pad(minutes)}:${pad(seconds)}`
 }
 
 const formatDateTime = (millis: number): string => {

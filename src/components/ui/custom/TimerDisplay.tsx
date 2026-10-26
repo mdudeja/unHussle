@@ -1,6 +1,6 @@
 import React from 'react'
 import { cn } from '@/lib/utils'
-import { formatDuration } from '@/lib/timeUtils'
+import { formatTimeDuration } from '@c/datetimeUtils'
 
 interface TimerDisplayProps extends React.HTMLAttributes<HTMLDivElement> {
   seconds: number
@@ -33,7 +33,7 @@ export const TimerDisplay = React.forwardRef<HTMLDivElement, TimerDisplayProps>(
         )}
         {...props}
       >
-        {formatDuration(seconds)}
+        {formatTimeDuration(seconds)}
       </div>
     )
   },
