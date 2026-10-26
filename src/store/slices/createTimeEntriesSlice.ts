@@ -1,4 +1,3 @@
-import { TimeEntriesService } from '@/services/database/TimeEntriesService'
 import generateCreateDbConnectedStateSlice, {
   DbSlice,
 } from '@/store/slices/createDbConnectedStoreSlice'
@@ -11,4 +10,4 @@ export interface TimeEntriesSlice {
 export const createTimeEntriesSlice = generateCreateDbConnectedStateSlice<
   TimeEntry,
   'time_entries'
->(TimeEntriesService.getInstance(), 'time_entries')
+>('time_entries')

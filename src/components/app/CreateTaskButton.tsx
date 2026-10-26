@@ -1,3 +1,4 @@
+import { useEntityList } from '@/workflows/hooks'
 import { useMemo, useState } from 'react'
 import { useStore } from '@/store'
 import { Logger } from '@c/Logger'
@@ -26,6 +27,10 @@ export const CreateTaskButtonComponent = () => {
   const goals = useStore((state) => state.goals)
 
   const [isDialogOpen, setIsDialogOpen] = useState(false)
+  useEntityList('projects', 1, isDialogOpen)
+  useEntityList('areas', 1, isDialogOpen)
+  useEntityList('goals', 1, isDialogOpen)
+
   const [isSubmitting, setIsSubmitting] = useState(false)
   const [errorMessage, setErrorMessage] = useState<string | undefined>(
     undefined,
@@ -53,12 +58,6 @@ export const CreateTaskButtonComponent = () => {
     setErrorMessage(undefined)
     try {
       await tasks.add(values as WithAttachments<Task['Write']>)
-      // Newly created tags should show up in the tag list and pickers
-      if (values.tags?.length)
-        useStore
-          .getState()
-          .tags.fetch()
-          .catch(() => {})
       setIsDialogOpen(false)
     } catch (error) {
       Logger.getInstance().error(`Failed to create task: ${String(error)}`)

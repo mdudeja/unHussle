@@ -1,4 +1,5 @@
-import React, { useEffect, useMemo, useRef, useState } from 'react'
+import { useEntityList } from '@/workflows/hooks'
+import React, { useMemo, useRef, useState } from 'react'
 import { X } from 'lucide-react'
 import { useStore } from '@/store'
 import { Input } from '@/components/ui/input'
@@ -46,11 +47,7 @@ export function TagsInput({
   const selected = useMemo(() => value ?? [], [value])
   const normalizedQuery = slugifyTag(query)
 
-  useEffect(() => {
-    if (tags.data.length === 0) tags.fetch().catch(() => {})
-    // Only load once on mount; later additions refresh the store themselves.
-    // eslint-disable-next-line react-hooks/exhaustive-deps
-  }, [])
+  useEntityList('tags')
 
   const options = useMemo<TagOption[]>(() => {
     const selectedTitles = new Set(selected.map((tag) => tag.title))

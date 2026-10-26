@@ -1,3 +1,7 @@
+import type { Url } from '@d/database/schemas/urls.schema'
+import { createBackendRuntime } from '@d/workflows/runtime'
+import type { EntityKind, MutationResult } from '@c/workflows/contracts'
+import type { WithAttachments, Task, Tag } from '@c/types'
 import { describe, test, expect, beforeAll, afterAll } from 'bun:test'
 import { UnHussleDB } from '@d/database/UnHussleDB'
 import { Priority, ProgressStatus } from '@c/types/index'
@@ -407,12 +411,54 @@ describe('Data Layer Tests', () => {
   describe('Tags and URLs written with an entity', () => {
     const repositories = () => {
       const uDB = UnHussleDB.getInstance(testDbPath)
-      return [
+      const entries = [
         ['task', new TasksRepository(uDB)],
         ['project', new ProjectsRepository(uDB)],
         ['area', new AreasRepository(uDB)],
         ['goal', new GoalsRepository(uDB)],
       ] as const
+      const runtime = createBackendRuntime(uDB)
+      return entries.map(([name, read]) => {
+        const kind = `${name}s` as EntityKind
+        const hydrate = (result: MutationResult) =>
+          runtime.hydrate<{
+            id: string
+            title: string
+            tags?: Tag['Read'][]
+            urls?: Url['Read'][]
+          }>(result, (id) => read.getById(id))
+        return [
+          name,
+          {
+            add: async (changes: WithAttachments<Task['Write']>) =>
+              hydrate(
+                await runtime.commands.execute('entity.mutate', {
+                  kind,
+                  action: 'create',
+                  changes,
+                }),
+              ),
+            update: async (
+              id: string,
+              changes: WithAttachments<Task['Update']>,
+            ) =>
+              hydrate(
+                await runtime.commands.execute('entity.mutate', {
+                  kind,
+                  action: 'update',
+                  id,
+                  changes,
+                }),
+              ),
+            delete: async (id: string) =>
+              runtime.commands.execute('entity.mutate', {
+                kind,
+                action: 'delete',
+                id,
+              }) as Promise<{ id: string }>,
+          },
+        ] as const
+      })
     }
 
     const junctionTagIds = (attachedToId: string) =>
@@ -449,17 +495,17 @@ describe('Data Layer Tests', () => {
         })
 
         expect(added).toBeTruthy()
-        expect(added!.tags?.map((tag) => tag.title).sort()).toEqual(
+        expect(added.tags?.map((tag) => tag.title).sort()).toEqual(
           ['existing', `new_${name}`].sort(),
         )
-        expect(added!.urls?.map((url) => url.url).sort()).toEqual(
+        expect(added.urls?.map((url) => url.url).sort()).toEqual(
           ['https://example.com/shared', `https://example.com/${name}`].sort(),
         )
         expect(
-          added!.urls?.find((url) => url.url.endsWith(name))?.parts?.hostname,
+          added.urls?.find((url) => url.url.endsWith(name))?.parts?.hostname,
         ).toBe('example.com')
-        expect(junctionTagIds(added!.id)).toHaveLength(2)
-        expect(junctionUrlIds(added!.id)).toHaveLength(2)
+        expect(junctionTagIds(added.id)).toHaveLength(2)
+        expect(junctionUrlIds(added.id)).toHaveLength(2)
       }
 
       // Existing tag/url rows are reused, not duplicated or overwritten
@@ -489,38 +535,38 @@ describe('Data Layer Tests', () => {
         })
 
         // Absent keys leave relations untouched
-        const renamed = await repository.update(added!.id, {
+        const renamed = await repository.update(added.id, {
           title: `Renamed ${name}`,
         })
-        expect(renamed!.title).toBe(`Renamed ${name}`)
-        expect(renamed!.tags).toHaveLength(2)
-        expect(renamed!.urls).toHaveLength(1)
+        expect(renamed.title).toBe(`Renamed ${name}`)
+        expect(renamed.tags).toHaveLength(2)
+        expect(renamed.urls).toHaveLength(1)
 
-        const replaced = await repository.update(added!.id, {
+        const replaced = await repository.update(added.id, {
           tags: [{ title: 'keep' }, { title: 'added' }],
         })
-        expect(replaced!.tags?.map((tag) => tag.title).sort()).toEqual([
+        expect(replaced.tags?.map((tag) => tag.title).sort()).toEqual([
           'added',
           'keep',
         ])
-        expect(replaced!.urls).toHaveLength(1)
+        expect(replaced.urls).toHaveLength(1)
 
-        const cleared = await repository.update(added!.id, {
+        const cleared = await repository.update(added.id, {
           tags: [],
           urls: [],
         })
-        expect(cleared!.tags).toEqual([])
-        expect(cleared!.urls).toEqual([])
-        expect(junctionTagIds(added!.id)).toHaveLength(0)
-        expect(junctionUrlIds(added!.id)).toHaveLength(0)
+        expect(cleared.tags).toEqual([])
+        expect(cleared.urls).toEqual([])
+        expect(junctionTagIds(added.id)).toHaveLength(0)
+        expect(junctionUrlIds(added.id)).toHaveLength(0)
       }
     })
 
-    test('update of a missing entity returns null', async () => {
+    test('update of a missing entity rejects', async () => {
       for (const [, repository] of repositories()) {
-        expect(
-          await repository.update('missing-id', { tags: [{ title: 'x' }] }),
-        ).toBeNull()
+        expect(await 
+          repository.update('missing-id', { tags: [{ title: 'x' }] }),
+        ).rejects.toThrow('NOT_FOUND')
       }
       expect(junctionTagIds('missing-id')).toHaveLength(0)
     })
@@ -533,10 +579,10 @@ describe('Data Layer Tests', () => {
           urls: [{ url: 'https://example.com/doomed' }],
         })
 
-        const deleted = await repository.delete(added!.id)
-        expect(deleted?.id).toBe(added!.id)
-        expect(junctionTagIds(added!.id)).toHaveLength(0)
-        expect(junctionUrlIds(added!.id)).toHaveLength(0)
+        const deleted = await repository.delete(added.id)
+        expect(deleted?.id).toBe(added.id)
+        expect(junctionTagIds(added.id)).toHaveLength(0)
+        expect(junctionUrlIds(added.id)).toHaveLength(0)
 
         // The tag/url records themselves stay
         expect(

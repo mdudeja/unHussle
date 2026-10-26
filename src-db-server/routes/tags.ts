@@ -27,6 +27,7 @@ const goalsRepository = new GoalsRepository(uDB)
 const tagRoutes = routeGenerator({
   name: 'tags',
   prefix: '/tags',
+  kind: 'tags',
   schemas: {
     insert: insertTagsSchema,
     select: selectTagsSchema,

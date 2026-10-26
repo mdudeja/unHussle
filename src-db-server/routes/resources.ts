@@ -11,6 +11,7 @@ import { ResourcesRepository } from '@d/database/repositories/resources'
 export const resourcesRoutes = routeGenerator({
   name: 'resources',
   prefix: '/resources',
+  kind: 'resources',
   schemas: {
     insert: insertResourceSchema,
     select: selectResourceSchema,

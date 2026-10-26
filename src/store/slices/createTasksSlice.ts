@@ -1,5 +1,4 @@
 import { Task } from '@c/types/index'
-import { TasksService } from '@/services/database/TasksService'
 import generateCreateDbConnectedStateSlice, {
   DbSlice,
 } from '@/store/slices/createDbConnectedStoreSlice'
@@ -11,4 +10,4 @@ export interface TasksSlice {
 export const createTasksSlice = generateCreateDbConnectedStateSlice<
   Task,
   'tasks'
->(TasksService.getInstance(), 'tasks')
+>('tasks')

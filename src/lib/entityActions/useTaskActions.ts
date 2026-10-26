@@ -5,7 +5,7 @@ import {
   completeTask,
   pauseTask,
   startTask,
-} from '@/lib/taskLifecycle'
+} from '@/workflows/commands'
 import type { EntityAction } from './types'
 
 type TaskLike = Pick<Task['Read'], 'id' | 'status'>

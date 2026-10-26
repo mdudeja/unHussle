@@ -7,14 +7,17 @@ import { Play, Coffee } from 'lucide-react'
 import { TaskTimerComponent } from '@/components/app/TaskTimer'
 import { Badge } from '@/components/ui/badge'
 import { cn } from '@/lib/utils'
-import { startTask } from '@/lib/taskLifecycle'
+import { startTask } from '@/workflows/commands'
 import { Logger } from '@c/Logger'
+import { useEntityList } from '@/workflows/hooks'
 
 export const NextTaskCardComponent = ({ ref }: React.ComponentProps<'div'>) => {
   const { tasks, projects, areas } = useStore()
+  const taskQuery = useEntityList('tasks')
+  const isLoading = tasks.isLoading || taskQuery.isLoading
 
   const nextTask = useMemo(() => {
-    if (tasks.isLoading || !tasks.data) return null
+    if (isLoading || !tasks.data) return null
 
     // 1. Check for Active (In Progress) task
     const activeTask = tasks.data.find(
@@ -43,7 +46,7 @@ export const NextTaskCardComponent = ({ ref }: React.ComponentProps<'div'>) => {
       if (pA !== pB) return pB - pA
       return a.created_at - b.created_at // Oldest first
     })[0]
-  }, [tasks.data, tasks.isLoading])
+  }, [tasks.data, isLoading])
 
   const contextName = useMemo(() => {
     if (!nextTask) return null
@@ -56,7 +59,7 @@ export const NextTaskCardComponent = ({ ref }: React.ComponentProps<'div'>) => {
     return null
   }, [nextTask, projects.data, areas.data])
 
-  if (tasks.isLoading) {
+  if (isLoading) {
     return (
       <Card className="w-full max-w-2xl mx-auto border-dashed animate-pulse bg-surface/20">
         <CardHeader>

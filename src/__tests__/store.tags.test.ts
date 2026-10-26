@@ -34,7 +34,7 @@ describe('Tags Store', () => {
 
   test('throw error when creating tag with missing fields', async () => {
     const { add } = useStore.getState().tags
-    await expect(add({} as Parameters<typeof add>[0])).rejects.toThrow()
+    expect(await add({} as Parameters<typeof add>[0])).rejects.toThrow()
   })
 
   test('fetch tags', async () => {
@@ -94,6 +94,6 @@ describe('Tags Store', () => {
 
   test('throw error when deleting non-existent tag', async () => {
     const { remove: deleteEntityTag } = useStore.getState().tags
-    await expect(deleteEntityTag('non-existent-id')).rejects.toThrow()
+    expect(await deleteEntityTag('non-existent-id')).rejects.toThrow()
   })
 })

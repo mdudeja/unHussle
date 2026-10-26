@@ -6,7 +6,7 @@ import {
   HydratedGoal,
   HydratedProject,
   HydratedTask,
-} from '@d/database/repositories'
+} from '@c/types/Hydrated'
 
 export type TaggedItems = {
   tasks: HydratedTask[]

@@ -1,4 +1,5 @@
-import { useEffect, useMemo, useState } from 'react'
+import { useEntityDetail, useEntityList } from '@/workflows/hooks'
+import { useMemo, useState } from 'react'
 import { useStore } from '@/store'
 import { EditingEntity } from '@/store/slices/createUISlice'
 import { EntityFormDialog } from '@/components/ui/custom/entityForms'
@@ -8,8 +9,6 @@ import {
   toFormValues,
 } from '@/lib/entityActions'
 import { Logger } from '@c/Logger'
-
-type Item = { id: string } & Record<string, unknown>
 
 /**
  * The app-wide edit dialog. Mounted once; opened from anywhere through
@@ -33,44 +32,19 @@ const EntityEditDialog = ({ editing }: { editing: EditingEntity }) => {
   const areas = useStore((state) => state.areas)
   const goals = useStore((state) => state.goals)
 
-  const entry = entityRegistry[editing.kind]
-  const storeItem = useStore((state) =>
-    entry.selectSlice(state).getById(editing.id),
+  useEntityList('projects', 1, editing.kind === 'tasks')
+  useEntityList(
+    'areas',
+    1,
+    ['tasks', 'projects', 'goals'].includes(editing.kind),
   )
+  useEntityList('goals', 1, ['tasks', 'projects'].includes(editing.kind))
 
-  // Items outside the loaded page (e.g. search results) aren't in the store.
-  const [fetchedItem, setFetchedItem] = useState<Item | null>(null)
+  const entry = entityRegistry[editing.kind]
+  const detail = useEntityDetail(editing.kind, editing.id)
+  const item = detail.data
   const [isSubmitting, setIsSubmitting] = useState(false)
   const [errorMessage, setErrorMessage] = useState<string | undefined>()
-
-  useEffect(() => {
-    if (storeItem) {
-      return
-    }
-    let isCurrent = true
-    entry.service
-      .fetchById(editing.id)
-      .then((item) => {
-        if (isCurrent) {
-          setFetchedItem(item)
-        }
-      })
-      .catch((error) => {
-        Logger.getInstance().error(
-          `Failed to load ${entry.label} ${editing.id}: ${String(error)}`,
-        )
-        if (isCurrent) {
-          setErrorMessage(`Could not load this ${entry.label}.`)
-        }
-      })
-    return () => {
-      isCurrent = false
-    }
-    // Only fetch once per mounted item.
-    // eslint-disable-next-line react-hooks/exhaustive-deps
-  }, [])
-
-  const item = storeItem ?? fetchedItem
 
   const fields = useMemo(
     () => entry.createFields({ projects, areas, goals }),
@@ -89,13 +63,6 @@ const EntityEditDialog = ({ editing }: { editing: EditingEntity }) => {
     setErrorMessage(undefined)
     try {
       await entry.selectSlice(useStore.getState()).update(editing.id, values)
-      // Newly created tags should show up in the tag list and pickers
-      if (Array.isArray(values.tags) && values.tags.length) {
-        useStore
-          .getState()
-          .tags.fetch()
-          .catch(() => {})
-      }
       closeEditor()
     } catch (error) {
       Logger.getInstance().error(
@@ -126,7 +93,10 @@ const EntityEditDialog = ({ editing }: { editing: EditingEntity }) => {
       transformValues={entry.transformValues}
       submitLabel="Save changes"
       isSubmitting={isSubmitting || !initialValues}
-      errorMessage={errorMessage}
+      errorMessage={
+        errorMessage ??
+        (detail.error ? `Could not load this ${entry.label}.` : undefined)
+      }
     />
   )
 }

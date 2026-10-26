@@ -11,6 +11,7 @@ import { routeGenerator } from '@d/routes/routegenerator'
 export const timeEntriesRoutes = routeGenerator({
   name: 'timeEntries',
   prefix: '/time_entries',
+  kind: 'time_entries',
   schemas: {
     insert: insertTimeEntriesSchema,
     select: selectTimeEntriesSchema,

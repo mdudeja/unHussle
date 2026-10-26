@@ -11,6 +11,7 @@ import { routeGenerator } from '@d/routes/routegenerator'
 export const goalRoutes = routeGenerator({
   name: 'goals',
   prefix: '/goals',
+  kind: 'goals',
   schemas: {
     insert: insertGoalSchema,
     select: selectGoalSchema,

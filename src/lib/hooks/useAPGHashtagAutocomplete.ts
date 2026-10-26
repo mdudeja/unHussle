@@ -7,11 +7,7 @@ import {
   type UseAutocompleteResult,
 } from '@/lib/hooks/useAutocomplete'
 import { slugifyTag } from '@/lib/inputParsers/parseHashtags'
-import {
-  HydratedArea,
-  HydratedGoal,
-  HydratedProject,
-} from '@d/database/repositories'
+import { HydratedArea, HydratedGoal, HydratedProject } from '@c/types/Hydrated'
 
 export type APGSuggestionKind = 'area' | 'project' | 'goal' | 'tag'
 

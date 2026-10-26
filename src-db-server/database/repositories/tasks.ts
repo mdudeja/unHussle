@@ -1,16 +1,7 @@
-import {
-  Task,
-  Project,
-  Area,
-  Tag,
-  Goal,
-  Url,
-  TimeEntry,
-  tasks,
-} from '../schemas'
+import { Task, tasks } from '../schemas'
 import { UnHussleDB } from '../UnHussleDB'
 import { IRepository } from './IRepository.interface'
-import { AttachableRepository } from './AttachableRepository'
+import { BaseRepository } from './BaseRepository'
 import {
   taggedIds,
   unwrapJunctions,
@@ -20,20 +11,11 @@ import {
 } from './helpers'
 import { AnySQLiteColumn } from 'drizzle-orm/sqlite-core'
 
-type TaskRelations = {
-  project?: Project['Read'] | null
-  area?: Area['Read'] | null
-  goal?: Goal['Read'] | null
-  anchor?: Task['Read'] | null
-  tags?: Tag['Read'][]
-  urls?: Url['Read'][]
-  timeEntries?: TimeEntry['Read'][]
-}
-
-export type HydratedTask = Task['Read'] & TaskRelations
+import type { HydratedTask } from '@c/types/Hydrated'
+export type { HydratedTask } from '@c/types/Hydrated'
 
 export class TasksRepository
-  extends AttachableRepository<typeof tasks, HydratedTask>
+  extends BaseRepository<typeof tasks>
   implements IRepository<Task>
 {
   private readonly relations = {

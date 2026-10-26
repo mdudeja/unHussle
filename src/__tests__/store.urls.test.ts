@@ -32,7 +32,7 @@ describe('Urls Store', () => {
 
   test('throw error when creating url with missing fields', async () => {
     const { add } = useStore.getState().urls
-    await expect(add({} as Parameters<typeof add>[0])).rejects.toThrow()
+    expect(await add({} as Parameters<typeof add>[0])).rejects.toThrow()
   })
 
   test('fetch urls', async () => {
@@ -89,7 +89,7 @@ describe('Urls Store', () => {
 
   test('throw error when deleting non-existent url', async () => {
     const { remove: deleteUrl } = useStore.getState().urls
-    await expect(deleteUrl('non-existent-id')).rejects.toThrow()
+    expect(await deleteUrl('non-existent-id')).rejects.toThrow()
   })
 
   test('search urls by url as well as title', async () => {

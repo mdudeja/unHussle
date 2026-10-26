@@ -11,6 +11,7 @@ import { UnHussleDB } from '@d/database/UnHussleDB'
 export const areaRoutes = routeGenerator({
   name: 'areas',
   prefix: '/areas',
+  kind: 'areas',
   schemas: {
     insert: insertAreaSchema,
     select: selectAreaSchema,

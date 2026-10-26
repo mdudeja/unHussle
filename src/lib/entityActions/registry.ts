@@ -1,12 +1,6 @@
 import { Priority, ProgressStatus } from '@c/types/index'
 import { resolveTaskSchedule } from '@c/taskSchedule'
 import { StoreState } from '@/store'
-import { TasksService } from '@/services/database/TasksService'
-import { ProjectsService } from '@/services/database/ProjectsService'
-import { AreasService } from '@/services/database/AreasService'
-import { GoalsService } from '@/services/database/GoalsService'
-import { TagsService } from '@/services/database/TagsService'
-import { UrlsService } from '@/services/database/UrlsService'
 import {
   createAreaFields,
   createGoalFields,
@@ -23,22 +17,16 @@ export type FieldSources = Pick<StoreState, 'projects' | 'areas' | 'goals'>
 
 type AnyEntity = { id: string } & Record<string, unknown>
 
-// The slice/service operations the registry needs. Method syntax keeps these
-// assignable from every entity's `DbSlice` / `DbService`.
+// Mutation adapters keep action presentation independent of workflow details.
 type RegistrySlice = {
-  getById(id?: string | null): AnyEntity | null
   update(id: string, data: Record<string, unknown>): Promise<void>
   remove(id: string): Promise<void>
-}
-type RegistryService = {
-  fetchById(id: string): Promise<AnyEntity>
 }
 
 export type EntityRegistryEntry = {
   /** Singular, lowercase name, e.g. "task". */
   label: string
   selectSlice: (state: StoreState) => RegistrySlice
-  service: RegistryService
   // Each entity's fields are typed to its own record
   // eslint-disable-next-line @typescript-eslint/no-explicit-any
   createFields: (sources: FieldSources) => FieldConfig<any>[]
@@ -57,7 +45,6 @@ export const entityRegistry: Record<EntityKind, EntityRegistryEntry> = {
   tasks: {
     label: 'task',
     selectSlice: (state) => state.tasks,
-    service: TasksService.getInstance(),
     createFields: ({ projects, areas, goals }) =>
       createTaskFields({
         projects: projects.data,
@@ -74,7 +61,6 @@ export const entityRegistry: Record<EntityKind, EntityRegistryEntry> = {
   projects: {
     label: 'project',
     selectSlice: (state) => state.projects,
-    service: ProjectsService.getInstance(),
     createFields: ({ areas, goals }) =>
       createProjectFields({ areas: areas.data, goals: goals.data }),
     formDefaults: statusDefaults,
@@ -82,27 +68,23 @@ export const entityRegistry: Record<EntityKind, EntityRegistryEntry> = {
   areas: {
     label: 'area',
     selectSlice: (state) => state.areas,
-    service: AreasService.getInstance(),
     createFields: () => createAreaFields(),
     formDefaults: statusDefaults,
   },
   goals: {
     label: 'goal',
     selectSlice: (state) => state.goals,
-    service: GoalsService.getInstance(),
     createFields: ({ areas }) => createGoalFields({ areas: areas.data }),
     formDefaults: statusDefaults,
   },
   tags: {
     label: 'tag',
     selectSlice: (state) => state.tags,
-    service: TagsService.getInstance(),
     createFields: () => createTagFields(),
   },
   urls: {
     label: 'URL',
     selectSlice: (state) => state.urls,
-    service: UrlsService.getInstance(),
     createFields: () => createUrlFields(),
   },
 }

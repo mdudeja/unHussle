@@ -1,18 +1,11 @@
-import { Resource, Project, Area, Goal, Tag, Url, resources } from '../schemas'
+import { Resource, resources } from '../schemas'
 import { UnHussleDB } from '../UnHussleDB'
 import { IRepository } from './IRepository.interface'
 import { BaseRepository } from './BaseRepository'
 import { taggedIds, unwrapJunctions, withTags, withUrls } from './helpers'
 
-type ResourceRelations = {
-  project?: Project['Read'] | null
-  area?: Area['Read'] | null
-  goal?: Goal['Read'] | null
-  tags?: Tag['Read'][]
-  urls?: Url['Read'][]
-}
-
-export type HydratedResource = Resource['Read'] & ResourceRelations
+import type { HydratedResource } from '@c/types/Hydrated'
+export type { HydratedResource } from '@c/types/Hydrated'
 
 export class ResourcesRepository
   extends BaseRepository<typeof resources>

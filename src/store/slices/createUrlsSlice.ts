@@ -1,4 +1,3 @@
-import { UrlsService } from '@/services/database/UrlsService'
 import generateCreateDbConnectedStateSlice, {
   DbSlice,
 } from '@/store/slices/createDbConnectedStoreSlice'
@@ -9,6 +8,5 @@ export interface UrlsSlice {
 }
 
 export const createUrlsSlice = generateCreateDbConnectedStateSlice<Url, 'urls'>(
-  UrlsService.getInstance(),
   'urls',
 )

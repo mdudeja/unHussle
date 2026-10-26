@@ -1,5 +1,4 @@
 import { Area } from '@c/types/index'
-import { AreasService } from '@/services/database/AreasService'
 import generateCreateDbConnectedStateSlice, {
   DbSlice,
 } from '@/store/slices/createDbConnectedStoreSlice'
@@ -11,4 +10,4 @@ export interface AreasSlice {
 export const createAreasSlice = generateCreateDbConnectedStateSlice<
   Area,
   'areas'
->(AreasService.getInstance(), 'areas')
+>('areas')

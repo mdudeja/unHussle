@@ -1,4 +1,7 @@
-import { DbService } from '@/services/database/DbService'
+import type { StoreApi } from 'zustand/vanilla'
+import type { StoreState } from '@/store'
+import type { EntityKind } from '@c/workflows/contracts'
+import { getFrontendRuntime } from '@/workflows/runtime'
 import { DbEntityTypes, WithAttachments } from '@c/types/index'
 import { StateCreator } from 'zustand'
 
@@ -15,121 +18,91 @@ export interface DbSlice<T extends DbEntityTypes> {
   getById: (id?: string | null) => T['Read'] | null
 }
 
-const fetchLimits: { [key: string]: number } = {
-  areas: +(import.meta.env.VITE_FETCH_LIMIT_AREAS || '50'),
-  goals: +(import.meta.env.VITE_FETCH_LIMIT_GOALS || '30'),
-  projects: +(import.meta.env.VITE_FETCH_LIMIT_PROJECTS || '30'),
-  resources: +(import.meta.env.VITE_FETCH_LIMIT_RESOURCES || '100'),
-  tags: +(import.meta.env.VITE_FETCH_LIMIT_TAGS || '100'),
-  tasks: +(import.meta.env.VITE_FETCH_LIMIT_TASKS || '100'),
-  time_entries: +(import.meta.env.VITE_FETCH_LIMIT_TIME_ENTRIES || '100'),
-  urls: +(import.meta.env.VITE_FETCH_LIMIT_URLS || '100'),
-}
-
 export default function generateCreateDbConnectedStateSlice<
   T extends DbEntityTypes,
-  K extends string,
->(serviceInstance: DbService<T>, sliceName: K) {
+  K extends EntityKind,
+>(sliceName: K) {
   type State = { [key in K]: DbSlice<T> }
-
-  const creator: StateCreator<State> = (set, get) => {
-    /** Merge a partial update into this slice */
-    const patch = (fn: (slice: DbSlice<T>) => Partial<DbSlice<T>>) =>
-      set(
+  const creator: StateCreator<State> = (_set, get, api) => {
+    const runtime = () =>
+      getFrontendRuntime(api as unknown as StoreApi<StoreState>)
+    const kind = sliceName
+    let pending = 0
+    const operation = async <R>(work: () => Promise<R>): Promise<R> => {
+      pending++
+      api.setState(
         (state) =>
           ({
-            [sliceName]: { ...state[sliceName], ...fn(state[sliceName]) },
+            [sliceName]: { ...state[sliceName], isLoading: true, error: null },
           }) as State,
       )
-
+      try {
+        return await work()
+      } catch (error) {
+        api.setState(
+          (state) =>
+            ({
+              [sliceName]: { ...state[sliceName], error: String(error) },
+            }) as State,
+        )
+        throw error
+      } finally {
+        pending--
+        api.setState(
+          (state) =>
+            ({
+              [sliceName]: { ...state[sliceName], isLoading: pending > 0 },
+            }) as State,
+        )
+      }
+    }
     return {
       [sliceName]: {
         data: [] as T['Read'][],
         isLoading: false,
         error: null,
-
-        fetch: async (pageNumber?: number) => {
-          patch(() => ({ isLoading: true, error: null }))
-          try {
-            const data = await serviceInstance.fetchPaginated(
-              pageNumber || 1,
-              fetchLimits[sliceName] || 50,
-            )
-            patch(() => ({ data, isLoading: false }))
-          } catch (error) {
-            patch(() => ({ error: 'Failed to fetch data', isLoading: false }))
-            throw error
-          }
-        },
-
-        search: async (query: string) => {
-          patch(() => ({ isLoading: true, error: null }))
-          try {
-            const searchResults = await serviceInstance.search(query)
-            patch(() => ({ isLoading: false }))
-            return searchResults
-          } catch {
-            patch(() => ({ error: 'Failed to search data', isLoading: false }))
-            return [] as T['Read'][]
-          }
-        },
-
-        add: async (data: WithAttachments<T['Write']>) => {
-          patch(() => ({ isLoading: true, error: null }))
-          try {
-            const newData = await serviceInstance.create(data)
-            patch((slice) => ({
-              data: [...slice.data, newData],
-              isLoading: false,
-            }))
-            return newData
-          } catch (error) {
-            patch(() => ({ error: 'Failed to add data', isLoading: false }))
-            throw error
-          }
-        },
-
-        update: async (id: string, data: WithAttachments<T['Update']>) => {
-          patch(() => ({ isLoading: true, error: null }))
-          try {
-            const updatedData = await serviceInstance.update(id, data)
-            patch((slice) => ({
-              data: slice.data.map((d) => (d.id === id ? updatedData : d)),
-              isLoading: false,
-            }))
-          } catch (error) {
-            patch(() => ({ error: 'Failed to update data', isLoading: false }))
-            throw error
-          }
-        },
-
-        remove: async (id: string) => {
-          patch(() => ({ isLoading: true, error: null }))
-          try {
-            await serviceInstance.delete(id)
-            patch((slice) => ({
-              data: slice.data.filter((d) => d.id !== id),
-              isLoading: false,
-            }))
-          } catch (error) {
-            patch(() => ({ error: 'Failed to remove data', isLoading: false }))
-            throw error
-          }
-        },
-
-        reset: async () => {
-          patch(() => ({ data: [], isLoading: false, error: null }))
-          try {
-            await serviceInstance.reset()
-          } catch (error) {
-            patch(() => ({ error: 'Failed to reset data', isLoading: false }))
-            throw error
-          }
-        },
-
+        fetch: (page = 1) =>
+          operation(async () => {
+            await runtime().fetchList(kind, page)
+          }),
+        search: async (term: string) =>
+          runtime().search(kind, term) as Promise<T['Read'][]>,
+        add: (changes: WithAttachments<T['Write']>) =>
+          operation(
+            async () =>
+              runtime().commands.execute('entity.mutate', {
+                kind,
+                action: 'create',
+                changes,
+              }) as Promise<T['Read']>,
+          ),
+        update: (id: string, changes: WithAttachments<T['Update']>) =>
+          operation(async () => {
+            await runtime().commands.execute('entity.mutate', {
+              kind,
+              action: 'update',
+              id,
+              changes,
+            })
+          }),
+        remove: (id: string) =>
+          operation(async () => {
+            await runtime().commands.execute('entity.mutate', {
+              kind,
+              action: 'delete',
+              id,
+            })
+          }),
+        reset: () =>
+          operation(async () => {
+            await runtime().commands.execute('entity.mutate', {
+              kind,
+              action: 'deleteAll',
+            })
+          }),
         getById: (id?: string | null) => {
           if (!id) return null
-          return get()[sliceName].data.find((d) => d.id === id) ?? null
+          return get()[sliceName].data.find((row) => row.id === id) ?? null
         },
       },
     } as State

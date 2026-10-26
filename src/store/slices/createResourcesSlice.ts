@@ -1,4 +1,3 @@
-import { ResourcesService } from '@/services/database/ResourcesService'
 import generateCreateDbConnectedStateSlice, {
   DbSlice,
 } from '@/store/slices/createDbConnectedStoreSlice'
@@ -11,4 +10,4 @@ export interface ResourcesSlice {
 export const createResourcesSlice = generateCreateDbConnectedStateSlice<
   Resource,
   'resources'
->(ResourcesService.getInstance(), 'resources')
+>('resources')

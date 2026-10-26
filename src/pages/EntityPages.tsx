@@ -37,7 +37,7 @@ import {
   HydratedGoal,
   HydratedProject,
   HydratedTask,
-} from '@d/database/repositories'
+} from '@c/types/Hydrated'
 
 const statusFilter = {
   columnId: 'status',

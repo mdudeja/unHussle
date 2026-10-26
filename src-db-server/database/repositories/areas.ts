@@ -1,21 +1,14 @@
-import { Area, Task, Resource, Project, Tag, Url, areas } from '../schemas'
+import { Area, areas } from '../schemas'
 import { UnHussleDB } from '../UnHussleDB'
 import { IRepository } from './IRepository.interface'
-import { AttachableRepository } from './AttachableRepository'
+import { BaseRepository } from './BaseRepository'
 import { taggedIds, unwrapJunctions, withTags, withUrls } from './helpers'
 
-type AreaRelations = {
-  tasks?: Task['Read'][]
-  resources?: Resource['Read'][]
-  projects?: Project['Read'][]
-  tags?: Tag['Read'][]
-  urls?: Url['Read'][]
-}
-
-export type HydratedArea = Area['Read'] & AreaRelations
+import type { HydratedArea } from '@c/types/Hydrated'
+export type { HydratedArea } from '@c/types/Hydrated'
 
 export class AreasRepository
-  extends AttachableRepository<typeof areas, HydratedArea>
+  extends BaseRepository<typeof areas>
   implements IRepository<Area>
 {
   private readonly relations = {

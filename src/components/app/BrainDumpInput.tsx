@@ -1,4 +1,5 @@
-import React, { useState, useRef, useEffect, useMemo } from 'react'
+import { useEntityList, useWorkflowRuntime } from '@/workflows/hooks'
+import React, { useState, useRef, useMemo } from 'react'
 import { useStore } from '@/store'
 import { Input } from '@/components/ui/input'
 import { Textarea } from '@/components/ui/textarea'
@@ -101,12 +102,12 @@ export const BrainDumpInputComponent = () => {
   const [scheduledStart, setScheduledStart] = useState<number | undefined>()
   const [scheduledEnd, setScheduledEnd] = useState<number | undefined>()
 
-  const tasks = useStore((state) => state.tasks)
   const areas = useStore((state) => state.areas)
   const projects = useStore((state) => state.projects)
   const goals = useStore((state) => state.goals)
-  const tags = useStore((state) => state.tags)
-  const urls = useStore((state) => state.urls)
+  const runtime = useWorkflowRuntime()
+  useEntityList('tags')
+  const [submissionError, setSubmissionError] = useState<string | undefined>()
 
   // `#` autocomplete for areas, projects, goals and tags. Selecting a suggestion
   // inserts its hashtag (e.g. `#health_fitness`) at the cursor token.
@@ -117,12 +118,6 @@ export const BrainDumpInputComponent = () => {
       setInputValue(nextInputValue)
     },
   })
-
-  // Plain tags are offered in the `#` dropdown alongside areas/projects/goals.
-  useEffect(() => {
-    if (tags.data.length === 0) tags.fetch().catch(() => {})
-    // eslint-disable-next-line react-hooks/exhaustive-deps
-  }, [])
 
   const parsedData = useMemo(
     () =>
@@ -180,15 +175,20 @@ export const BrainDumpInputComponent = () => {
   }
 
   const handleSubmit = async () => {
+    setSubmissionError(undefined)
     // the user may have pasted a URL and nothing else, in which case we just add the URL(s) to the store and don't create a task.
     if (!parsedData.task.title.trim() && parsedData.urls.length) {
       setIsSubmitting(true)
       try {
-        await Promise.all(
-          parsedData.urls.map((url) => urls.add({ url: url.url })),
-        )
-        await urls.fetch().catch(() => {})
-        resetForm()
+        const result = await runtime.commands.execute('brainDump.submit', {
+          urls: parsedData.urls,
+        })
+        if (result.failedUrls.length) {
+          setInputValue(result.failedUrls.map((url) => url.url).join(' '))
+          setSubmissionError(
+            'Some links could not be saved. Retry to save the remaining links.',
+          )
+        } else resetForm()
       } catch (error) {
         Logger.getInstance().error(`Failed to add urls: ${String(error)}`)
       } finally {
@@ -209,48 +209,34 @@ export const BrainDumpInputComponent = () => {
     setIsSubmitting(true)
 
     try {
-      let areaId = parsedData.task.area_id
-      if (!parsedData.task.project_id && !areaId && !parsedData.task.goal_id) {
-        const brainDumpArea = areas.data.find(
-          (a) => a.title.toLowerCase() === 'brain dump',
-        )
-
-        if (!brainDumpArea) {
-          throw new Error('Brain Dump area not found')
-        }
-        areaId = brainDumpArea.id
-      }
-
-      // Create task
-      await tasks.add({
-        title,
-        description: isExpanded ? inputValue : undefined,
-        status: ProgressStatus.PLANNED,
-        priority,
-        project_id: parsedData.task.project_id,
-        area_id: areaId,
-        goal_id: parsedData.task.goal_id,
-        is_fun: flags.is_fun,
-        is_chore: flags.is_chore,
-        is_quick: flags.is_quick,
-        is_recurring: flags.is_recurring,
-        recurrance_rule: flags.is_recurring ? recurranceRule : undefined,
-        estimated_minutes: schedule.estimated_minutes,
-        due_date: effectiveDueMillis,
-        scheduled_start: schedule.scheduled_start,
-        scheduled_end: schedule.scheduled_end,
-        tags: parsedData.tags,
-        urls: parsedData.urls,
+      await runtime.commands.execute('brainDump.submit', {
+        task: {
+          title,
+          description: isExpanded ? inputValue : undefined,
+          status: ProgressStatus.PLANNED,
+          priority,
+          project_id: parsedData.task.project_id,
+          area_id: parsedData.task.area_id,
+          goal_id: parsedData.task.goal_id,
+          is_fun: flags.is_fun,
+          is_chore: flags.is_chore,
+          is_quick: flags.is_quick,
+          is_recurring: flags.is_recurring,
+          recurrance_rule: flags.is_recurring ? recurranceRule : undefined,
+          estimated_minutes: schedule.estimated_minutes,
+          due_date: effectiveDueMillis,
+          scheduled_start: schedule.scheduled_start,
+          scheduled_end: schedule.scheduled_end,
+          tags: parsedData.tags,
+          urls: parsedData.urls,
+        },
       })
-
-      // Newly created tags and urls should show up in the tag list and pickers
-      if (parsedData.tags.length > 0) tags.fetch().catch(() => {})
-      if (parsedData.urls.length > 0) urls.fetch().catch(() => {})
 
       // Reset form
       resetForm()
     } catch (error) {
       Logger.getInstance().error(`Failed to create task: ${String(error)}`)
+      setSubmissionError('Could not save the task. Please try again.')
     } finally {
       setIsSubmitting(false)
     }
@@ -283,6 +269,11 @@ export const BrainDumpInputComponent = () => {
 
   return (
     <div className="w-full space-y-2">
+      {submissionError && (
+        <p role="alert" className="text-sm text-destructive">
+          {submissionError}
+        </p>
+      )}
       <div className="relative">
         {!isExpanded ? (
           <div className="flex gap-2 items-center">

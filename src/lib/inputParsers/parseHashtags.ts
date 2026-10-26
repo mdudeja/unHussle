@@ -1,9 +1,5 @@
 import { Tag } from '@c/types'
-import {
-  HydratedArea,
-  HydratedGoal,
-  HydratedProject,
-} from '@d/database/repositories'
+import { HydratedArea, HydratedGoal, HydratedProject } from '@c/types/Hydrated'
 
 // Mirrors the `#\S+` hashtag grammar so a title without a tag can still be
 // inserted as a valid hashtag.

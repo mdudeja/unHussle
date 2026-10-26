@@ -45,6 +45,19 @@ describe('Entity tags and URLs', () => {
       expect(added.urls?.map((url) => url.url)).toEqual([
         `https://attach.example/${slice}`,
       ])
+      // Catalog refresh is owned by the workflow, not by the form that saved.
+      expect(
+        useStore
+          .getState()
+          .tags.data.some((tag) => tag.title === `attach_${slice}`),
+      ).toBe(true)
+      expect(
+        useStore
+          .getState()
+          .urls.data.some(
+            (url) => url.url === `https://attach.example/${slice}`,
+          ),
+      ).toBe(true)
 
       await update(added.id, { tags: [] })
       const updated = useStore
@@ -58,7 +71,7 @@ describe('Entity tags and URLs', () => {
 
   test('rejects an invalid url', async () => {
     const { add } = useStore.getState().tasks
-    await expect(
+    expect(await 
       add({ title: 'Bad link', urls: [{ url: 'not a url' }] }),
     ).rejects.toThrow()
   })

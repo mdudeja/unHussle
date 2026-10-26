@@ -1,4 +1,5 @@
-import { ReactNode, useEffect, useState } from 'react'
+import { useEntityList, useEntitySearch } from '@/workflows/hooks'
+import { ReactNode } from 'react'
 import { useSearchParams } from 'react-router'
 import { LucideIcon } from 'lucide-react'
 import {
@@ -20,7 +21,6 @@ import {
   useCommonActions,
 } from '@/lib/entityActions'
 import { useDebouncedValue } from '@/lib/hooks/useDebouncedValue'
-import { Logger } from '@c/Logger'
 import {
   CreateAreaButtonComponent,
   CreateGoalButtonComponent,
@@ -97,56 +97,19 @@ export function EntityListPage<TData extends { id: string }>({
   const slice = useStore(selectSlice)
   const [searchParams, setSearchParams] = useSearchParams()
 
-  useEffect(() => {
-    const { data, isLoading, fetch } = selectSlice(useStore.getState())
-    if (data.length > 0 || isLoading) {
-      return
-    }
-    fetch().catch((error) => {
-      Logger.getInstance().error(`Failed to fetch ${title}: ${error}`)
-    })
-  }, [selectSlice, title])
+  const listQuery = useEntityList(kind)
 
   const selectedId = searchParams.get(entitySearchParams.id)
   const isRelatedShown = searchParams.has(entitySearchParams.related)
   const searchValue = searchParams.get(entitySearchParams.search) ?? ''
   const searchTerm = useDebouncedValue(searchValue.trim(), SEARCH_DEBOUNCE_MS)
 
-  // `term` records which search the results belong to.
-  const [searchResults, setSearchResults] = useState<{
-    term: string
-    data: TData[]
-  } | null>(null)
-
-  // Also re-runs when the store's items change (edits, deletes, status
-  // changes) so the results don't go stale.
-  useEffect(() => {
-    if (!searchTerm) {
-      return
-    }
-    let isCurrent = true
-    selectSlice(useStore.getState())
-      .search(searchTerm)
-      .then((data) => {
-        if (isCurrent) {
-          setSearchResults({ term: searchTerm, data })
-        }
-      })
-      .catch((error) =>
-        Logger.getInstance().error(
-          `Search for "${searchTerm}" failed: ${String(error)}`,
-        ),
-      )
-    return () => {
-      isCurrent = false
-    }
-  }, [searchTerm, selectSlice, slice.data])
-
-  // While a new search is pending, keep showing the previous results.
+  const searchQuery = useEntitySearch<TData>(kind, searchTerm)
   const isSearchActive = searchValue.trim() !== ''
   const isSearching =
-    isSearchActive && searchResults?.term !== searchValue.trim()
-  const tableData = isSearchActive ? (searchResults?.data ?? []) : slice.data
+    isSearchActive &&
+    (searchTerm !== searchValue.trim() || searchQuery.isLoading)
+  const tableData = isSearchActive ? (searchQuery.data ?? []) : slice.data
   const selectedItem = selectedId
     ? (tableData.find((row) => row.id === selectedId) ??
       slice.getById(selectedId))
@@ -258,7 +221,9 @@ export function EntityListPage<TData extends { id: string }>({
         initialSorting={initialSorting}
         selectedId={selectedId}
         onRowClick={handleRowClick}
-        isLoading={isSearchActive ? isSearching : slice.isLoading}
+        isLoading={
+          isSearchActive ? isSearching : listQuery.isLoading || slice.isLoading
+        }
         selectionBar={
           selectedItem && (
             <EntityActionBar

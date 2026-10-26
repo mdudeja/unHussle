@@ -1,5 +1,4 @@
 import { Tag } from '@c/types/index'
-import { TagsService } from '@/services/database/TagsService'
 import generateCreateDbConnectedStateSlice, {
   DbSlice,
 } from '@/store/slices/createDbConnectedStoreSlice'
@@ -9,6 +8,5 @@ export interface TagsSlice {
 }
 
 export const createTagsSlice = generateCreateDbConnectedStateSlice<Tag, 'tags'>(
-  TagsService.getInstance(),
   'tags',
 )

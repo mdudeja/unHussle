@@ -1,31 +1,14 @@
-import {
-  Goal,
-  Area,
-  Task,
-  Resource,
-  Project,
-  Tag,
-  Url,
-  goals,
-} from '../schemas'
+import { Goal, goals } from '../schemas'
 import { UnHussleDB } from '../UnHussleDB'
 import { IRepository } from './IRepository.interface'
-import { AttachableRepository } from './AttachableRepository'
+import { BaseRepository } from './BaseRepository'
 import { taggedIds, unwrapJunctions, withTags, withUrls } from './helpers'
 
-type GoalRelations = {
-  area?: Area['Read'] | null
-  tasks?: Task['Read'][]
-  resources?: Resource['Read'][]
-  projects?: Project['Read'][]
-  tags?: Tag['Read'][]
-  urls?: Url['Read'][]
-}
-
-export type HydratedGoal = Goal['Read'] & GoalRelations
+import type { HydratedGoal } from '@c/types/Hydrated'
+export type { HydratedGoal } from '@c/types/Hydrated'
 
 export class GoalsRepository
-  extends AttachableRepository<typeof goals, HydratedGoal>
+  extends BaseRepository<typeof goals>
   implements IRepository<Goal>
 {
   private readonly relations = {

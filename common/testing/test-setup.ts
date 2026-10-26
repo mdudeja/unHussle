@@ -1,3 +1,4 @@
+import { disposeFrontendRuntimes } from '@/workflows/runtime'
 import { afterAll } from 'bun:test'
 import { useStore } from '@/store'
 
@@ -18,4 +19,5 @@ async function cleanupTestDatabase() {
 
 afterAll(async () => {
   await cleanupTestDatabase()
+  disposeFrontendRuntimes()
 })

@@ -11,6 +11,7 @@ import { ProjectsRepository } from '@d/database/repositories/projects'
 export const projectRoutes = routeGenerator({
   name: 'projects',
   prefix: '/projects',
+  kind: 'projects',
   schemas: {
     insert: insertProjectSchema,
     select: selectProjectSchema,

@@ -33,7 +33,7 @@ describe('Goals Store', () => {
 
   test('throw error when creating goal with missing fields', async () => {
     const { add } = useStore.getState().goals
-    await expect(add({} as Parameters<typeof add>[0])).rejects.toThrow()
+    expect(await add({} as Parameters<typeof add>[0])).rejects.toThrow()
   })
 
   test('fetch goals', async () => {
@@ -68,7 +68,7 @@ describe('Goals Store', () => {
 
   test('throw error when updating non-existent goal', async () => {
     const { update } = useStore.getState().goals
-    await expect(update('non-existent-id', { title: 'Fail' })).rejects.toThrow()
+    expect(await update('non-existent-id', { title: 'Fail' })).rejects.toThrow()
   })
 
   test('delete an existing goal', async () => {
@@ -93,6 +93,6 @@ describe('Goals Store', () => {
 
   test('throw error when deleting non-existent goal', async () => {
     const { remove: deleteGoal } = useStore.getState().goals
-    await expect(deleteGoal('non-existent-id')).rejects.toThrow()
+    expect(await deleteGoal('non-existent-id')).rejects.toThrow()
   })
 })

@@ -1,13 +1,17 @@
 import { describe, test, expect, beforeAll, afterAll } from 'bun:test'
 import { useStore } from '@/store'
-import { timeTrackingService } from '@/services/TimeTrackingService'
+import { getFrontendRuntime } from '@/workflows/runtime'
+const timeTrackingService = {
+  getActiveTracking: () =>
+    getFrontendRuntime(useStore).tracking.getActiveTracking(),
+}
 import {
   cancelTask,
   completeTask,
   deleteTask,
   pauseTask,
   startTask,
-} from '@/lib/taskLifecycle'
+} from '@/workflows/commands'
 import { ProgressStatus } from '@c/types/index'
 
 // The time tracker keeps its session in localStorage, which bun doesn't have.

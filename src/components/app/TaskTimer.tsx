@@ -1,63 +1,54 @@
 import React, { useState, useEffect } from 'react'
 import { Button } from '@/components/ui/button'
 import { TimerDisplay } from '@/components/ui/custom/TimerDisplay'
-import { timeTrackingService } from '@/services/TimeTrackingService'
+import { useTrackingSession } from '@/workflows/hooks'
+import { startTask, pauseTask } from '@/workflows/commands'
+import { getNowMillis } from '@c/datetimeUtils'
+import { Logger } from '@c/Logger'
 import { Play, Square } from 'lucide-react'
 import { cn } from '@/lib/utils'
 
 type TaskTimerProps = React.ComponentProps<'div'> & {
   taskId: string
   initialSpentMinutes?: number
-  onTimerStop?: () => void
 }
 
 export const TaskTimerComponent = ({
   taskId,
   initialSpentMinutes = 0,
-  onTimerStop,
   ref,
 }: TaskTimerProps) => {
-  // Resume if we are currently tracking this task (callers key by taskId)
-  const [isActive, setIsActive] = useState(
-    () => timeTrackingService.getActiveTracking()?.taskId === taskId,
-  )
-  const [sessionSeconds, setSessionSeconds] = useState(() => {
-    const active = timeTrackingService.getActiveTracking()
-    if (active?.taskId !== taskId) return 0
-    // Calculate initial elapsed time since start
-    return Math.floor((Date.now() - active.startTime) / 1000)
-  })
-
-  // Timer tick effect
+  const session = useTrackingSession()
+  const isActive = session?.taskId === taskId
+  const [now, setNow] = useState(getNowMillis)
+  const [isSubmitting, setIsSubmitting] = useState(false)
   useEffect(() => {
-    let interval: Timer | null = null
-
-    if (isActive) {
-      interval = setInterval(() => {
-        setSessionSeconds((prev) => prev + 1)
-      }, 1000)
-    }
-
-    return () => {
-      if (interval) clearInterval(interval)
-    }
+    if (!isActive) return
+    const interval = setInterval(() => setNow(getNowMillis()), 1000)
+    return () => clearInterval(interval)
   }, [isActive])
-
+  const sessionSeconds =
+    isActive && session
+      ? Math.max(
+          0,
+          Math.floor(
+            (Math.max(now, session.startTime) - session.startTime) / 1000,
+          ),
+        )
+      : 0
+  const totalSeconds = initialSpentMinutes * 60 + sessionSeconds
   const handleToggle = async () => {
-    if (isActive) {
-      await timeTrackingService.stopTracking()
-      setIsActive(false)
-      setSessionSeconds(0)
-      if (onTimerStop) onTimerStop()
-    } else {
-      await timeTrackingService.startTracking(taskId)
-      setIsActive(true)
+    setIsSubmitting(true)
+    try {
+      await (isActive ? pauseTask(taskId) : startTask(taskId))
+    } catch (error) {
+      Logger.getInstance().error(
+        `Failed to change task timer: ${String(error)}`,
+      )
+    } finally {
+      setIsSubmitting(false)
     }
   }
-
-  // Calculate total seconds (historical + current session)
-  // initialSpentMinutes is in minutes, convert to seconds
-  const totalSeconds = initialSpentMinutes * 60 + sessionSeconds
 
   return (
     <div ref={ref} className="flex items-center gap-3">
@@ -72,6 +63,7 @@ export const TaskTimerComponent = ({
         size="icon"
         className={cn('h-8 w-8 rounded-full', isActive && 'animate-pulse')}
         onClick={handleToggle}
+        disabled={isSubmitting}
         title={isActive ? 'Stop Timer' : 'Start Timer'}
       >
         {isActive ? (

@@ -4,35 +4,13 @@ import {
 } from '@/components/app'
 import { NextTaskCardComponent } from '@/components/app/NextTaskCard'
 import { PageViewComponent } from '@/components/pages/PageView'
-import { useStore } from '@/store'
-import { Logger } from '@c/Logger'
-import { useEffect } from 'react'
+import { useEntityList } from '@/workflows/hooks'
 
 export default function HomePage() {
-  const { tasks, areas, goals, projects } = useStore()
-
-  useEffect(() => {
-    if (
-      tasks.data.length > 0 ||
-      tasks.isLoading ||
-      areas.data.length > 0 ||
-      areas.isLoading ||
-      goals.data.length > 0 ||
-      goals.isLoading ||
-      projects.data.length > 0 ||
-      projects.isLoading
-    ) {
-      return
-    }
-    Promise.all([
-      tasks.fetch(),
-      areas.fetch(),
-      goals.fetch(),
-      projects.fetch(),
-    ]).catch((err) =>
-      Logger.getInstance().error(`Failed to load home data: ${String(err)}`),
-    )
-  }, [tasks, areas, goals, projects])
+  useEntityList('tasks')
+  useEntityList('areas')
+  useEntityList('goals')
+  useEntityList('projects')
 
   return (
     <PageViewComponent>

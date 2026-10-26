@@ -36,12 +36,6 @@ export const CreateAreaButtonComponent = () => {
     setErrorMessage(undefined)
     try {
       await areas.add(values as WithAttachments<Area['Write']>)
-      // Newly created tags should show up in the tag list and pickers
-      if (values.tags?.length)
-        useStore
-          .getState()
-          .tags.fetch()
-          .catch(() => {})
       setIsDialogOpen(false)
     } catch (error) {
       Logger.getInstance().error(`Failed to create area: ${String(error)}`)

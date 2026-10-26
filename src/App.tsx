@@ -1,3 +1,4 @@
+import { WorkflowWarnings } from '@/components/app/WorkflowWarnings'
 import '@/styles/App.css'
 import { Outlet } from 'react-router'
 import { useStore } from '@/store'
@@ -46,6 +47,7 @@ function App() {
             )}
           </div>
 
+          <WorkflowWarnings />
           <Outlet />
           <EntityEditDialogHost />
         </SidebarInset>

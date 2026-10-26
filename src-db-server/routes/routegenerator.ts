@@ -1,3 +1,5 @@
+import { backendRuntime } from '@d/workflows/runtime'
+import type { EntityKind } from '@c/workflows/contracts'
 import {
   areas,
   tags,
@@ -106,6 +108,7 @@ export type RouteGeneratorConfig<
 > = {
   name: keyof (typeof db)['query']
   prefix: string
+  kind: EntityKind
   schemas: RouteGeneratorSchemas
   repository: IRepository<T>
 }
@@ -207,16 +210,20 @@ export const routeGenerator = <
 
     .post(
       '/',
-      async ({ body, set, logger }) => {
+      async ({ body, logger }) => {
         logger.debug(`Add ${config.name} with id: ${body.id}`)
-        const result = await config.repository.add(body)
+        const result = await backendRuntime.commands.execute('entity.mutate', {
+          kind: config.kind,
+          action: 'create',
+          changes: body,
+        })
 
-        if (!result) {
-          set.status = 500
-          throw new Error('Failed to insert task')
-        }
-
-        return Value.Parse(config.schemas.select, result)
+        return Value.Parse(
+          config.schemas.select,
+          await backendRuntime.hydrate(result, (id) =>
+            config.repository.getById(id),
+          ),
+        )
       },
       {
         body: config.schemas.insert,
@@ -226,16 +233,21 @@ export const routeGenerator = <
 
     .patch(
       '/:id',
-      async ({ params: { id }, body, set, logger }) => {
+      async ({ params: { id }, body, logger }) => {
         logger.debug(`Update ${config.name} with id: ${id}`)
-        const result = await config.repository.update(id, body)
+        const result = await backendRuntime.commands.execute('entity.mutate', {
+          kind: config.kind,
+          action: 'update',
+          id,
+          changes: body,
+        })
 
-        if (!result) {
-          set.status = 500
-          throw new Error('Failed to update task')
-        }
-
-        return Value.Parse(config.schemas.select, result)
+        return Value.Parse(
+          config.schemas.select,
+          await backendRuntime.hydrate(result, (id) =>
+            config.repository.getById(id),
+          ),
+        )
       },
       {
         body: config.schemas.update,
@@ -247,9 +259,12 @@ export const routeGenerator = <
       '/all',
       async ({ logger }) => {
         logger.debug(`Delete all ${config.name} `)
-        const result = await config.repository.deleteAll()
+        const result = await backendRuntime.commands.execute('entity.mutate', {
+          kind: config.kind,
+          action: 'deleteAll',
+        })
 
-        return { deleted: result }
+        return result as { deleted: number }
       },
       {
         response: Type.Object({ deleted: Type.Number() }),
@@ -260,11 +275,11 @@ export const routeGenerator = <
       '/:id',
       async ({ params: { id }, logger }) => {
         logger.debug(`Delete ${config.name} with id: ${id}`)
-        const result = await config.repository.delete(id)
-
-        if (!result) {
-          throw new Error('NOT_FOUND')
-        }
+        const result = await backendRuntime.commands.execute('entity.mutate', {
+          kind: config.kind,
+          action: 'delete',
+          id,
+        })
 
         return Value.Parse(config.schemas.select, result)
       },

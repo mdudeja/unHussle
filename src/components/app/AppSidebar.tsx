@@ -1,4 +1,4 @@
-import { useEffect } from 'react'
+import { useEntityList } from '@/workflows/hooks'
 import type { LucideIcon } from 'lucide-react'
 import {
   FolderKanban,
@@ -28,7 +28,6 @@ import {
   entitySearchParams,
   getEntityItemRoute,
 } from '@/lib/entityRoutes'
-import { Logger } from '@c/Logger'
 
 const RECENT_ITEMS_LIMIT = 5
 
@@ -117,33 +116,19 @@ export const AppSidebarComponent = () => {
   const urls = useStore((state) => state.urls)
   const tags = useStore((state) => state.tags)
 
-  // Pages already fetch the entities they need; only fetch what is still empty.
-  useEffect(() => {
-    const state = useStore.getState()
-    const slices = [
-      state.projects,
-      state.areas,
-      state.goals,
-      state.tasks,
-      state.urls,
-      state.tags,
-    ]
-    slices.forEach((slice) => {
-      if (slice.data.length > 0 || slice.isLoading) {
-        return
-      }
-      slice.fetch().catch((error) => {
-        Logger.getInstance().error(`Failed to fetch sidebar data: ${error}`)
-      })
-    })
-  }, [])
+  const projectsQuery = useEntityList('projects')
+  const areasQuery = useEntityList('areas')
+  const goalsQuery = useEntityList('goals')
+  const tasksQuery = useEntityList('tasks')
+  const urlsQuery = useEntityList('urls')
+  const tagsQuery = useEntityList('tags')
 
   const groups = [
     {
       label: 'Projects',
       route: 'projects' as const,
       fallbackIcon: FolderKanban,
-      isLoading: projects.isLoading,
+      isLoading: projects.isLoading || projectsQuery.isLoading,
       items: getRecent(projects.data).map((p) => ({
         id: p.id,
         label: p.title,
@@ -155,7 +140,7 @@ export const AppSidebarComponent = () => {
       label: 'Areas',
       route: 'areas' as const,
       fallbackIcon: GitGraph,
-      isLoading: areas.isLoading,
+      isLoading: areas.isLoading || areasQuery.isLoading,
       items: getRecent(areas.data).map((a) => ({
         id: a.id,
         label: a.title,
@@ -167,7 +152,7 @@ export const AppSidebarComponent = () => {
       label: 'Goals',
       route: 'goals' as const,
       fallbackIcon: Goal,
-      isLoading: goals.isLoading,
+      isLoading: goals.isLoading || goalsQuery.isLoading,
       items: getRecent(goals.data).map((g) => ({
         id: g.id,
         label: g.title,
@@ -179,7 +164,7 @@ export const AppSidebarComponent = () => {
       label: 'Tasks',
       route: 'tasks' as const,
       fallbackIcon: ListTodo,
-      isLoading: tasks.isLoading,
+      isLoading: tasks.isLoading || tasksQuery.isLoading,
       items: getRecent(tasks.data).map((t) => ({
         id: t.id,
         label: t.title,
@@ -189,7 +174,7 @@ export const AppSidebarComponent = () => {
       label: 'URLs',
       route: 'urls' as const,
       fallbackIcon: LinkIcon,
-      isLoading: urls.isLoading,
+      isLoading: urls.isLoading || urlsQuery.isLoading,
       items: getRecent(urls.data).map((u) => ({
         id: u.id,
         label: u.title || u.parts?.hostname || u.url,
@@ -199,7 +184,7 @@ export const AppSidebarComponent = () => {
       label: 'Tags',
       route: 'tags' as const,
       fallbackIcon: Hash,
-      isLoading: tags.isLoading,
+      isLoading: tags.isLoading || tagsQuery.isLoading,
       items: getRecent(tags.data).map((t) => ({
         id: t.id,
         label: t.title,

@@ -11,6 +11,7 @@ import { routeGenerator } from '@d/routes/routegenerator'
 export const taskRoutes = routeGenerator({
   name: 'tasks',
   prefix: '/tasks',
+  kind: 'tasks',
   schemas: {
     insert: insertTaskSchema,
     select: selectTaskSchema,
