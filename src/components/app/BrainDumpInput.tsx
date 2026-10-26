@@ -23,7 +23,6 @@ import {
   Crosshair,
   Clock9,
   Repeat,
-  LinkIcon,
   CalendarClock,
 } from 'lucide-react'
 import { RecurranceRule, Tag } from '@d/database/schemas'
@@ -49,6 +48,7 @@ import EntityRefBadge from '@/components/ui/custom/EntityRefBadge'
 import { trimString } from '@/components/ui/utils/misc'
 import TagsView from '@/components/ui/custom/TagsView'
 import { DateTimePicker } from '@/components/ui/custom/DateTimePicker'
+import UrlView from '../ui/custom/UrlView'
 
 const starterParsedData: ParsedData = {
   task: {
@@ -511,14 +511,7 @@ export const BrainDumpInputComponent = () => {
           )}
           <div className="basis-full h-0" />
           {parsedData.urls.map((url, idx) => (
-            <IconBadge
-              key={idx}
-              variant="link_border"
-              className="text-xs"
-              icon={<LinkIcon className="h-4 w-4" />}
-            >
-              {trimString(url.url, 24)}...
-            </IconBadge>
+            <UrlView key={`${idx}`} url={url.url} />
           ))}
         </div>
       )}

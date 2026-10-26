@@ -24,7 +24,7 @@ import EntityRefBadge, {
   EntityRefKind,
 } from '@/components/ui/custom/EntityRefBadge'
 import TagsView from '@/components/ui/custom/TagsView'
-import { Link } from 'react-router'
+import UrlView from '@/components/ui/custom/UrlView'
 
 export const enumFilterOptions = (
   values: Record<string, string>,
@@ -85,13 +85,7 @@ export const urlColumn = <TData,>(
   header: ({ column }) => <SortableHeader column={column} title={title} />,
   cell: ({ getValue }) => {
     const url = getValue<string>()
-    return url ? (
-      <Link to={url} target="_blank" rel="noopener noreferrer">
-        <span className="line-clamp-1 max-w-md text-blue-600 hover:underline">
-          {url}
-        </span>
-      </Link>
-    ) : null
+    return url ? <UrlView url={url} key={`${id}-${url}`} /> : null
   },
 })
 
