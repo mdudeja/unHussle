@@ -49,8 +49,8 @@ urlRoutes
 
   .patch(
     '/:id',
-    async ({ params: { id }, body, set }) => {
-      console.log(`Update url with id: `, id)
+    async ({ params: { id }, body, set, logger }) => {
+      logger.debug(`Update url with id: ${id}`)
       let updatedBody = body
 
       if (body.url) {

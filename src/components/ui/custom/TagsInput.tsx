@@ -42,9 +42,8 @@ export function TagsInput({
   const inputRef = useRef<HTMLInputElement>(null)
   const [query, setQuery] = useState('')
   const [isOpen, setIsOpen] = useState(false)
-  const [highlightedIndex, setHighlightedIndex] = useState(-1)
 
-  const selected = value ?? []
+  const selected = useMemo(() => value ?? [], [value])
   const normalizedQuery = slugifyTag(query)
 
   useEffect(() => {
@@ -79,14 +78,22 @@ export function TagsInput({
     return matches
   }, [tags.data, selected, query, normalizedQuery])
 
-  // Highlight an exact match so Enter picks the existing tag.
-  useEffect(() => {
-    setHighlightedIndex(
-      options.findIndex(
-        (option) => option.id !== CREATE_ID && option.title === normalizedQuery,
-      ),
-    )
-  }, [options, normalizedQuery])
+  // Highlight an exact match so Enter picks the existing tag. A highlight moved
+  // with the arrow keys only applies to the options it was set for.
+  const exactMatchIndex = options.findIndex(
+    (option) => option.id !== CREATE_ID && option.title === normalizedQuery,
+  )
+  const [highlight, setHighlight] = useState<{
+    options: TagOption[]
+    index: number
+  } | null>(null)
+  const highlightedIndex =
+    highlight?.options === options ? highlight.index : exactMatchIndex
+  const setHighlightedIndex = (next: number | ((index: number) => number)) =>
+    setHighlight({
+      options,
+      index: typeof next === 'function' ? next(highlightedIndex) : next,
+    })
 
   const commit = (rawTitle: string) => {
     const title = slugifyTag(rawTitle)

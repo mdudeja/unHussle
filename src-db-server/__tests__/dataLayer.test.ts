@@ -64,7 +64,6 @@ describe('Data Layer Tests', () => {
       .insert(schema.areas)
       .values({
         title: 'Test Area',
-        status: ProgressStatus.PLANNED,
         priority: Priority.MEDIUM,
         icon: 'folder',
       })

@@ -26,10 +26,10 @@ export abstract class AttachableRepository<
         .onConflictDoNothing()
         .returning()
         .get() as TTable['$inferSelect'] | undefined
-      if (row) syncAttachments(tx, row.id, { tags, urls })
+      if (row) syncAttachments(tx, row.id as string, { tags, urls })
       return row
     })
-    return row ? this.getById(row.id) : null
+    return row ? this.getById(row.id as string) : null
   }
 
   async update(
@@ -73,7 +73,7 @@ export abstract class AttachableRepository<
           .delete(this.table)
           .where(eq(this.table.id, id))
           .returning()
-          .get() as TTable['$inferSelect'] | undefined
+          .get()
       }) ?? null
     )
   }

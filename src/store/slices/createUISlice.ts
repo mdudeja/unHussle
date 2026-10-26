@@ -1,6 +1,7 @@
 import { makeTextRequest } from '@/lib/server'
 import { EntityRouteKey } from '@/lib/entityRoutes'
 import { StateCreator } from 'zustand'
+import { Logger } from '@c/Logger'
 
 // The entity shown in the global edit dialog (see EntityEditDialogHost).
 export type EditingEntity = { kind: EntityRouteKey; id: string }
@@ -42,12 +43,14 @@ export const createUISlice: StateCreator<UISlice> = (set) => ({
           method: 'GET',
         })
         if (response === 'OK') {
-          console.log('Database server is ready.')
+          Logger.getInstance().info('Database server is ready.')
           set(() => ({ isDBReady: true, dbError: undefined }))
           return
         }
       } catch (err) {
-        console.warn(`Attempt ${attempt} to connect to database server failed.`)
+        Logger.getInstance().warn(
+          `Attempt ${attempt} to connect to database server failed: ${String(err)}`,
+        )
         if (attempt === maxRetries) {
           set(() => ({
             isDBReady: false,

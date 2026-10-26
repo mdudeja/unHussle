@@ -36,7 +36,7 @@ describe('Time Entries Store', () => {
 
   test('throw error when creating time entry with missing fields', async () => {
     const { add } = useStore.getState().time_entries
-    expect(add({} as any)).rejects.toThrow()
+    await expect(add({} as Parameters<typeof add>[0])).rejects.toThrow()
   })
 
   test('fetch time entries', async () => {
@@ -99,6 +99,6 @@ describe('Time Entries Store', () => {
 
   test('throw error when deleting non-existent time entry', async () => {
     const { remove: deleteTimeEntry } = useStore.getState().time_entries
-    expect(deleteTimeEntry('non-existent-id')).rejects.toThrow()
+    await expect(deleteTimeEntry('non-existent-id')).rejects.toThrow()
   })
 })

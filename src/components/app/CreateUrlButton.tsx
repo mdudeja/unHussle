@@ -1,5 +1,6 @@
 import { useMemo, useState } from 'react'
 import { useStore } from '@/store'
+import { Logger } from '@c/Logger'
 import { EntityUrl } from '@c/types/index'
 import { Button } from '@/components/ui/button'
 import { Plus } from 'lucide-react'
@@ -31,7 +32,7 @@ export const CreateUrlButtonComponent = () => {
       await urls.add(values as EntityUrl['Write'])
       setIsDialogOpen(false)
     } catch (error) {
-      console.error('Failed to create URL:', error)
+      Logger.getInstance().error(`Failed to create URL: ${String(error)}`)
       setErrorMessage(
         'Could not save the URL. It may already be saved, or the address is invalid.',
       )

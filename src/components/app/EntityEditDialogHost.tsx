@@ -1,5 +1,6 @@
 import { useEffect, useMemo, useState } from 'react'
 import { useStore } from '@/store'
+import { EditingEntity } from '@/store/slices/createUISlice'
 import { EntityFormDialog } from '@/components/ui/custom/entityForms'
 import {
   entityRegistry,
@@ -16,15 +17,26 @@ type Item = { id: string } & Record<string, unknown>
  */
 export const EntityEditDialogHost = () => {
   const editing = useStore((state) => state.editing)
+
+  if (!editing) {
+    return null
+  }
+  // Remount per item so fetched data and errors don't leak between items.
+  return (
+    <EntityEditDialog key={`${editing.kind}:${editing.id}`} editing={editing} />
+  )
+}
+
+const EntityEditDialog = ({ editing }: { editing: EditingEntity }) => {
   const closeEditor = useStore((state) => state.closeEditor)
   const projects = useStore((state) => state.projects)
   const areas = useStore((state) => state.areas)
   const goals = useStore((state) => state.goals)
 
-  const entry = editing ? entityRegistry[editing.kind] : null
+  const entry = entityRegistry[editing.kind]
   const storeItem = useStore((state) =>
-    editing && entry ? entry.selectSlice(state).getById(editing.id) : null,
-  ) as Item | null
+    entry.selectSlice(state).getById(editing.id),
+  )
 
   // Items outside the loaded page (e.g. search results) aren't in the store.
   const [fetchedItem, setFetchedItem] = useState<Item | null>(null)
@@ -32,9 +44,7 @@ export const EntityEditDialogHost = () => {
   const [errorMessage, setErrorMessage] = useState<string | undefined>()
 
   useEffect(() => {
-    setFetchedItem(null)
-    setErrorMessage(undefined)
-    if (!editing || !entry || storeItem) {
+    if (storeItem) {
       return
     }
     let isCurrent = true
@@ -42,12 +52,12 @@ export const EntityEditDialogHost = () => {
       .fetchById(editing.id)
       .then((item) => {
         if (isCurrent) {
-          setFetchedItem(item as Item)
+          setFetchedItem(item)
         }
       })
       .catch((error) => {
         Logger.getInstance().error(
-          `Failed to load ${entry.label} ${editing.id}: ${error}`,
+          `Failed to load ${entry.label} ${editing.id}: ${String(error)}`,
         )
         if (isCurrent) {
           setErrorMessage(`Could not load this ${entry.label}.`)
@@ -56,28 +66,23 @@ export const EntityEditDialogHost = () => {
     return () => {
       isCurrent = false
     }
-    // Only refetch when a different item is opened.
+    // Only fetch once per mounted item.
     // eslint-disable-next-line react-hooks/exhaustive-deps
-  }, [editing?.kind, editing?.id])
+  }, [])
 
   const item = storeItem ?? fetchedItem
 
   const fields = useMemo(
-    () => entry?.createFields({ projects, areas, goals }) ?? [],
+    () => entry.createFields({ projects, areas, goals }),
     [entry, projects, areas, goals],
   )
 
   // Captured once per item so store updates don't reset the form mid-edit.
   const initialValues = useMemo(
-    () =>
-      item && entry ? toFormValues(item, fields, entry.formDefaults) : null,
+    () => (item ? toFormValues(item, fields, entry.formDefaults) : null),
     // eslint-disable-next-line react-hooks/exhaustive-deps
     [item?.id, entry],
   )
-
-  if (!editing || !entry) {
-    return null
-  }
 
   const handleSubmit = async (values: Record<string, unknown>) => {
     setIsSubmitting(true)
@@ -94,7 +99,7 @@ export const EntityEditDialogHost = () => {
       closeEditor()
     } catch (error) {
       Logger.getInstance().error(
-        `Failed to update ${entry.label} ${editing.id}: ${error}`,
+        `Failed to update ${entry.label} ${editing.id}: ${String(error)}`,
       )
       setErrorMessage(
         `Could not save the ${entry.label}. Please check the details and try again.`,
@@ -106,8 +111,8 @@ export const EntityEditDialogHost = () => {
 
   return (
     <EntityFormDialog<Record<string, unknown>>
-      // Remount per item so the form re-seeds from `initialValues`.
-      key={`${editing.kind}:${editing.id}:${initialValues ? 'ready' : 'loading'}`}
+      // Remount once loaded so the form re-seeds from `initialValues`.
+      key={initialValues ? 'ready' : 'loading'}
       open
       onOpenChange={(open) => {
         if (!open && !isSubmitting) {

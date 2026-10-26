@@ -1,10 +1,7 @@
 import { makeJSONRequest } from '@/lib/server'
-import { InferTableTypes, WithAttachments } from '@c/types/index'
-import { SQLiteTableWithColumns } from 'drizzle-orm/sqlite-core'
+import { DbEntityTypes, WithAttachments } from '@c/types/index'
 
-export class DbService<
-  T extends InferTableTypes<unknown, SQLiteTableWithColumns<any>>,
-> {
+export class DbService<T extends DbEntityTypes> {
   dbUrl: string
   baseEndpoint: string
 

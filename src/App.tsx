@@ -9,6 +9,7 @@ import {
 } from '@/components/ui/sidebar'
 import { TooltipProvider } from '@/components/ui/tooltip'
 import { AppSidebarComponent, EntityEditDialogHost } from '@/components/app'
+import { Logger } from '@c/Logger'
 
 function App() {
   const { isDBReady, checkDBReady, dbError } = useStore()
@@ -17,8 +18,10 @@ function App() {
     if (isDBReady) {
       return
     }
-    checkDBReady()
-  }, [isDBReady])
+    checkDBReady().catch((err) =>
+      Logger.getInstance().error(`DB readiness check failed: ${String(err)}`),
+    )
+  }, [isDBReady, checkDBReady])
 
   return (
     <TooltipProvider>

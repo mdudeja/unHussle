@@ -41,7 +41,7 @@ const getDateFromMonthAndDay = (
       { overflow: 'reject' },
     )
     return getStartOfDayMillis(finalDate)
-  } catch (e) {
+  } catch {
     // Invalid date
     return undefined
   }
@@ -110,7 +110,7 @@ export const parseDueDate = (input: string): number | undefined => {
         { overflow: 'reject' },
       )
       return getStartOfDayMillis(date)
-    } catch (e) {
+    } catch {
       // Invalid date
       return undefined
     }

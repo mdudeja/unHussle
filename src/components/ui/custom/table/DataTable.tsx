@@ -41,7 +41,7 @@ export type DataTableFilter = {
 }
 
 type DataTableProps<TData extends { id: string }> = {
-  columns: ColumnDef<TData, any>[]
+  columns: ColumnDef<TData, unknown>[]
   data: TData[]
   filters?: DataTableFilter[]
   // The search box is controlled only; the caller decides which rows match
@@ -92,6 +92,8 @@ export function DataTable<TData extends { id: string }>({
   const [pagination, setPagination] = useState({ pageIndex: 0, pageSize })
   const selectedRowRef = useRef<HTMLTableRowElement>(null)
 
+  // TanStack Table isn't React Compiler compatible; the compiler isn't used here
+  // eslint-disable-next-line react-hooks/incompatible-library
   const table = useReactTable({
     data,
     columns,

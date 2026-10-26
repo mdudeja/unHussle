@@ -56,6 +56,13 @@ export default defineConfig([
       'prefer-const': 'error',
     },
   },
+  {
+    files: ['common/Logger.ts'],
+    rules: {
+      // this is the logger to be used elsewhere, so allow console usage here
+      'no-console': 'off',
+    },
+  },
 
   // React frontend
   {
@@ -93,6 +100,8 @@ export default defineConfig([
       '@typescript-eslint/no-non-null-assertion': 'off',
       '@typescript-eslint/no-unsafe-assignment': 'off',
       '@typescript-eslint/no-unsafe-member-access': 'off',
+      // bun-types declares `expect(p).rejects.toThrow()` as void, but it must be awaited
+      '@typescript-eslint/await-thenable': 'off',
     },
   },
 

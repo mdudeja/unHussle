@@ -52,10 +52,10 @@ describe('datetimeUtils', () => {
   })
 
   test('formatTimeDuration formats duration correctly', () => {
-    expect(formatTimeDuration(3661000)).toBe('1h 1m 1s')
-    expect(formatTimeDuration(61000)).toBe('1m 1s')
-    expect(formatTimeDuration(1000)).toBe('1s')
-    expect(formatTimeDuration(0)).toBe('0s')
+    expect(formatTimeDuration(3661)).toBe('1:01:01')
+    expect(formatTimeDuration(61)).toBe('01:01')
+    expect(formatTimeDuration(1)).toBe('00:01')
+    expect(formatTimeDuration(0)).toBe('00:00')
   })
 
   test('formatDateTime formats milliseconds to date-time string', () => {

@@ -119,7 +119,9 @@ export const routeGenerator = <
     .decorate('db', db)
     .decorate('logger', Logger.getInstance())
     .onError(({ code, status, error, logger }) => {
-      logger.error(`Error in ${config.name} route: ${{ code, status, error }}`)
+      logger.error(
+        `Error in ${config.name} route (${code}): ${error instanceof Error ? error.message : JSON.stringify(error)}`,
+      )
 
       if (code === 'NOT_FOUND') {
         return status(404, `${config.name} not found`)
@@ -154,7 +156,9 @@ export const routeGenerator = <
 
           return Value.Parse(Type.Array(config.schemas.select), results)
         } catch (error) {
-          throw new Error(`Invalid page or pageSize: ${error}`)
+          throw new Error(`Invalid page or pageSize: ${String(error)}`, {
+            cause: error,
+          })
         }
       },
       {

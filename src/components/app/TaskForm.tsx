@@ -45,7 +45,10 @@ export const TaskFormComponent = ({
   })
 
   // Handle Input Changes
-  const handleChange = (field: keyof Task['Write'], value: any) => {
+  const handleChange = <K extends keyof Task['Write']>(
+    field: K,
+    value: Task['Write'][K],
+  ) => {
     setFormData((prev) => ({
       ...prev,
       [field]: value,
@@ -57,7 +60,7 @@ export const TaskFormComponent = ({
     // Basic Validation
     if (!formData.title?.trim()) return
 
-    onSubmit(formData as Task['Write'])
+    void onSubmit(formData as Task['Write'])
   }
 
   return (
@@ -124,7 +127,9 @@ export const TaskFormComponent = ({
               {/* Simple Native Select for now until we have a custom Select component */}
               <select
                 value={formData.status ?? ProgressStatus.PLANNED}
-                onChange={(e) => handleChange('status', e.target.value)}
+                onChange={(e) =>
+                  handleChange('status', e.target.value as ProgressStatus)
+                }
                 className="flex h-10 w-full items-center justify-between rounded-md border border-border bg-transparent px-3 py-2 text-sm placeholder:text-muted focus:outline-none focus:ring-2 focus:ring-sage2 focus:ring-offset-2 disabled:cursor-not-allowed disabled:opacity-50"
               >
                 {Object.values(ProgressStatus).map((s) => (

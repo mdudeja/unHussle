@@ -83,7 +83,7 @@ const SidebarRecentGroup = ({
             >
               {item.icon ? (
                 <IconResolver
-                  icon={item.icon as any}
+                  icon={item.icon}
                   color={item.color ?? undefined}
                   className="h-4 w-4"
                 />

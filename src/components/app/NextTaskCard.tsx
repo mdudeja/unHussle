@@ -43,7 +43,7 @@ export const NextTaskCardComponent = ({ ref }: React.ComponentProps<'div'>) => {
       if (pA !== pB) return pB - pA
       return a.created_at - b.created_at // Oldest first
     })[0]
-  }, [tasks.data])
+  }, [tasks.data, tasks.isLoading])
 
   const contextName = useMemo(() => {
     if (!nextTask) return null
@@ -140,6 +140,7 @@ export const NextTaskCardComponent = ({ ref }: React.ComponentProps<'div'>) => {
           {nextTask.status === ProgressStatus.IN_PROGRESS ? (
             <div className="flex items-center gap-3 bg-accent/20 px-4 py-2 rounded-lg border border-border/50">
               <TaskTimerComponent
+                key={nextTask.id}
                 taskId={nextTask.id}
                 initialSpentMinutes={nextTask.spent_minutes}
               />

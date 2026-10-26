@@ -13,7 +13,7 @@ type RelatedEntityTableProps<
   title: string
   kind: EntityRouteKey
   data: TData[]
-  columns: ColumnDef<TData, any>[]
+  columns: ColumnDef<TData, unknown>[]
   filters?: DataTableFilter[]
   hiddenColumns?: string[]
   isLoading?: boolean

@@ -4,6 +4,7 @@ import * as schema from '@d/database/schemas'
 import { join, dirname } from 'node:path'
 import { migrate } from 'drizzle-orm/bun-sqlite/migrator'
 import { mkdirSync, existsSync } from 'node:fs'
+import { Logger } from '@c/Logger'
 
 export class UnHussleDB {
   private dbFilePath?: string
@@ -55,7 +56,7 @@ export class UnHussleDB {
     const dbDir = dirname(this.dbFilePath!)
 
     if (!existsSync(dbDir)) {
-      console.log(`Creating database directory: ${dbDir}`)
+      Logger.getInstance().info(`Creating database directory: ${dbDir}`)
       mkdirSync(dbDir, { recursive: true })
     }
 

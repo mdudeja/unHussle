@@ -33,6 +33,14 @@ import { dateToStartOfDayMillis, formatDdMmYyyy } from '@c/datetimeUtils'
 
 const NONE_VALUE = 'None'
 
+// Text-like controls only render primitive values; anything else shows as empty.
+const toInputValue = (value: unknown) =>
+  typeof value === 'string' ||
+  typeof value === 'number' ||
+  typeof value === 'boolean'
+    ? String(value)
+    : ''
+
 export interface GenericFormProps<T extends object> {
   fields: FieldConfig<T>[]
   /** Initial values used to seed the form. Resets whenever the form remounts. */
@@ -74,7 +82,7 @@ export function GenericForm<T extends object>({
   const [errors, setErrors] = useState<Record<string, string>>({})
 
   const setValue = (name: Extract<keyof T, string>, value: unknown) => {
-    setValues((prev) => ({ ...prev, [name]: value }) as Partial<T>)
+    setValues((prev) => ({ ...prev, [name]: value }))
     setErrors((prev) => {
       if (!prev[name]) return prev
       const next = { ...prev }
@@ -205,7 +213,7 @@ function FormField<T extends object>({
         return (
           <Textarea
             id={fieldId}
-            value={value === undefined || value === null ? '' : String(value)}
+            value={toInputValue(value)}
             placeholder={field.placeholder}
             disabled={disabled}
             rows={4}
@@ -219,7 +227,7 @@ function FormField<T extends object>({
           <Input
             id={fieldId}
             type="number"
-            value={value === undefined || value === null ? '' : String(value)}
+            value={toInputValue(value)}
             placeholder={field.placeholder}
             disabled={disabled}
             min={field.min}
@@ -238,11 +246,7 @@ function FormField<T extends object>({
         return (
           <Select
             items={field.options ?? []}
-            value={
-              value === undefined || value === null || value === ''
-                ? NONE_VALUE
-                : String(value)
-            }
+            value={toInputValue(value) || NONE_VALUE}
             disabled={disabled}
             onValueChange={(next) =>
               onChange(next === NONE_VALUE ? null : next)
@@ -369,7 +373,7 @@ function FormField<T extends object>({
         return (
           <Input
             id={fieldId}
-            value={value === undefined || value === null ? '' : String(value)}
+            value={toInputValue(value)}
             placeholder={field.placeholder}
             disabled={disabled}
             aria-invalid={Boolean(error)}

@@ -1,8 +1,6 @@
 import { Priority, ProgressStatus } from '@c/types/index'
 import { resolveTaskSchedule } from '@c/taskSchedule'
 import { StoreState } from '@/store'
-import { DbSlice } from '@/store/slices/createDbConnectedStoreSlice'
-import { DbService } from '@/services/database/DbService'
 import { TasksService } from '@/services/database/TasksService'
 import { ProjectsService } from '@/services/database/ProjectsService'
 import { AreasService } from '@/services/database/AreasService'
@@ -25,11 +23,24 @@ export type FieldSources = Pick<StoreState, 'projects' | 'areas' | 'goals'>
 
 type AnyEntity = { id: string } & Record<string, unknown>
 
+// The slice/service operations the registry needs. Method syntax keeps these
+// assignable from every entity's `DbSlice` / `DbService`.
+type RegistrySlice = {
+  getById(id?: string | null): AnyEntity | null
+  update(id: string, data: Record<string, unknown>): Promise<void>
+  remove(id: string): Promise<void>
+}
+type RegistryService = {
+  fetchById(id: string): Promise<AnyEntity>
+}
+
 export type EntityRegistryEntry = {
   /** Singular, lowercase name, e.g. "task". */
   label: string
-  selectSlice: (state: StoreState) => DbSlice<any>
-  service: DbService<any>
+  selectSlice: (state: StoreState) => RegistrySlice
+  service: RegistryService
+  // Each entity's fields are typed to its own record
+  // eslint-disable-next-line @typescript-eslint/no-explicit-any
   createFields: (sources: FieldSources) => FieldConfig<any>[]
   /** Used for form fields whose stored value is empty. */
   formDefaults?: Record<string, unknown>
@@ -99,7 +110,9 @@ export const entityRegistry: Record<EntityKind, EntityRegistryEntry> = {
 // URLs may have no title; fall back to the address.
 export const getEntityTitle = (item: { id: string }) => {
   const { title, url } = item as Record<string, unknown>
-  return String(title || url || item.id)
+  if (typeof title === 'string' && title) return title
+  if (typeof url === 'string' && url) return url
+  return item.id
 }
 
 /**
@@ -108,7 +121,7 @@ export const getEntityTitle = (item: { id: string }) => {
  */
 export const toFormValues = (
   item: AnyEntity,
-  fields: FieldConfig<any>[],
+  fields: Pick<FieldConfig<AnyEntity>, 'name'>[],
   defaults: Record<string, unknown> = {},
 ) =>
   Object.fromEntries(

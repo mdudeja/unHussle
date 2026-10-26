@@ -1,6 +1,7 @@
 import { useMemo, useState } from 'react'
 import { useStore } from '@/store'
-import { Priority, ProgressStatus, Area, WithAttachments } from '@c/types/index'
+import { Logger } from '@c/Logger'
+import { Priority, Area, WithAttachments } from '@c/types/index'
 import { Button } from '@/components/ui/button'
 import { Plus } from 'lucide-react'
 import {
@@ -9,7 +10,6 @@ import {
 } from '@/components/ui/custom/entityForms'
 
 const areaDefaultValues: Partial<WithAttachments<Area['Write']>> = {
-  status: ProgressStatus.PLANNED,
   priority: Priority.MEDIUM,
 }
 
@@ -22,7 +22,7 @@ export const CreateAreaButtonComponent = () => {
     undefined,
   )
 
-  const fields = useMemo(() => createAreaFields(), [areas.data])
+  const fields = useMemo(() => createAreaFields(), [])
 
   const openDialog = () => {
     setErrorMessage(undefined)
@@ -44,7 +44,7 @@ export const CreateAreaButtonComponent = () => {
           .catch(() => {})
       setIsDialogOpen(false)
     } catch (error) {
-      console.error('Failed to create area:', error)
+      Logger.getInstance().error(`Failed to create area: ${String(error)}`)
       setErrorMessage(
         'Could not create the project. Please check the details and try again.',
       )

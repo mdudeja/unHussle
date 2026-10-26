@@ -41,7 +41,7 @@ export const unwrapJunctions = <T extends object>(entity: T): Unwrapped<T> => {
   for (const [key, ref] of Object.entries(junctionRefs)) {
     const rows = result[key]
     if (Array.isArray(rows)) {
-      result[key] = rows.map((row) => row[ref])
+      result[key] = (rows as Record<string, unknown>[]).map((row) => row[ref])
     }
   }
   return result as Unwrapped<T>

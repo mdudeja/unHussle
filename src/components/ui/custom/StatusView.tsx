@@ -20,7 +20,7 @@ export default function StatusView({
           'text-muted-foreground line-through',
       )}
     >
-      {toLabel(status as string)}
+      {toLabel(status)}
     </Badge>
   )
 }

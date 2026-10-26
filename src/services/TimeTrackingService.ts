@@ -1,4 +1,5 @@
 import { TasksService } from '@/services/database/TasksService'
+import { Logger } from '@c/Logger'
 
 export class TimeTrackingService {
   private activeTimerId: string | null = null
@@ -41,7 +42,7 @@ export class TimeTrackingService {
         })
       }
     } catch (e) {
-      console.error('Failed to update task time', e)
+      Logger.getInstance().error(`Failed to update task time: ${String(e)}`)
     }
 
     // Clear active tracking
@@ -57,7 +58,9 @@ export class TimeTrackingService {
 
   getActiveTracking(): { taskId: string; startTime: number } | null {
     const stored = localStorage.getItem('active_tracking_task')
-    return stored ? JSON.parse(stored) : null
+    return stored
+      ? (JSON.parse(stored) as { taskId: string; startTime: number })
+      : null
   }
 }
 

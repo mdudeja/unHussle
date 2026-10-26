@@ -14,24 +14,27 @@ const useLoad = <T>(
   deps: unknown[],
   description: string,
 ): Loadable<T> => {
-  const [state, setState] = useState<Loadable<T>>({
-    data: null,
-    isLoading: true,
-  })
+  // `loadedFor` holds the deps the current data was loaded for; while they differ
+  // from `deps`, a load is in flight.
+  const [state, setState] = useState<{
+    data: T | null
+    loadedFor: unknown[] | null
+  }>({ data: null, loadedFor: null })
 
   useEffect(() => {
     let isCurrent = true
-    setState((prev) => ({ ...prev, isLoading: true }))
     load()
       .then((data) => {
         if (isCurrent) {
-          setState({ data, isLoading: false })
+          setState({ data, loadedFor: deps })
         }
       })
       .catch((error) => {
-        Logger.getInstance().error(`Failed to load ${description}: ${error}`)
+        Logger.getInstance().error(
+          `Failed to load ${description}: ${String(error)}`,
+        )
         if (isCurrent) {
-          setState((prev) => ({ ...prev, isLoading: false }))
+          setState((prev) => ({ ...prev, loadedFor: deps }))
         }
       })
     return () => {
@@ -40,7 +43,11 @@ const useLoad = <T>(
     // eslint-disable-next-line react-hooks/exhaustive-deps
   }, deps)
 
-  return state
+  const isLoading =
+    state.loadedFor === null ||
+    state.loadedFor.length !== deps.length ||
+    state.loadedFor.some((dep, i) => !Object.is(dep, deps[i]))
+  return { data: state.data, isLoading }
 }
 
 // Prefer the store's copy of each row; it reflects edits made since loading.

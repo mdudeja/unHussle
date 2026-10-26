@@ -1,4 +1,4 @@
-import React, { useState, useRef, useEffect } from 'react'
+import React, { useState, useRef, useEffect, useMemo } from 'react'
 import { useStore } from '@/store'
 import { Input } from '@/components/ui/input'
 import { Textarea } from '@/components/ui/textarea'
@@ -48,7 +48,8 @@ import EntityRefBadge from '@/components/ui/custom/EntityRefBadge'
 import { trimString } from '@/components/ui/utils/misc'
 import TagsView from '@/components/ui/custom/TagsView'
 import { DateTimePicker } from '@/components/ui/custom/DateTimePicker'
-import UrlView from '../ui/custom/UrlView'
+import UrlView from '@/components/ui/custom/UrlView'
+import { Logger } from '@c/Logger'
 
 const starterParsedData: ParsedData = {
   task: {
@@ -90,7 +91,6 @@ export const BrainDumpInputComponent = () => {
   const [inputValue, setInputValue] = useState('')
   const [isExpanded, setIsExpanded] = useState(false)
   const [isSubmitting, setIsSubmitting] = useState(false)
-  const [parsedData, setParsedData] = useState<ParsedData>(starterParsedData)
   const [priority, setPriority] = useState<Priority>(Priority.MEDIUM)
   const [flags, setFlags] = useState<TaskFlags>(emptyFlags)
   const [dueDate, setDueDate] = useState<Date | undefined>(undefined)
@@ -124,15 +124,18 @@ export const BrainDumpInputComponent = () => {
     // eslint-disable-next-line react-hooks/exhaustive-deps
   }, [])
 
-  useEffect(() => {
-    const parsed = parseDataFromTaskInput({
-      input: inputValue,
-      projects: projects.data,
-      areas: areas.data,
-      goals: goals.data,
-    })
-    setParsedData(parsed)
-  }, [inputValue])
+  const parsedData = useMemo(
+    () =>
+      inputValue
+        ? parseDataFromTaskInput({
+            input: inputValue,
+            projects: projects.data,
+            areas: areas.data,
+            goals: goals.data,
+          })
+        : starterParsedData,
+    [inputValue, projects.data, areas.data, goals.data],
+  )
 
   const parsedDueMillis = parsedData.task.due_date ?? undefined
   const parsedDueDate =
@@ -159,7 +162,6 @@ export const BrainDumpInputComponent = () => {
   const resetForm = () => {
     setInputValue('')
     setIsExpanded(false)
-    setParsedData(starterParsedData)
     setPriority(Priority.MEDIUM)
     setFlags(emptyFlags)
     setDueDate(undefined)
@@ -181,32 +183,34 @@ export const BrainDumpInputComponent = () => {
     // the user may have pasted a URL and nothing else, in which case we just add the URL(s) to the store and don't create a task.
     if (!parsedData.task.title.trim() && parsedData.urls.length) {
       setIsSubmitting(true)
-      await Promise.all(
-        parsedData.urls.map((url) => urls.add({ url: url.url })),
-      )
-      await urls.fetch().catch(() => {})
-      setIsSubmitting(false)
-      resetForm()
+      try {
+        await Promise.all(
+          parsedData.urls.map((url) => urls.add({ url: url.url })),
+        )
+        await urls.fetch().catch(() => {})
+        resetForm()
+      } catch (error) {
+        Logger.getInstance().error(`Failed to add urls: ${String(error)}`)
+      } finally {
+        setIsSubmitting(false)
+      }
       return
     }
 
-    if (!parsedData.task.title.trim() && inputValue.trim()) {
-      // If all text was parsed out, use original
-      parsedData.task.title = inputValue.trim()
-    }
+    // If all text was parsed out, use original
+    const title = parsedData.task.title.trim()
+      ? parsedData.task.title
+      : inputValue.trim()
 
-    if (!parsedData.task.title.trim() || scheduleError) {
+    if (!title || scheduleError) {
       return
     }
 
     setIsSubmitting(true)
 
     try {
-      if (
-        !parsedData.task.project_id &&
-        !parsedData.task.area_id &&
-        !parsedData.task.goal_id
-      ) {
+      let areaId = parsedData.task.area_id
+      if (!parsedData.task.project_id && !areaId && !parsedData.task.goal_id) {
         const brainDumpArea = areas.data.find(
           (a) => a.title.toLowerCase() === 'brain dump',
         )
@@ -214,17 +218,17 @@ export const BrainDumpInputComponent = () => {
         if (!brainDumpArea) {
           throw new Error('Brain Dump area not found')
         }
-        parsedData.task.area_id = brainDumpArea.id
+        areaId = brainDumpArea.id
       }
 
       // Create task
       await tasks.add({
-        title: parsedData.task.title,
+        title,
         description: isExpanded ? inputValue : undefined,
         status: ProgressStatus.PLANNED,
         priority,
         project_id: parsedData.task.project_id,
-        area_id: parsedData.task.area_id,
+        area_id: areaId,
         goal_id: parsedData.task.goal_id,
         is_fun: flags.is_fun,
         is_chore: flags.is_chore,
@@ -246,7 +250,7 @@ export const BrainDumpInputComponent = () => {
       // Reset form
       resetForm()
     } catch (error) {
-      console.error('Failed to create task:', error)
+      Logger.getInstance().error(`Failed to create task: ${String(error)}`)
     } finally {
       setIsSubmitting(false)
     }
@@ -262,7 +266,7 @@ export const BrainDumpInputComponent = () => {
 
     if (e.key === 'Enter' && (e.ctrlKey || e.metaKey)) {
       e.preventDefault()
-      handleSubmit()
+      void handleSubmit()
     } else if (e.key === 'Escape') {
       e.preventDefault()
       resetForm()

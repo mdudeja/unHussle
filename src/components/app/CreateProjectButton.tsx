@@ -1,5 +1,6 @@
 import { useMemo, useState } from 'react'
 import { useStore } from '@/store'
+import { Logger } from '@c/Logger'
 import {
   Priority,
   ProgressStatus,
@@ -54,7 +55,7 @@ export const CreateProjectButtonComponent = () => {
           .catch(() => {})
       setIsDialogOpen(false)
     } catch (error) {
-      console.error('Failed to create project:', error)
+      Logger.getInstance().error(`Failed to create project: ${String(error)}`)
       setErrorMessage(
         'Could not create the project. Please check the details and try again.',
       )

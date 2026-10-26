@@ -4,6 +4,7 @@ import { LinkIcon } from 'lucide-react'
 import { openUrl, revealItemInDir } from '@tauri-apps/plugin-opener'
 import { trimString } from '@/components/ui/utils/misc'
 import { Link } from 'react-router'
+import { Logger } from '@c/Logger'
 
 export default function UrlView({ url, key }: { url: string; key?: string }) {
   if (isTauri()) {
@@ -23,11 +24,13 @@ function tauriView(url: string, key?: string) {
       onClick={() => {
         if (url.startsWith('http') || url.startsWith('www')) {
           openUrl(url).catch((err) => {
-            console.error('Failed to open URL:', err)
+            Logger.getInstance().error(`Failed to open URL: ${String(err)}`)
           })
         } else {
           revealItemInDir(url).catch((err) => {
-            console.error('Failed to reveal file in directory:', err)
+            Logger.getInstance().error(
+              `Failed to reveal file in directory: ${String(err)}`,
+            )
           })
         }
       }}

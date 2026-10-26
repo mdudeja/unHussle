@@ -54,7 +54,7 @@ const priorityFilter = {
 const updatedAtColumn = <TData extends { updated_at: number }>() =>
   dateColumn<TData>('updated_at', 'Updated', (row) => row.updated_at)
 
-export const projectsConfig: EntityListPageConfig<HydratedProject> = {
+const projectsConfig: EntityListPageConfig<HydratedProject> = {
   kind: 'projects',
   title: 'Projects',
   selectSlice: (state) => state.projects,
@@ -79,7 +79,7 @@ export const projectsConfig: EntityListPageConfig<HydratedProject> = {
   hiddenColumns: ['updated_at'],
 }
 
-export const areasConfig: EntityListPageConfig<HydratedArea> = {
+const areasConfig: EntityListPageConfig<HydratedArea> = {
   kind: 'areas',
   title: 'Areas',
   selectSlice: (state) => state.areas,
@@ -98,7 +98,7 @@ export const areasConfig: EntityListPageConfig<HydratedArea> = {
   hiddenColumns: ['updated_at'],
 }
 
-export const goalsConfig: EntityListPageConfig<HydratedGoal> = {
+const goalsConfig: EntityListPageConfig<HydratedGoal> = {
   kind: 'goals',
   title: 'Goals',
   selectSlice: (state) => state.goals,
@@ -120,7 +120,7 @@ export const goalsConfig: EntityListPageConfig<HydratedGoal> = {
   hiddenColumns: ['updated_at'],
 }
 
-export const tasksConfig: EntityListPageConfig<HydratedTask> = {
+const tasksConfig: EntityListPageConfig<HydratedTask> = {
   kind: 'tasks',
   title: 'Tasks',
   selectSlice: (state) => state.tasks,
@@ -142,7 +142,7 @@ export const tasksConfig: EntityListPageConfig<HydratedTask> = {
   hiddenColumns: [...hiddenTaskFlagColumns, 'updated_at'],
 }
 
-export const urlsConfig: EntityListPageConfig<Url['Read']> = {
+const urlsConfig: EntityListPageConfig<Url['Read']> = {
   kind: 'urls',
   title: 'URLs',
   selectSlice: (state) => state.urls,
@@ -155,7 +155,7 @@ export const urlsConfig: EntityListPageConfig<Url['Read']> = {
   hiddenColumns: ['updated_at'],
 }
 
-export const tagsConfig: EntityListPageConfig<Tag['Read']> = {
+const tagsConfig: EntityListPageConfig<Tag['Read']> = {
   kind: 'tags',
   title: 'Tags',
   selectSlice: (state) => state.tags,

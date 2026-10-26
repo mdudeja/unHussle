@@ -5,6 +5,7 @@ import {
 import { NextTaskCardComponent } from '@/components/app/NextTaskCard'
 import { PageViewComponent } from '@/components/pages/PageView'
 import { useStore } from '@/store'
+import { Logger } from '@c/Logger'
 import { useEffect } from 'react'
 
 export default function HomePage() {
@@ -23,10 +24,14 @@ export default function HomePage() {
     ) {
       return
     }
-    tasks.fetch()
-    areas.fetch()
-    goals.fetch()
-    projects.fetch()
+    Promise.all([
+      tasks.fetch(),
+      areas.fetch(),
+      goals.fetch(),
+      projects.fetch(),
+    ]).catch((err) =>
+      Logger.getInstance().error(`Failed to load home data: ${String(err)}`),
+    )
   }, [tasks, areas, goals, projects])
 
   return (

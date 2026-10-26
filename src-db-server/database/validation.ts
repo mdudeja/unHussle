@@ -63,7 +63,6 @@ export const selectResourceBaseSchema = createSelectSchema(resources)
 // Areas
 export const insertAreaSchema = Type.Object({
   ...createInsertSchema(areas, {
-    status: t.Optional(t.Enum(ProgressStatus)),
     priority: t.Optional(t.Enum(Priority)),
   }).properties,
   ...attachmentsSchema,

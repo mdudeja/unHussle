@@ -1,5 +1,6 @@
 import { useMemo, useState } from 'react'
 import { useStore } from '@/store'
+import { Logger } from '@c/Logger'
 import { Priority, ProgressStatus, Goal, WithAttachments } from '@c/types/index'
 import { Button } from '@/components/ui/button'
 import { Plus } from 'lucide-react'
@@ -48,7 +49,7 @@ export const CreateGoalButtonComponent = () => {
           .catch(() => {})
       setIsDialogOpen(false)
     } catch (error) {
-      console.error('Failed to create goal:', error)
+      Logger.getInstance().error(`Failed to create goal: ${String(error)}`)
       setErrorMessage(
         'Could not create the goal. Please check the details and try again.',
       )

@@ -8,14 +8,15 @@ export function IconResolver({
   size,
   className,
 }: {
-  icon: IconName
+  // Icon names are stored as plain strings in the DB
+  icon: IconName | (string & {})
   color?: string
   size?: number
   className?: string
 }) {
   return (
     <DynamicIcon
-      name={icon}
+      name={icon as IconName}
       color={color}
       size={size ?? 12}
       className={className}

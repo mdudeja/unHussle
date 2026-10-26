@@ -55,7 +55,9 @@ export function EntityActionBar<T>({
       await action.run(item)
       return true
     } catch (err) {
-      Logger.getInstance().error(`Action "${action.label}" failed: ${err}`)
+      Logger.getInstance().error(
+        `Action "${action.label}" failed: ${String(err)}`,
+      )
       onError(`Could not ${action.label.toLowerCase()}: ${errorMessage(err)}`)
       return false
     } finally {
@@ -69,7 +71,8 @@ export function EntityActionBar<T>({
       setConfirming(action)
       return
     }
-    run(action, setError)
+    // `run` reports its own errors
+    void run(action, setError)
   }
 
   const handleConfirm = async () => {

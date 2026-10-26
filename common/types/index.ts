@@ -1,4 +1,4 @@
-import { SQLiteTableWithColumns } from 'drizzle-orm/sqlite-core'
+import { AnySQLiteTable } from 'drizzle-orm/sqlite-core'
 
 export enum ProgressStatus {
   PLANNED = 'planned',
@@ -25,11 +25,19 @@ export enum AnchorType {
   any_after = 'any_after',
 }
 
-export type InferTableTypes<B, T extends SQLiteTableWithColumns<any>> = {
+export type InferTableTypes<B, T extends AnySQLiteTable> = {
   Parent: B
   Read: T['$inferSelect']
   Write: T['$inferInsert']
   Update: Partial<T['$inferInsert']>
+}
+
+/** Structural constraint satisfied by any `InferTableTypes` of an entity table */
+export type DbEntityTypes = {
+  Parent: unknown
+  Read: { id: string }
+  Write: object
+  Update: object
 }
 
 export * from '@c/types/Entity.type'

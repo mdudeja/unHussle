@@ -66,7 +66,7 @@ export const textColumn = <TData,>(
   id: string,
   title: string,
   accessor: (row: TData) => string | null | undefined,
-): ColumnDef<TData, any> => ({
+): ColumnDef<TData, unknown> => ({
   id,
   accessorFn: (row) => accessor(row) ?? '',
   header: ({ column }) => <SortableHeader column={column} title={title} />,
@@ -79,7 +79,7 @@ export const urlColumn = <TData,>(
   id: string,
   title: string,
   accessor: (row: TData) => string | null | undefined,
-): ColumnDef<TData, any> => ({
+): ColumnDef<TData, unknown> => ({
   id,
   accessorFn: (row) => accessor(row) ?? '',
   header: ({ column }) => <SortableHeader column={column} title={title} />,
@@ -92,7 +92,7 @@ export const urlColumn = <TData,>(
 // Hashtag stored without `#` (e.g. `health_fitness`), shown as `#health_fitness`.
 export const hashtagColumn = <TData,>(
   accessor: (row: TData) => Tag['Read'][] | null | undefined,
-): ColumnDef<TData, any> => ({
+): ColumnDef<TData, unknown> => ({
   id: 'hashtag',
   accessorFn: (row) => accessor(row) ?? undefined,
   header: ({ column }) => <SortableHeader column={column} title="Tags" />,
@@ -107,7 +107,7 @@ export const titleColumn = <
   TData extends { title: string; icon?: string | null; color?: string | null },
 >(
   fallbackIcon: LucideIcon,
-): ColumnDef<TData, any> => ({
+): ColumnDef<TData, unknown> => ({
   id: 'title',
   accessorFn: (row) => row.title,
   header: ({ column }) => <SortableHeader column={column} title="Title" />,
@@ -118,7 +118,7 @@ export const titleColumn = <
       <div className="flex items-center gap-2 font-medium">
         {icon ? (
           <IconResolver
-            icon={icon as any}
+            icon={icon}
             color={color ?? undefined}
             className="h-4 w-4 shrink-0"
           />
@@ -138,7 +138,7 @@ const statusOrder = Object.values(ProgressStatus)
 
 export const statusColumn = <
   TData extends { status?: ProgressStatus | null },
->(): ColumnDef<TData, any> => ({
+>(): ColumnDef<TData, unknown> => ({
   id: 'status',
   accessorFn: (row) => row.status ?? undefined,
   header: ({ column }) => <SortableHeader column={column} title="Status" />,
@@ -146,16 +146,14 @@ export const statusColumn = <
     statusOrder.indexOf(a.original.status as ProgressStatus) -
     statusOrder.indexOf(b.original.status as ProgressStatus),
   cell: ({ row }) =>
-    row.original.status ? (
-      <StatusView status={row.original.status as ProgressStatus} />
-    ) : null,
+    row.original.status ? <StatusView status={row.original.status} /> : null,
 })
 
 const priorityOrder = Object.values(Priority)
 
 export const priorityColumn = <
   TData extends { priority?: Priority | null },
->(): ColumnDef<TData, any> => ({
+>(): ColumnDef<TData, unknown> => ({
   id: 'priority',
   accessorFn: (row) => row.priority ?? undefined,
   header: ({ column }) => <SortableHeader column={column} title="Priority" />,
@@ -164,7 +162,7 @@ export const priorityColumn = <
     priorityOrder.indexOf(b.original.priority as Priority),
   cell: ({ row }) =>
     row.original.priority ? (
-      <PriorityView priority={row.original.priority as Priority} />
+      <PriorityView priority={row.original.priority} />
     ) : null,
 })
 
@@ -173,7 +171,7 @@ export const dateColumn = <TData,>(
   id: string,
   title: string,
   accessor: (row: TData) => number | null | undefined,
-): ColumnDef<TData, any> => ({
+): ColumnDef<TData, unknown> => ({
   id,
   accessorFn: (row) => accessor(row) ?? undefined,
   header: ({ column }) => <SortableHeader column={column} title={title} />,
@@ -189,7 +187,7 @@ export const dateTimeColumn = <TData,>(
   id: string,
   title: string,
   accessor: (row: TData) => number | null | undefined,
-): ColumnDef<TData, any> => ({
+): ColumnDef<TData, unknown> => ({
   ...dateColumn(id, title, accessor),
   cell: ({ getValue }) => {
     const millis = getValue<number | undefined>()
@@ -202,7 +200,7 @@ export const entityRefColumn = <TData,>(
   kind: EntityRefKind,
   title: string,
   accessor: (row: TData) => string | null | undefined,
-): ColumnDef<TData, any> => ({
+): ColumnDef<TData, unknown> => ({
   id: `${kind}_ref`,
   accessorFn: (row) => accessor(row) ?? undefined,
   header: title,
@@ -224,7 +222,7 @@ type TaskFlagsRecord = { is_fun: boolean; is_chore: boolean; is_quick: boolean }
 // Combined display column plus one hidden column per flag for filtering.
 export const taskFlagColumns = <TData extends TaskFlagsRecord>(): ColumnDef<
   TData,
-  any
+  unknown
 >[] => [
   {
     id: 'flags',
@@ -246,7 +244,7 @@ export const taskFlagColumns = <TData extends TaskFlagsRecord>(): ColumnDef<
       </div>
     ),
   },
-  ...taskFlags.map((flag): ColumnDef<TData, any> => ({
+  ...taskFlags.map((flag): ColumnDef<TData, unknown> => ({
     id: flag.id,
     accessorFn: (row) => row[flag.id],
     header: flag.label,

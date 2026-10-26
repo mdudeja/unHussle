@@ -31,6 +31,11 @@ const findStartedAt = async (id: string) => {
 
 /** Starts tracking `id`; a different task that was being tracked is paused. */
 export const startTask = async (id: string) => {
+  const currentlyTrackedId = getTrackedTaskId()
+
+  if (currentlyTrackedId && currentlyTrackedId !== id) {
+    await pauseTask(currentlyTrackedId)
+  }
   await timeTrackingService.startTracking(id)
   await updateTask(id, {
     status: ProgressStatus.IN_PROGRESS,

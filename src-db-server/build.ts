@@ -1,3 +1,4 @@
+import { Logger } from '@c/Logger'
 import { $ } from 'bun'
 import { join } from 'node:path'
 
@@ -43,7 +44,7 @@ try {
   //     },
   //   })
 } catch (err) {
-  console.error(err)
+  Logger.getInstance().error(`Build failed: ${err as string}`)
   process.exit(1)
 }
 

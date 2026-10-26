@@ -46,7 +46,7 @@ export type EntityListPageConfig<TData extends { id: string }> = {
   title: string
   description?: string
   selectSlice: (state: StoreState) => EntitySliceState<TData>
-  columns: ColumnDef<TData, any>[]
+  columns: ColumnDef<TData, unknown>[]
   filters?: DataTableFilter[]
   hiddenColumns?: string[]
   initialSorting?: SortingState
@@ -132,6 +132,11 @@ export function EntityListPage<TData extends { id: string }>({
           setSearchResults({ term: searchTerm, data })
         }
       })
+      .catch((error) =>
+        Logger.getInstance().error(
+          `Search for "${searchTerm}" failed: ${String(error)}`,
+        ),
+      )
     return () => {
       isCurrent = false
     }
@@ -174,8 +179,9 @@ export function EntityListPage<TData extends { id: string }>({
         const next = new URLSearchParams(prev)
         filters.forEach(({ columnId }) => {
           const value = nextFilters.find((f) => f.id === columnId)?.value
-          if (value) {
-            next.set(columnId, String(value))
+          // Filter options are all strings (see DataTableFilterOption)
+          if (typeof value === 'string' && value) {
+            next.set(columnId, value)
           } else {
             next.delete(columnId)
           }

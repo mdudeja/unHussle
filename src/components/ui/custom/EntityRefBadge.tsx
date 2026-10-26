@@ -36,7 +36,7 @@ export default function EntityRefBadge({
         className="cursor-pointer"
         icon={
           record.icon ? (
-            <IconResolver icon={record.icon as any} className="h-3 w-3" />
+            <IconResolver icon={record.icon} className="h-3 w-3" />
           ) : (
             <FallbackIcon className="h-3 w-3" />
           )

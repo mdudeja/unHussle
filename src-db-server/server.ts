@@ -23,7 +23,7 @@ logger.debug('Database Initialized.')
 try {
   await runSeed()
 } catch (error) {
-  logger.error(`Error running seed data: ${error}`)
+  logger.error(`Error running seed data: ${String(error)}`)
 }
 
 const PORT = parseInt(process.env.VITE_DB_SERVER_PORT || '3456', 10)
@@ -40,7 +40,8 @@ const app = new Elysia()
     const isJson = typeof responseValue === 'object'
     const text = isJson
       ? JSON.stringify(responseValue)
-      : String(responseValue?.toString() ?? '')
+      : // Non-objects are primitives (or undefined)
+        String((responseValue as string | number | boolean | undefined) ?? '')
 
     const compressedText = Bun.gzipSync(text)
 
@@ -68,7 +69,9 @@ const app = new Elysia()
   .use(cors())
 
   .onError(({ error, code, path, logger }) => {
-    logger.error(`Error on ${path}: ${(error as any).message}`)
+    logger.error(
+      `Error on ${path}: ${error instanceof Error ? error.message : JSON.stringify(error)}`,
+    )
     if (code === 'VALIDATION') {
       return error.detail(error.message)
     }

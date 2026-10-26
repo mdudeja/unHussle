@@ -97,6 +97,9 @@ export interface UseAutocompleteResult<T extends AutocompleteOption> {
   ) => boolean
 }
 
+// Stable empty list, so `suggestions` keeps its identity while there is no query
+const noSuggestions: never[] = []
+
 /**
  * Reusable autocomplete state machine for text inputs.
  *
@@ -116,7 +119,7 @@ export const useAutocomplete = <T extends AutocompleteOption>({
   enabled = true,
   appendSpace = true,
 }: UseAutocompleteOptions<T>): UseAutocompleteResult<T> => {
-  const [suggestions, setSuggestions] = useState<T[]>([])
+  const [fetchedSuggestions, setSuggestions] = useState<T[]>([])
   const [highlightedIndex, setHighlightedIndexState] = useState(0)
   // Value present when the user dismissed the dropdown, so it stays closed
   // until they type something new.
@@ -139,10 +142,12 @@ export const useAutocomplete = <T extends AutocompleteOption>({
     [enabled, inputValue, trigger],
   )
   const query = token?.query ?? ''
+  const hasQuery = enabled && token !== null && query.length >= minQueryLength
+  // Results for a previous token are hidden as soon as the token becomes invalid.
+  const suggestions = hasQuery ? fetchedSuggestions : noSuggestions
 
   useEffect(() => {
     if (!enabled || !token || token.query.length < minQueryLength) {
-      setSuggestions([])
       return
     }
 
@@ -165,13 +170,10 @@ export const useAutocomplete = <T extends AutocompleteOption>({
     }
     // `token.query`/`token.start` are primitives, so this only re-runs when the
     // active token actually changes.
+    // eslint-disable-next-line react-hooks/exhaustive-deps
   }, [enabled, token?.query, token?.start, minQueryLength, debounceMs])
 
-  const canOpen =
-    enabled &&
-    token !== null &&
-    query.length >= minQueryLength &&
-    dismissedFor !== inputValue
+  const canOpen = hasQuery && dismissedFor !== inputValue
   const isOpen = canOpen && suggestions.length > 0
   const safeHighlightedIndex =
     suggestions.length === 0

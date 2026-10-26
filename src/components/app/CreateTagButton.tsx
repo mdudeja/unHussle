@@ -1,5 +1,6 @@
 import { useMemo, useState } from 'react'
 import { useStore } from '@/store'
+import { Logger } from '@c/Logger'
 import { Tag } from '@c/types/index'
 import { Button } from '@/components/ui/button'
 import { Plus } from 'lucide-react'
@@ -31,7 +32,7 @@ export const CreateTagButtonComponent = () => {
       await tags.add(values as Tag['Write'])
       setIsDialogOpen(false)
     } catch (error) {
-      console.error('Failed to create tag:', error)
+      Logger.getInstance().error(`Failed to create tag: ${String(error)}`)
       setErrorMessage(
         'Could not create the tag. A tag with this name may already exist.',
       )

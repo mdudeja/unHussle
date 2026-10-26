@@ -1,5 +1,4 @@
 import {
-  Activity,
   AlignLeft,
   Boxes,
   Flag,
@@ -10,7 +9,7 @@ import {
 } from 'lucide-react'
 import { Area, WithAttachments } from '@c/types/index'
 import type { FieldConfig } from '../types'
-import { priorityOptions, statusOptions } from '../utils'
+import { priorityOptions } from '../utils'
 
 export const createAreaFields = (): FieldConfig<
   WithAttachments<Area['Write']>
@@ -31,13 +30,6 @@ export const createAreaFields = (): FieldConfig<
     colSpan: 2,
     placeholder: 'Optional details...',
     icon: AlignLeft,
-  },
-  {
-    name: 'status',
-    label: 'Status',
-    type: 'select',
-    options: statusOptions,
-    icon: Activity,
   },
   {
     name: 'priority',

@@ -17,19 +17,16 @@ export const TaskTimerComponent = ({
   onTimerStop,
   ref,
 }: TaskTimerProps) => {
-  const [isActive, setIsActive] = useState(false)
-  const [sessionSeconds, setSessionSeconds] = useState(0)
-
-  // Check if we are currently tracking this task on mount
-  useEffect(() => {
+  // Resume if we are currently tracking this task (callers key by taskId)
+  const [isActive, setIsActive] = useState(
+    () => timeTrackingService.getActiveTracking()?.taskId === taskId,
+  )
+  const [sessionSeconds, setSessionSeconds] = useState(() => {
     const active = timeTrackingService.getActiveTracking()
-    if (active && active.taskId === taskId) {
-      setIsActive(true)
-      // Calculate initial elapsed time since start
-      const elapsed = Math.floor((Date.now() - active.startTime) / 1000)
-      setSessionSeconds(elapsed)
-    }
-  }, [taskId])
+    if (active?.taskId !== taskId) return 0
+    // Calculate initial elapsed time since start
+    return Math.floor((Date.now() - active.startTime) / 1000)
+  })
 
   // Timer tick effect
   useEffect(() => {

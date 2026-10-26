@@ -11,7 +11,11 @@ export class Logger {
   private static instance: Logger
 
   constructor() {
-    const logLevel = process.env.LOG_LEVEL || 'info'
+    // `process` is undefined in the browser (frontend bundle)
+    const logLevel =
+      (typeof process !== 'undefined' && process.env.VITE_LOG_LEVEL) ||
+      import.meta.env.VITE_LOG_LEVEL ||
+      'info'
     this.logMarker = this.logMarkerMap[logLevel] || 2
 
     console.log(`Log level set to: ${logLevel}`)

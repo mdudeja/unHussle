@@ -1,5 +1,6 @@
 import { useMemo, useState } from 'react'
 import { useStore } from '@/store'
+import { Logger } from '@c/Logger'
 import { Priority, ProgressStatus, Task, WithAttachments } from '@c/types/index'
 import { resolveTaskSchedule } from '@c/taskSchedule'
 import { Button } from '@/components/ui/button'
@@ -60,7 +61,7 @@ export const CreateTaskButtonComponent = () => {
           .catch(() => {})
       setIsDialogOpen(false)
     } catch (error) {
-      console.error('Failed to create task:', error)
+      Logger.getInstance().error(`Failed to create task: ${String(error)}`)
       setErrorMessage(
         'Could not create the task. Please check the details and try again.',
       )

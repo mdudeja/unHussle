@@ -5,27 +5,23 @@ export const makeJSONRequest = async <T>({
 }: {
   url: string
   method: 'GET' | 'POST' | 'PATCH' | 'DELETE'
-  body?: any
+  body?: unknown
 }) => {
-  try {
-    const reqInit: RequestInit = {
-      method,
-      body: JSON.stringify(body),
-      headers: {
-        'Content-Type': 'application/json',
-        Accept: 'application/json',
-      },
-    }
-    const res = await fetch(url, reqInit)
-
-    if (!res.ok) {
-      throw new Error(`HTTP error! status: ${res.status}`)
-    }
-
-    return res.json() as T
-  } catch (err) {
-    return Promise.reject(err)
+  const reqInit: RequestInit = {
+    method,
+    body: JSON.stringify(body),
+    headers: {
+      'Content-Type': 'application/json',
+      Accept: 'application/json',
+    },
   }
+  const res = await fetch(url, reqInit)
+
+  if (!res.ok) {
+    throw new Error(`HTTP error! status: ${res.status}`)
+  }
+
+  return (await res.json()) as T
 }
 
 export const makeTextRequest = async ({
@@ -35,25 +31,20 @@ export const makeTextRequest = async ({
 }: {
   url: string
   method: 'GET' | 'POST' | 'PATCH' | 'DELETE'
-  body?: any
+  body?: unknown
 }) => {
-  try {
-    const res = await fetch(url, {
-      method,
-      body: JSON.stringify(body),
-      headers: {
-        'Content-Type': 'application/json',
-        Accept: 'text/plain',
-      },
-    })
+  const res = await fetch(url, {
+    method,
+    body: JSON.stringify(body),
+    headers: {
+      'Content-Type': 'application/json',
+      Accept: 'text/plain',
+    },
+  })
 
-    if (!res.ok) {
-      throw new Error(`HTTP error! status: ${res.status}`)
-    }
-
-    const text = await res.text()
-    return text
-  } catch (err) {
-    return Promise.reject(err)
+  if (!res.ok) {
+    throw new Error(`HTTP error! status: ${res.status}`)
   }
+
+  return res.text()
 }

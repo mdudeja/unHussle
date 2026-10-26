@@ -33,7 +33,7 @@ describe('Areas Store', () => {
 
   test('throw error when creating area with missing fields', async () => {
     const { add } = useStore.getState().areas
-    expect(add({} as any)).rejects.toThrow()
+    await expect(add({} as Parameters<typeof add>[0])).rejects.toThrow()
   })
 
   test('fetch areas', async () => {
@@ -89,7 +89,7 @@ describe('Areas Store', () => {
 
   test('throw error when deleting non-existent area', async () => {
     const { remove } = useStore.getState().areas
-    expect(remove('non-existent-id')).rejects.toThrow()
+    await expect(remove('non-existent-id')).rejects.toThrow()
   })
 
   test('search areas by hashtag, with or without #', async () => {

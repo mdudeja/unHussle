@@ -1,11 +1,8 @@
 import { DbService } from '@/services/database/DbService'
-import { InferTableTypes, WithAttachments } from '@c/types/index'
-import { SQLiteTableWithColumns } from 'drizzle-orm/sqlite-core'
+import { DbEntityTypes, WithAttachments } from '@c/types/index'
 import { StateCreator } from 'zustand'
 
-export interface DbSlice<
-  T extends InferTableTypes<unknown, SQLiteTableWithColumns<any>>,
-> {
+export interface DbSlice<T extends DbEntityTypes> {
   data: T['Read'][]
   isLoading: boolean
   error: string | null
@@ -30,243 +27,112 @@ const fetchLimits: { [key: string]: number } = {
 }
 
 export default function generateCreateDbConnectedStateSlice<
-  T extends InferTableTypes<unknown, SQLiteTableWithColumns<any>>,
+  T extends DbEntityTypes,
   K extends string,
 >(serviceInstance: DbService<T>, sliceName: K) {
-  const creator: StateCreator<{ [key in K]: DbSlice<T> }> = (set, get) =>
-    ({
+  type State = { [key in K]: DbSlice<T> }
+
+  const creator: StateCreator<State> = (set, get) => {
+    /** Merge a partial update into this slice */
+    const patch = (fn: (slice: DbSlice<T>) => Partial<DbSlice<T>>) =>
+      set(
+        (state) =>
+          ({
+            [sliceName]: { ...state[sliceName], ...fn(state[sliceName]) },
+          }) as State,
+      )
+
+    return {
       [sliceName]: {
         data: [] as T['Read'][],
         isLoading: false,
         error: null,
 
         fetch: async (pageNumber?: number) => {
-          set(
-            (state) =>
-              ({
-                [sliceName]: {
-                  ...state[sliceName],
-                  isLoading: true,
-                  error: null,
-                },
-              }) as any,
-          )
+          patch(() => ({ isLoading: true, error: null }))
           try {
             const data = await serviceInstance.fetchPaginated(
               pageNumber || 1,
               fetchLimits[sliceName] || 50,
             )
-            set(
-              (state) =>
-                ({
-                  [sliceName]: { ...state[sliceName], data, isLoading: false },
-                }) as any,
-            )
+            patch(() => ({ data, isLoading: false }))
           } catch (error) {
-            set(
-              (state) =>
-                ({
-                  [sliceName]: {
-                    ...state[sliceName],
-                    error: 'Failed to fetch data',
-                    isLoading: false,
-                  },
-                }) as any,
-            )
+            patch(() => ({ error: 'Failed to fetch data', isLoading: false }))
             throw error
           }
         },
 
         search: async (query: string) => {
-          set(
-            (state) =>
-              ({
-                [sliceName]: {
-                  ...state[sliceName],
-                  isLoading: true,
-                  error: null,
-                },
-              }) as any,
-          )
+          patch(() => ({ isLoading: true, error: null }))
           try {
             const searchResults = await serviceInstance.search(query)
-            set(
-              (state) =>
-                ({
-                  [sliceName]: {
-                    ...state[sliceName],
-                    isLoading: false,
-                  },
-                }) as any,
-            )
+            patch(() => ({ isLoading: false }))
             return searchResults
-          } catch (error) {
-            set(
-              (state) =>
-                ({
-                  [sliceName]: {
-                    ...state[sliceName],
-                    error: 'Failed to search data',
-                    isLoading: false,
-                  },
-                }) as any,
-            )
+          } catch {
+            patch(() => ({ error: 'Failed to search data', isLoading: false }))
             return [] as T['Read'][]
           }
         },
 
         add: async (data: WithAttachments<T['Write']>) => {
-          set(
-            (state) =>
-              ({
-                [sliceName]: {
-                  ...state[sliceName],
-                  isLoading: true,
-                  error: null,
-                },
-              }) as any,
-          )
+          patch(() => ({ isLoading: true, error: null }))
           try {
             const newData = await serviceInstance.create(data)
-            set(
-              (state) =>
-                ({
-                  [sliceName]: {
-                    ...state[sliceName],
-                    data: [...state[sliceName].data, newData],
-                    isLoading: false,
-                  },
-                }) as any,
-            )
+            patch((slice) => ({
+              data: [...slice.data, newData],
+              isLoading: false,
+            }))
             return newData
           } catch (error) {
-            set(
-              (state) =>
-                ({
-                  [sliceName]: {
-                    ...state[sliceName],
-                    error: 'Failed to add data',
-                    isLoading: false,
-                  },
-                }) as any,
-            )
+            patch(() => ({ error: 'Failed to add data', isLoading: false }))
             throw error
           }
         },
 
         update: async (id: string, data: WithAttachments<T['Update']>) => {
-          set(
-            (state) =>
-              ({
-                [sliceName]: {
-                  ...state[sliceName],
-                  isLoading: true,
-                  error: null,
-                },
-              }) as any,
-          )
+          patch(() => ({ isLoading: true, error: null }))
           try {
             const updatedData = await serviceInstance.update(id, data)
-            set(
-              (state) =>
-                ({
-                  [sliceName]: {
-                    ...state[sliceName],
-                    data: state[sliceName].data.map((d) =>
-                      d.id === id ? updatedData : d,
-                    ),
-                    isLoading: false,
-                  },
-                }) as any,
-            )
+            patch((slice) => ({
+              data: slice.data.map((d) => (d.id === id ? updatedData : d)),
+              isLoading: false,
+            }))
           } catch (error) {
-            set(
-              (state) =>
-                ({
-                  [sliceName]: {
-                    ...state[sliceName],
-                    error: 'Failed to update data',
-                    isLoading: false,
-                  },
-                }) as any,
-            )
+            patch(() => ({ error: 'Failed to update data', isLoading: false }))
             throw error
           }
         },
 
         remove: async (id: string) => {
-          set(
-            (state) =>
-              ({
-                [sliceName]: {
-                  ...state[sliceName],
-                  isLoading: true,
-                  error: null,
-                },
-              }) as any,
-          )
+          patch(() => ({ isLoading: true, error: null }))
           try {
             await serviceInstance.delete(id)
-            set(
-              (state) =>
-                ({
-                  [sliceName]: {
-                    ...state[sliceName],
-                    data: state[sliceName].data.filter((d) => d.id !== id),
-                    isLoading: false,
-                  },
-                }) as any,
-            )
+            patch((slice) => ({
+              data: slice.data.filter((d) => d.id !== id),
+              isLoading: false,
+            }))
           } catch (error) {
-            set(
-              (state) =>
-                ({
-                  [sliceName]: {
-                    ...state[sliceName],
-                    error: 'Failed to remove data',
-                    isLoading: false,
-                  },
-                }) as any,
-            )
+            patch(() => ({ error: 'Failed to remove data', isLoading: false }))
             throw error
           }
         },
 
         reset: async () => {
-          set(
-            (state) =>
-              ({
-                [sliceName]: {
-                  ...state[sliceName],
-                  data: [],
-                  isLoading: false,
-                  error: null,
-                },
-              }) as any,
-          )
+          patch(() => ({ data: [], isLoading: false, error: null }))
           try {
             await serviceInstance.reset()
           } catch (error) {
-            set(
-              (state) =>
-                ({
-                  [sliceName]: {
-                    ...state[sliceName],
-                    error: 'Failed to reset data',
-                    isLoading: false,
-                  },
-                }) as any,
-            )
+            patch(() => ({ error: 'Failed to reset data', isLoading: false }))
             throw error
           }
         },
 
-        getById: (id?: string) => {
+        getById: (id?: string | null) => {
           if (!id) return null
-          const state = get()
-          return state[sliceName].data.find((d) => d.id === id) ?? null
+          return get()[sliceName].data.find((d) => d.id === id) ?? null
         },
       },
-    }) as unknown as { [key in K]: DbSlice<T> }
+    } as State
+  }
   return creator
 }
