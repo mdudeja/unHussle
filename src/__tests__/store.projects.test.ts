@@ -36,7 +36,7 @@ describe('Projects Store', () => {
 
   test('throw error when creating project with missing fields', async () => {
     const { add } = useStore.getState().projects
-    expect(await add({} as Parameters<typeof add>[0])).rejects.toThrow()
+    await expect(add({} as Parameters<typeof add>[0])).rejects.toThrow()
   })
 
   test('fetch projects', async () => {
@@ -69,7 +69,7 @@ describe('Projects Store', () => {
 
   test('throw error when updating non-existent project', async () => {
     const { update } = useStore.getState().projects
-    expect(await update('non-existent-id', { title: 'Fail' })).rejects.toThrow()
+    await expect(update('non-existent-id', { title: 'Fail' })).rejects.toThrow()
   })
 
   test('delete a project', async () => {
@@ -91,6 +91,6 @@ describe('Projects Store', () => {
 
   test('throw error when deleting non-existent project', async () => {
     const { remove: deleteProject } = useStore.getState().projects
-    expect(await deleteProject('non-existent-id')).rejects.toThrow()
+    await expect(deleteProject('non-existent-id')).rejects.toThrow()
   })
 })

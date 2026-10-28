@@ -1,7 +1,7 @@
 import { useCallback, useEffect, useState, useSyncExternalStore } from 'react'
 import { useStore as useZustandStore } from 'zustand'
 import { useStore } from '@/store'
-import type { EntityKind, EntityRecord } from '@c/workflows/contracts'
+import type { EntryKind, EntryRecord } from '@c/workflows/contracts'
 import { Logger } from '@c/Logger'
 import { getFrontendRuntime, dependencies } from './runtime'
 import { fetchLimits } from './services'
@@ -17,12 +17,16 @@ export function useWorkflowQuery<T>(
   const isDBReady = useStore((state) => state.isDBReady)
   queries.define(definition)
   const { key } = definition
+
   const subscribe = useCallback(
     (notify: () => void) => queries.store.subscribe(notify),
     [queries],
   )
+
   const snapshot = useCallback(() => queries.snapshot<T>(key), [queries, key])
+
   const state = useSyncExternalStore(subscribe, snapshot, snapshot)
+
   useEffect(() => {
     if (!enabled) return
     const deactivate = queries.activate(key)
@@ -33,6 +37,7 @@ export function useWorkflowQuery<T>(
       )
     return deactivate
   }, [queries, key, enabled, isDBReady])
+
   return {
     ...state,
     isLoading:
@@ -41,9 +46,9 @@ export function useWorkflowQuery<T>(
   }
 }
 
-export function useEntityList(kind: EntityKind, page = 1, enabled = true) {
+export function useEntityList(kind: EntryKind, page = 1, enabled = true) {
   const runtime = useWorkflowRuntime()
-  return useWorkflowQuery<EntityRecord[]>(
+  return useWorkflowQuery<EntryRecord[]>(
     {
       key: `list:${kind}:${page}`,
       dependencies: dependencies(kind),
@@ -56,7 +61,7 @@ export function useEntityList(kind: EntityKind, page = 1, enabled = true) {
   )
 }
 
-export function useEntityDetail(kind: EntityKind, id: string) {
+export function useEntityDetail(kind: EntryKind, id: string) {
   const runtime = useWorkflowRuntime()
   return useWorkflowQuery({
     key: `detail:${kind}:${id}`,
@@ -66,7 +71,7 @@ export function useEntityDetail(kind: EntityKind, id: string) {
 }
 
 export function useEntitySearch<T extends { id: string }>(
-  kind: EntityKind,
+  kind: EntryKind,
   term: string,
 ) {
   const runtime = useWorkflowRuntime()
@@ -79,10 +84,12 @@ export function useEntitySearch<T extends { id: string }>(
     },
     Boolean(term),
   )
+
   const [previous, setPrevious] = useState<{
-    kind: EntityKind
+    kind: EntryKind
     data: T[]
   } | null>(null)
+
   if (
     query.data !== null &&
     (query.data !== previous?.data || kind !== previous.kind)

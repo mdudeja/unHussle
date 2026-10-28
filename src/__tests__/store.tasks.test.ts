@@ -33,7 +33,7 @@ describe('Tasks Store', () => {
 
   test('throw error when adding task with missing fields', async () => {
     const { add } = useStore.getState().tasks
-    expect(await add({} as Parameters<typeof add>[0])).rejects.toThrow()
+    await expect(add({} as Parameters<typeof add>[0])).rejects.toThrow()
   })
 
   test('fetch tasks', async () => {
@@ -64,7 +64,7 @@ describe('Tasks Store', () => {
 
   test('throw error when updating non-existent task', async () => {
     const { update } = useStore.getState().tasks
-    expect(await 
+    await expect(
       update('non-existent-id', { title: 'Should Fail' }),
     ).rejects.toThrow()
   })
@@ -87,6 +87,6 @@ describe('Tasks Store', () => {
 
   test('throw error when deleting non-existent task', async () => {
     const { remove: deleteTask } = useStore.getState().tasks
-    expect(await deleteTask('non-existent-id')).rejects.toThrow()
+    await expect(deleteTask('non-existent-id')).rejects.toThrow()
   })
 })

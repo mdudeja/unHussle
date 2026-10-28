@@ -1,7 +1,7 @@
 import { useMemo, useState } from 'react'
 import { useStore } from '@/store'
 import { Logger } from '@c/Logger'
-import { Priority, Area, WithAttachments } from '@c/types/index'
+import { Priority, Area, WithSupporters } from '@c/types/index'
 import { Button } from '@/components/ui/button'
 import { Plus } from 'lucide-react'
 import {
@@ -9,7 +9,7 @@ import {
   EntityFormDialog,
 } from '@/components/ui/custom/entityForms'
 
-const areaDefaultValues: Partial<WithAttachments<Area['Write']>> = {
+const areaDefaultValues: Partial<WithSupporters<Area['Write']>> = {
   priority: Priority.MEDIUM,
 }
 
@@ -30,12 +30,12 @@ export const CreateAreaButtonComponent = () => {
   }
 
   const handleSubmit = async (
-    values: Partial<WithAttachments<Area['Write']>>,
+    values: Partial<WithSupporters<Area['Write']>>,
   ) => {
     setIsSubmitting(true)
     setErrorMessage(undefined)
     try {
-      await areas.add(values as WithAttachments<Area['Write']>)
+      await areas.add(values as WithSupporters<Area['Write']>)
       setIsDialogOpen(false)
     } catch (error) {
       Logger.getInstance().error(`Failed to create area: ${String(error)}`)

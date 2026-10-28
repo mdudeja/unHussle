@@ -1,28 +1,27 @@
-export type EntityKind =
-  | 'tasks'
-  | 'projects'
-  | 'areas'
-  | 'goals'
-  | 'resources'
-  | 'tags'
-  | 'urls'
-  | 'time_entries'
-export type EntityRecord = { id: string } & Record<string, unknown>
+export type EntityKind = 'tasks' | 'resources'
+export type EntityCollectionKind = 'projects' | 'areas' | 'goals'
+export type EntitySupporterKind = 'tags' | 'urls' | 'time_entries'
+
+export type EntryKind = EntityKind | EntityCollectionKind | EntitySupporterKind
+
+export type EntryRecord = { id: string } & Record<string, unknown>
+
 export type MutationInput = {
-  kind: EntityKind
+  kind: EntryKind
   action: 'create' | 'update' | 'delete' | 'deleteAll'
   id?: string
   changes?: Record<string, unknown>
 }
-export type MutationResult = EntityRecord | { deleted: number }
+export type MutationResult = EntryRecord | { deleted: number }
 export type MutationEvent = MutationInput & {
   operationId: string
   result: MutationResult
 }
 export type MutationCommands = {
-  'entity.mutate': { input: MutationInput; result: MutationResult }
+  'entry.mutate': { input: MutationInput; result: MutationResult }
 }
+
 export type AppEvents = {
-  'entity.changed': MutationEvent
+  'entry.changed': MutationEvent
   'tracking.changed': { taskId: string | null }
 }

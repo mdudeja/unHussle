@@ -18,7 +18,7 @@ import {
   Hash,
   Link,
 } from 'lucide-react'
-import { Area, Goal, Project, Task, WithAttachments } from '@c/types/index'
+import { Area, Goal, Project, Task, WithSupporters } from '@c/types/index'
 import { validateTaskSchedule } from '@c/taskSchedule'
 import type { FieldConfig, FieldOption } from '../types'
 import { priorityOptions, statusOptions } from '../utils'
@@ -36,7 +36,7 @@ export const createTaskFields = ({
   projects: Project['Read'][]
   areas: Area['Read'][]
   goals: Goal['Read'][]
-}): FieldConfig<WithAttachments<Task['Write']>>[] => {
+}): FieldConfig<WithSupporters<Task['Write']>>[] => {
   const projectOptions: FieldOption[] = projects.map((project) => ({
     label: project.title,
     value: project.id,

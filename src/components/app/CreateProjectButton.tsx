@@ -6,7 +6,7 @@ import {
   Priority,
   ProgressStatus,
   Project,
-  WithAttachments,
+  WithSupporters,
 } from '@c/types/index'
 import { Button } from '@/components/ui/button'
 import { Plus } from 'lucide-react'
@@ -15,7 +15,7 @@ import {
   EntityFormDialog,
 } from '@/components/ui/custom/entityForms'
 
-const projectDefaultValues: Partial<WithAttachments<Project['Write']>> = {
+const projectDefaultValues: Partial<WithSupporters<Project['Write']>> = {
   status: ProgressStatus.PLANNED,
   priority: Priority.MEDIUM,
 }
@@ -45,12 +45,12 @@ export const CreateProjectButtonComponent = () => {
   }
 
   const handleSubmit = async (
-    values: Partial<WithAttachments<Project['Write']>>,
+    values: Partial<WithSupporters<Project['Write']>>,
   ) => {
     setIsSubmitting(true)
     setErrorMessage(undefined)
     try {
-      await projects.add(values as WithAttachments<Project['Write']>)
+      await projects.add(values as WithSupporters<Project['Write']>)
       setIsDialogOpen(false)
     } catch (error) {
       Logger.getInstance().error(`Failed to create project: ${String(error)}`)

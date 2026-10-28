@@ -1,5 +1,5 @@
 import { areas, goals } from '@d/database/schemas'
-import { syncAttachments } from '@d/workflows/attachments'
+import { syncSupporters } from '@d/workflows/supporters'
 import { UnHussleDB } from '@d/database/UnHussleDB'
 import { areasData, goalsData } from '@d/database/seed/data'
 import { eq } from 'drizzle-orm'
@@ -52,7 +52,7 @@ export const runSeed = async ({
 
     if (area.tags && area.tags.length > 0) {
       const areaId = addedArea[0].id
-      db.transaction((tx) => syncAttachments(tx, areaId, { tags: area.tags }))
+      db.transaction((tx) => syncSupporters(tx, areaId, { tags: area.tags }))
     }
   }
 
@@ -91,7 +91,7 @@ export const runSeed = async ({
 
     if (goal.tags && goal.tags.length > 0) {
       const goalId = addedGoal[0].id
-      db.transaction((tx) => syncAttachments(tx, goalId, { tags: goal.tags }))
+      db.transaction((tx) => syncSupporters(tx, goalId, { tags: goal.tags }))
     }
   }
 

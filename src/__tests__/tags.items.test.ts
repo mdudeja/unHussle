@@ -71,6 +71,6 @@ describe('GET /tags/:id/items', () => {
   })
 
   test('rejects an unknown tag', async () => {
-    expect(await tags.fetchItems('does-not-exist')).rejects.toThrow()
+    await expect(tags.fetchItems('does-not-exist')).rejects.toThrow()
   })
 })

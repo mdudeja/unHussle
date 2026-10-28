@@ -2,8 +2,8 @@ import { createStore, type StoreApi } from 'zustand/vanilla'
 import { createRuntime } from '@c/workflows/runtime'
 import type {
   AppEvents,
-  EntityKind,
-  EntityRecord,
+  EntryKind,
+  EntryRecord,
   MutationCommands,
   MutationInput,
   MutationResult,
@@ -11,7 +11,7 @@ import type {
 import {
   ProgressStatus,
   type Task,
-  type WithAttachments,
+  type WithSupporters,
   type UrlInput,
 } from '@c/types'
 import { getNowMillis } from '@c/datetimeUtils'
@@ -25,22 +25,18 @@ import {
   type WorkflowUIState,
 } from './tracking'
 
-export type EntityTransport = {
-  create(this: void, changes: Record<string, unknown>): Promise<EntityRecord>
+export type EntryTransport = {
+  create(this: void, changes: Record<string, unknown>): Promise<EntryRecord>
   update(
     this: void,
     id: string,
     changes: Record<string, unknown>,
-  ): Promise<EntityRecord>
-  delete(this: void, id: string): Promise<EntityRecord>
+  ): Promise<EntryRecord>
+  delete(this: void, id: string): Promise<EntryRecord>
   reset(this: void): Promise<unknown>
-  fetchPaginated(
-    this: void,
-    page: number,
-    size: number,
-  ): Promise<EntityRecord[]>
-  fetchById(this: void, id: string): Promise<EntityRecord>
-  search(this: void, term: string): Promise<EntityRecord[]>
+  fetchPaginated(this: void, page: number, size: number): Promise<EntryRecord[]>
+  fetchById(this: void, id: string): Promise<EntryRecord>
+  search(this: void, term: string): Promise<EntryRecord[]>
 }
 type Transition = {
   id: string
@@ -48,17 +44,26 @@ type Transition = {
   changes?: Record<string, unknown>
 }
 type Commands = MutationCommands & {
-  'task.transition': { input: Transition; result: EntityRecord }
+  'task.transition': { input: Transition; result: EntryRecord }
   'brainDump.submit': {
-    input: { task?: WithAttachments<Task['Write']>; urls?: UrlInput[] }
+    input: { task?: WithSupporters<Task['Write']>; urls?: UrlInput[] }
     result: { failedUrls: UrlInput[] }
   }
+}
+
+const queryKindToLabel: Record<string, string> = {
+  search: 'search results',
+  related: 'related tasks',
+  tagged: 'tagged items',
+  detail: 'item details',
+  urls: 'links',
+  time_entries: 'time entries',
 }
 
 export function createFrontendRuntime(
   store: StoreApi<StoreState>,
   options: {
-    services?: Record<EntityKind, EntityTransport>
+    services?: Record<EntryKind, EntryTransport>
     storage?: SessionStorage
     now?: () => number
   } = {},
@@ -74,8 +79,10 @@ export function createFrontendRuntime(
     options.storage ??
       (typeof localStorage === 'undefined' ? undefined : localStorage),
   )
-  const services: Record<EntityKind, EntityTransport> =
+
+  const services: Record<EntryKind, EntryTransport> =
     options.services ?? entityServices
+
   const context = {
     store,
     services,
@@ -87,49 +94,46 @@ export function createFrontendRuntime(
   }
   const runtime = createRuntime<Commands, AppEvents, typeof context>(context)
   let lifecycleQueue: Promise<unknown> = Promise.resolve()
+
   const serialize = <T>(work: () => Promise<T>) => {
     const result = lifecycleQueue.then(work)
     lifecycleQueue = result.catch(() => {})
     return result
   }
-  const project = (kind: EntityKind, data: EntityRecord[]) => {
+
+  const projectRecord = (kind: EntryKind, data: EntryRecord[]) => {
     if (disposed) return
     store.setState((state) => ({ [kind]: { ...state[kind], data } }))
   }
-  const defineList = (kind: EntityKind, page = 1) => {
+
+  const defineList = (kind: EntryKind, page = 1) => {
     const key = `list:${kind}:${page}`
     queries.define({
       key,
       dependencies: dependencies(kind),
       load: () => services[kind].fetchPaginated(page, fetchLimits[kind]),
-      onData: (data) => project(kind, data),
+      onData: (data) => projectRecord(kind, data),
     })
     return key
   }
-  const ensureList = (kind: EntityKind, page = 1) =>
-    queries.ensure<EntityRecord[]>(defineList(kind, page))
+
+  const ensureList = (kind: EntryKind, page = 1) =>
+    queries.ensure<EntryRecord[]>(defineList(kind, page))
+
   const dismissWarning = (id: string) =>
     ui.setState(({ warnings }) => ({
       warnings: warnings.filter((warning) => warning.id !== id),
     }))
+
   const warnRefresh = (operationId: string, key: string, error: unknown) => {
     if (disposed) return
     const id = `${operationId}:${key}`
     const [queryKind, entityKind] = key.split(':')
     const label =
-      queryKind === 'search'
-        ? 'search results'
-        : queryKind === 'related'
-          ? 'related tasks'
-          : queryKind === 'tagged'
-            ? 'tagged items'
-            : queryKind === 'detail'
-              ? 'item details'
-              : entityKind === 'urls'
-                ? 'links'
-                : entityKind === 'time_entries'
-                  ? 'time entries'
-                  : (entityKind ?? 'related data')
+      queryKindToLabel[queryKind] ??
+      queryKindToLabel[entityKind] ??
+      entityKind ??
+      'related data'
     context.logger.error(`Follow-up refresh failed (${id}): ${String(error)}`)
     ui.setState(({ warnings }) => ({
       warnings: [
@@ -151,7 +155,8 @@ export function createFrontendRuntime(
       ],
     }))
   }
-  runtime.events.on('entity.changed', async (event) => {
+
+  runtime.events.on('entry.changed', async (event) => {
     const extra: string[] = []
     if (event.action === 'create' || event.action === 'update') {
       for (const kind of ['tags', 'urls'] as const) {
@@ -162,27 +167,41 @@ export function createFrontendRuntime(
     for (const { key, error } of outcomes)
       if (error) warnRefresh(event.operationId, key, error)
   })
+
   const publishTracking = () =>
     runtime.events.publish('tracking.changed', {
       taskId: tracking.getActiveTracking()?.taskId ?? null,
     })
+
   const mutate = async (input: MutationInput): Promise<MutationResult> => {
     const { kind, action, id, changes = {} } = input
     const service = services[kind]
     let result: MutationResult
-    if (action === 'create') result = await service.create(changes)
-    else if (action === 'update' && id)
-      result = await service.update(id, changes)
-    else if (action === 'delete' && id) result = await service.delete(id)
-    else if (action === 'deleteAll') {
-      const response = await service.reset()
-      result =
-        response && typeof response === 'object' && 'deleted' in response
-          ? (response as { deleted: number })
-          : { deleted: 0 }
-    } else throw new Error('An entity id is required')
-    const rows = store.getState()[kind].data as EntityRecord[]
-    project(
+    switch (action) {
+      case 'create':
+        result = await service.create(changes)
+        break
+      case 'update':
+        if (!id) throw new Error('Missing id for update action')
+        result = await service.update(id, changes)
+        break
+      case 'delete':
+        if (!id) throw new Error('Missing id for delete action')
+        result = await service.delete(id)
+        break
+      case 'deleteAll':
+        // eslint-disable-next-line no-case-declarations
+        const response = await service.reset()
+        result =
+          response && typeof response === 'object' && 'deleted' in response
+            ? (response as { deleted: number })
+            : { deleted: 0 }
+        break
+      default:
+        throw new Error('Unsupported mutation action')
+    }
+    const rows = store.getState()[kind].data as EntryRecord[]
+    projectRecord(
       kind,
       action === 'deleteAll'
         ? []
@@ -190,15 +209,15 @@ export function createFrontendRuntime(
           ? rows.filter((row) => row.id !== id)
           : action === 'create'
             ? [
-                ...rows.filter((row) => row.id !== (result as EntityRecord).id),
-                result as EntityRecord,
+                ...rows.filter((row) => row.id !== (result as EntryRecord).id),
+                result as EntryRecord,
               ]
             : rows.map((row) =>
-                row.id === id ? (result as EntityRecord) : row,
+                row.id === id ? (result as EntryRecord) : row,
               ),
     )
     const operationId = crypto.randomUUID()
-    const outcomes = await runtime.events.publish('entity.changed', {
+    const outcomes = await runtime.events.publish('entry.changed', {
       ...input,
       result,
       operationId,
@@ -211,11 +230,12 @@ export function createFrontendRuntime(
       }
     return result
   }
+
   const transition = async ({
     id,
     status,
     changes = {},
-  }: Transition): Promise<EntityRecord> => {
+  }: Transition): Promise<EntryRecord> => {
     let session = tracking.getActiveTracking()
     if (
       status === ProgressStatus.IN_PROGRESS &&
@@ -227,22 +247,27 @@ export function createFrontendRuntime(
     }
     const task = await services.tasks.fetchById(id)
     const values: Record<string, unknown> = { ...changes, status }
+
     if (status === ProgressStatus.IN_PROGRESS)
       values.started_at = task.started_at ?? context.now()
     if (status === ProgressStatus.COMPLETED) values.completed_at = context.now()
+
     const stopsTracking =
       status !== ProgressStatus.IN_PROGRESS && session?.taskId === id
+
     if (stopsTracking && session) {
       values.spent_minutes =
         Number(task.spent_minutes ?? 0) +
         Math.ceil(Math.max(0, context.now() - session.startTime) / 60000)
     }
+
     const result = (await mutate({
       kind: 'tasks',
       action: 'update',
       id,
       changes: values,
-    })) as EntityRecord
+    })) as EntryRecord
+
     if (stopsTracking) tracking.clear()
     if (
       status === ProgressStatus.IN_PROGRESS &&
@@ -252,10 +277,12 @@ export function createFrontendRuntime(
     await publishTracking()
     return result
   }
+
   runtime.commands.handle('task.transition', (input) =>
     serialize(() => transition(input)),
   )
-  runtime.commands.handle('entity.mutate', (input) => {
+
+  runtime.commands.handle('entry.mutate', (input) => {
     if (
       input.kind === 'tasks' &&
       input.action === 'update' &&
@@ -286,11 +313,12 @@ export function createFrontendRuntime(
     }
     return mutate(input)
   })
+
   runtime.commands.handle('brainDump.submit', async ({ task, urls = [] }) => {
     if (!task) {
       const outcomes = await Promise.allSettled(
         urls.map((url) =>
-          runtime.commands.execute('entity.mutate', {
+          runtime.commands.execute('entry.mutate', {
             kind: 'urls',
             action: 'create',
             changes: url,
@@ -316,13 +344,37 @@ export function createFrontendRuntime(
       if (!area) throw new Error('Brain Dump area not found')
       task = { ...task, area_id: area.id }
     }
-    await runtime.commands.execute('entity.mutate', {
+    await runtime.commands.execute('entry.mutate', {
       kind: 'tasks',
       action: 'create',
       changes: task,
     })
     return { failedUrls: [] }
   })
+
+  const fetchList = async (kind: EntryKind, page = 1) => {
+    const key = defineList(kind, page)
+    queries.markStale(key)
+    return queries.ensure<EntryRecord[]>(key)
+  }
+
+  const search = async (kind: EntryKind, term: string) => {
+    const key = `search:${kind}:${term}`
+    queries.define({
+      key,
+      dependencies: dependencies(kind),
+      load: () => services[kind].search(term),
+    })
+    return queries.ensure<EntryRecord[]>(key)
+  }
+
+  const dispose = () => {
+    disposed = true
+    runtime.dispose()
+    queries.dispose()
+    ui.setState({ tracking: null, warnings: [] })
+  }
+
   return {
     ...runtime,
     queries,
@@ -332,40 +384,25 @@ export function createFrontendRuntime(
     defineList,
     ensureList,
     dismissWarning,
-    async fetchList(kind: EntityKind, page = 1) {
-      const key = defineList(kind, page)
-      queries.markStale(key)
-      return queries.ensure<EntityRecord[]>(key)
-    },
-    async search(kind: EntityKind, term: string) {
-      const key = `search:${kind}:${term}`
-      queries.define({
-        key,
-        dependencies: dependencies(kind),
-        load: () => services[kind].search(term),
-      })
-      return queries.ensure<EntityRecord[]>(key)
-    },
-    dispose() {
-      disposed = true
-      runtime.dispose()
-      queries.dispose()
-      ui.setState({ tracking: null, warnings: [] })
-    },
+    fetchList,
+    search,
+    dispose,
   }
 }
 
-export function dependencies(kind: EntityKind): EntityKind[] {
-  const hydrated: EntityKind[] = [
+export function dependencies(kind: EntryKind): EntryKind[] {
+  const hydrated: EntryKind[] = [
     'tasks',
     'projects',
     'areas',
     'goals',
     'resources',
   ]
-  return hydrated.includes(kind)
+  return kind === 'tasks'
     ? [...hydrated, 'tags', 'urls', 'time_entries']
-    : [kind]
+    : hydrated.includes(kind)
+      ? [...hydrated, 'tags', 'urls']
+      : [kind]
 }
 export type FrontendRuntime = ReturnType<typeof createFrontendRuntime>
 let instances = new WeakMap<StoreApi<StoreState>['getState'], FrontendRuntime>()

@@ -3,20 +3,21 @@ import type {
   AppEvents,
   MutationCommands,
   MutationResult,
-  EntityRecord,
+  EntryRecord,
+  EntitySupporterKind,
 } from '@c/workflows/contracts'
-import type { TagInput, UrlInput } from '@c/types'
+import type { TagInput, TimeEntryInput, UrlInput } from '@c/types'
 import { Logger } from '@c/Logger'
 import { UnHussleDB } from '@d/database/UnHussleDB'
 import * as tables from '@d/database/schemas'
 import { toUrlParts } from '@d/database/repositories/helpers'
 import { createUnitOfWork } from './unitOfWork'
 import {
-  attachmentCapabilities,
-  removeOwnerAttachments,
-  removeReferenceAttachments,
-  syncAttachments,
-} from './attachments'
+  supporterCapabilities,
+  removeOwnerSupporters,
+  removeReferenceSupporters,
+  syncSupporters,
+} from './supporters'
 
 const entityTables = {
   tasks: tables.tasks,
@@ -38,17 +39,18 @@ export function createBackendRuntime(database: UnHussleDB) {
     context,
   )
   runtime.commands.handle(
-    'entity.mutate',
+    'entry.mutate',
     async (input, { unitOfWork, logger }) => {
       const operationId = crypto.randomUUID()
       const { kind, action, id, changes = {} } = input
-      const { tags, urls, ...values } = changes
-      const capability = attachmentCapabilities[kind]
+      const { tags, urls, time_entries, ...values } = changes
+      const capability = supporterCapabilities[kind]
       if (
         (tags !== undefined && !capability?.tags) ||
-        (urls !== undefined && !capability?.urls)
+        (urls !== undefined && !capability?.urls) ||
+        (time_entries !== undefined && !capability?.time_entries)
       ) {
-        throw new Error(`Attachments are not supported for ${kind}`)
+        throw new Error(`Supporters are not supported for ${kind}`)
       }
       if (kind === 'urls' && typeof values.url === 'string')
         values.parts = toUrlParts(values.url)
@@ -56,14 +58,18 @@ export function createBackendRuntime(database: UnHussleDB) {
         const repo = repository(entityTables[kind])
         if (action === 'deleteAll') {
           const ids = repo.all().map((row) => row.id)
-          removeOwnerAttachments(tx, ids)
-          removeReferenceAttachments(tx, kind, ids)
+          removeOwnerSupporters(tx, ids)
+          if (['tags', 'urls', 'time_entries'].includes(kind)) {
+            removeReferenceSupporters(tx, kind as EntitySupporterKind, ids)
+          }
           return { deleted: repo.deleteAll().length }
         }
         if (action === 'delete') {
           if (!id) throw new Error('An entity id is required')
-          removeOwnerAttachments(tx, [id])
-          removeReferenceAttachments(tx, kind, [id])
+          removeOwnerSupporters(tx, [id])
+          if (['tags', 'urls', 'time_entries'].includes(kind)) {
+            removeReferenceSupporters(tx, kind as EntitySupporterKind, [id])
+          }
           const row = repo.delete(id)
           if (!row) throw new Error('NOT_FOUND')
           return row
@@ -81,18 +87,19 @@ export function createBackendRuntime(database: UnHussleDB) {
             action === 'create' ? `Failed to insert ${kind}` : 'NOT_FOUND',
           )
         if (capability)
-          syncAttachments(
+          syncSupporters(
             tx,
             row.id,
             {
               tags: tags as TagInput[] | undefined,
               urls: urls as UrlInput[] | undefined,
+              time_entries: time_entries as TimeEntryInput[] | undefined,
             },
             { replace: action === 'update' },
           )
         return row
       })) as MutationResult
-      const outcomes = await runtime.events.publish('entity.changed', {
+      const outcomes = await runtime.events.publish('entry.changed', {
         ...input,
         operationId,
         result,
@@ -113,7 +120,7 @@ export function createBackendRuntime(database: UnHussleDB) {
       read: (id: string) => Promise<T | null>,
     ) {
       try {
-        const hydrated = await read((result as EntityRecord).id)
+        const hydrated = await read((result as EntryRecord).id)
         if (!hydrated) throw new Error('Committed entity could not be loaded')
         return hydrated
       } catch (error) {

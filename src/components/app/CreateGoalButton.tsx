@@ -2,7 +2,7 @@ import { useEntityList } from '@/workflows/hooks'
 import { useMemo, useState } from 'react'
 import { useStore } from '@/store'
 import { Logger } from '@c/Logger'
-import { Priority, ProgressStatus, Goal, WithAttachments } from '@c/types/index'
+import { Priority, ProgressStatus, Goal, WithSupporters } from '@c/types/index'
 import { Button } from '@/components/ui/button'
 import { Plus } from 'lucide-react'
 import {
@@ -10,7 +10,7 @@ import {
   EntityFormDialog,
 } from '@/components/ui/custom/entityForms'
 
-const goalDefaultValues: Partial<WithAttachments<Goal['Write']>> = {
+const goalDefaultValues: Partial<WithSupporters<Goal['Write']>> = {
   status: ProgressStatus.PLANNED,
   priority: Priority.MEDIUM,
 }
@@ -38,12 +38,12 @@ export const CreateGoalButtonComponent = () => {
   }
 
   const handleSubmit = async (
-    values: Partial<WithAttachments<Goal['Write']>>,
+    values: Partial<WithSupporters<Goal['Write']>>,
   ) => {
     setIsSubmitting(true)
     setErrorMessage(undefined)
     try {
-      await goals.add(values as WithAttachments<Goal['Write']>)
+      await goals.add(values as WithSupporters<Goal['Write']>)
       setIsDialogOpen(false)
     } catch (error) {
       Logger.getInstance().error(`Failed to create goal: ${String(error)}`)

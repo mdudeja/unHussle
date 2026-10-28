@@ -9,7 +9,7 @@ import {
   Hash,
   Link,
 } from 'lucide-react'
-import { Area, Goal, WithAttachments } from '@c/types/index'
+import { Area, Goal, WithSupporters } from '@c/types/index'
 import type { FieldConfig, FieldOption } from '../types'
 import { priorityOptions, statusOptions } from '../utils'
 
@@ -17,7 +17,7 @@ export const createGoalFields = ({
   areas,
 }: {
   areas: Area['Read'][]
-}): FieldConfig<WithAttachments<Goal['Write']>>[] => {
+}): FieldConfig<WithSupporters<Goal['Write']>>[] => {
   const areaOptions: FieldOption[] = areas.map((area) => ({
     label: area.title,
     value: area.id,

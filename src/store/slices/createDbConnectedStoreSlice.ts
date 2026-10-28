@@ -1,8 +1,8 @@
 import type { StoreApi } from 'zustand/vanilla'
 import type { StoreState } from '@/store'
-import type { EntityKind } from '@c/workflows/contracts'
+import type { EntryKind } from '@c/workflows/contracts'
 import { getFrontendRuntime } from '@/workflows/runtime'
-import { DbEntityTypes, WithAttachments } from '@c/types/index'
+import { DbEntityTypes, WithSupporters } from '@c/types/index'
 import { StateCreator } from 'zustand'
 
 export interface DbSlice<T extends DbEntityTypes> {
@@ -11,8 +11,8 @@ export interface DbSlice<T extends DbEntityTypes> {
   error: string | null
   fetch: (pageNumber?: number) => Promise<void>
   search: (query: string) => Promise<T['Read'][]>
-  add: (data: WithAttachments<T['Write']>) => Promise<T['Read']>
-  update: (id: string, data: WithAttachments<T['Update']>) => Promise<void>
+  add: (data: WithSupporters<T['Write']>) => Promise<T['Read']>
+  update: (id: string, data: WithSupporters<T['Update']>) => Promise<void>
   remove: (id: string) => Promise<void>
   reset: () => Promise<void>
   getById: (id?: string | null) => T['Read'] | null
@@ -20,7 +20,7 @@ export interface DbSlice<T extends DbEntityTypes> {
 
 export default function generateCreateDbConnectedStateSlice<
   T extends DbEntityTypes,
-  K extends EntityKind,
+  K extends EntryKind,
 >(sliceName: K) {
   type State = { [key in K]: DbSlice<T> }
   const creator: StateCreator<State> = (_set, get, api) => {
@@ -67,18 +67,18 @@ export default function generateCreateDbConnectedStateSlice<
           }),
         search: async (term: string) =>
           runtime().search(kind, term) as Promise<T['Read'][]>,
-        add: (changes: WithAttachments<T['Write']>) =>
+        add: (changes: WithSupporters<T['Write']>) =>
           operation(
             async () =>
-              runtime().commands.execute('entity.mutate', {
+              runtime().commands.execute('entry.mutate', {
                 kind,
                 action: 'create',
                 changes,
               }) as Promise<T['Read']>,
           ),
-        update: (id: string, changes: WithAttachments<T['Update']>) =>
+        update: (id: string, changes: WithSupporters<T['Update']>) =>
           operation(async () => {
-            await runtime().commands.execute('entity.mutate', {
+            await runtime().commands.execute('entry.mutate', {
               kind,
               action: 'update',
               id,
@@ -87,7 +87,7 @@ export default function generateCreateDbConnectedStateSlice<
           }),
         remove: (id: string) =>
           operation(async () => {
-            await runtime().commands.execute('entity.mutate', {
+            await runtime().commands.execute('entry.mutate', {
               kind,
               action: 'delete',
               id,
@@ -95,7 +95,7 @@ export default function generateCreateDbConnectedStateSlice<
           }),
         reset: () =>
           operation(async () => {
-            await runtime().commands.execute('entity.mutate', {
+            await runtime().commands.execute('entry.mutate', {
               kind,
               action: 'deleteAll',
             })

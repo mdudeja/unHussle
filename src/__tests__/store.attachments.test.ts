@@ -71,7 +71,7 @@ describe('Entity tags and URLs', () => {
 
   test('rejects an invalid url', async () => {
     const { add } = useStore.getState().tasks
-    expect(await 
+    await expect(
       add({ title: 'Bad link', urls: [{ url: 'not a url' }] }),
     ).rejects.toThrow()
   })

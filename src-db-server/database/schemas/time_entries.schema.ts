@@ -8,9 +8,11 @@ export const timeEntries = sqliteTable(
   {
     ...entitySupporterSchema,
     title: text().default(''),
-    task_id: text('task_id').references(() => tasks.id, {
-      onDelete: 'cascade',
-    }),
+    task_id: text('task_id')
+      .references(() => tasks.id, {
+        onDelete: 'cascade',
+      })
+      .notNull(),
     start_time: integer({ mode: 'number' }).notNull(),
     end_time: integer({ mode: 'number' }),
     duration: integer().default(0),

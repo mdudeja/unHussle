@@ -7,12 +7,12 @@ import {
   Hash,
   Link,
 } from 'lucide-react'
-import { Area, WithAttachments } from '@c/types/index'
+import { Area, WithSupporters } from '@c/types/index'
 import type { FieldConfig } from '../types'
 import { priorityOptions } from '../utils'
 
 export const createAreaFields = (): FieldConfig<
-  WithAttachments<Area['Write']>
+  WithSupporters<Area['Write']>
 >[] => [
   {
     name: 'title',

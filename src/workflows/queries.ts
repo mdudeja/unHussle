@@ -1,5 +1,5 @@
 import { createStore } from 'zustand/vanilla'
-import type { EntityKind } from '@c/workflows/contracts'
+import type { EntryKind } from '@c/workflows/contracts'
 
 export type QueryState<T = unknown> = {
   data: T | null
@@ -15,7 +15,7 @@ export const emptyQuery: QueryState = {
 }
 export type QueryDefinition<T> = {
   key: string
-  dependencies: EntityKind[]
+  dependencies: EntryKind[]
   load: () => Promise<T>
   onData?: (data: T) => void
 }
@@ -32,14 +32,17 @@ export function createQueryCoordinator() {
   }))
   const registrations = new Map<string, Registration>()
   let disposed = false
+
   const snapshot = <T>(key: string) =>
     (store.getState().entries[key] ?? emptyQuery) as QueryState<T>
+
   const patch = (key: string, values: Partial<QueryState>) => {
     if (disposed) return
     store.setState(({ entries }) => ({
       entries: { ...entries, [key]: { ...snapshot(key), ...values } },
     }))
   }
+
   const define = <T>(definition: QueryDefinition<T>) => {
     const existing = registrations.get(definition.key)
     if (existing) Object.assign(existing, definition)
@@ -50,6 +53,7 @@ export function createQueryCoordinator() {
         generation: 0,
       } as Registration)
   }
+
   const ensure = async <T>(key: string): Promise<T> => {
     const registration = registrations.get(key)
     if (!registration) throw new Error(`Unregistered query: ${key}`)
@@ -80,57 +84,67 @@ export function createQueryCoordinator() {
     })
     return registration.pending as Promise<T>
   }
+
+  const activate = (key: string) => {
+    const registration = registrations.get(key)
+    if (!registration) throw new Error(`Unregistered query: ${key}`)
+    registration.active++
+    return () => {
+      registration.active = Math.max(0, registration.active - 1)
+    }
+  }
+
+  const markStale = (key: string) => {
+    const registration = registrations.get(key)
+    if (registration) registration.generation++
+    patch(key, { stale: true })
+  }
+
+  const invalidate = async (kinds: EntryKind[], extraKeys: string[] = []) => {
+    const affected: string[] = []
+    for (const [key, registration] of registrations) {
+      if (
+        !extraKeys.includes(key) &&
+        !registration.dependencies.some((kind) => kinds.includes(kind))
+      )
+        continue
+      registration.generation++
+      patch(key, { stale: true })
+      if (registration.active || extraKeys.includes(key)) affected.push(key)
+    }
+    return Promise.all(
+      affected.map(async (key) => {
+        try {
+          await ensure(key)
+          return { key, error: null }
+        } catch (error) {
+          return { key, error }
+        }
+      }),
+    )
+  }
+
+  const clear = () => {
+    for (const registration of registrations.values()) registration.generation++
+    store.setState({ entries: {} })
+  }
+
+  const dispose = () => {
+    disposed = true
+    registrations.clear()
+    store.setState({ entries: {} })
+  }
+
   return {
     store,
     snapshot,
     define,
     ensure,
-    activate(key: string) {
-      const registration = registrations.get(key)
-      if (!registration) throw new Error(`Unregistered query: ${key}`)
-      registration.active++
-      return () => {
-        registration.active = Math.max(0, registration.active - 1)
-      }
-    },
-    markStale(key: string) {
-      const registration = registrations.get(key)
-      if (registration) registration.generation++
-      patch(key, { stale: true })
-    },
-    async invalidate(kinds: EntityKind[], extraKeys: string[] = []) {
-      const affected: string[] = []
-      for (const [key, registration] of registrations) {
-        if (
-          !extraKeys.includes(key) &&
-          !registration.dependencies.some((kind) => kinds.includes(kind))
-        )
-          continue
-        registration.generation++
-        patch(key, { stale: true })
-        if (registration.active || extraKeys.includes(key)) affected.push(key)
-      }
-      return Promise.all(
-        affected.map(async (key) => {
-          try {
-            await ensure(key)
-            return { key, error: null }
-          } catch (error) {
-            return { key, error }
-          }
-        }),
-      )
-    },
-    clear() {
-      for (const registration of registrations.values())
-        registration.generation++
-      store.setState({ entries: {} })
-    },
-    dispose() {
-      disposed = true
-      registrations.clear()
-      store.setState({ entries: {} })
-    },
+    activate,
+    markStale,
+    invalidate,
+    clear,
+    dispose,
   }
 }
 export type QueryCoordinator = ReturnType<typeof createQueryCoordinator>

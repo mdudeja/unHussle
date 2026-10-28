@@ -3,14 +3,14 @@ import { createStore } from 'zustand/vanilla'
 import {
   createFrontendRuntime,
   getFrontendRuntime,
-  type EntityTransport,
+  type EntryTransport,
 } from '@/workflows/runtime'
 import { useStore, type StoreState } from '@/store'
 import { ProgressStatus } from '@c/types'
-import type { EntityKind, EntityRecord } from '@c/workflows/contracts'
+import type { EntityKind, EntryKind, EntryRecord } from '@c/workflows/contracts'
 
 function fixture(initialStorage?: string) {
-  const rows = new Map<EntityKind, Map<string, EntityRecord>>()
+  const rows = new Map<EntryKind, Map<string, EntryRecord>>()
   const services = Object.fromEntries(
     (
       [
@@ -24,9 +24,9 @@ function fixture(initialStorage?: string) {
         'time_entries',
       ] as const
     ).map((kind) => {
-      const data = new Map<string, EntityRecord>()
+      const data = new Map<string, EntryRecord>()
       rows.set(kind, data)
-      const service: EntityTransport = {
+      const service: EntryTransport = {
         create: mock(async (changes: Record<string, unknown>) => {
           const row = { id: crypto.randomUUID(), ...changes }
           data.set(row.id, row)
@@ -61,7 +61,7 @@ function fixture(initialStorage?: string) {
       }
       return [kind, service]
     }),
-  ) as Record<EntityKind, EntityTransport>
+  ) as Record<EntryKind, EntryTransport>
   const initial = useStore.getInitialState()
   const store = createStore<StoreState>(() => ({
     ...initial,
@@ -95,7 +95,7 @@ describe('Frontend workflows', () => {
   test('slice operations publish through the same runtime consumed by React', async () => {
     const runtime = getFrontendRuntime(useStore)
     const seen: string[] = []
-    const off = runtime.events.on('entity.changed', (event, context) => {
+    const off = runtime.events.on('entry.changed', (event, context) => {
       expect(context.store.getState).toBe(useStore.getState)
       if (event.kind === 'tasks') seen.push(event.action)
     })
@@ -125,14 +125,14 @@ describe('Frontend workflows', () => {
     services.tags.fetchPaginated = mock(async () => {
       throw new Error('Read failed')
     })
-    const result = (await runtime.commands.execute('entity.mutate', {
+    const result = (await runtime.commands.execute('entry.mutate', {
       kind: 'tasks',
       action: 'create',
       changes: {
         title: 'Saved task',
         tags: [],
       },
-    })) as EntityRecord
+    })) as EntryRecord
     expect(store.getState().tasks.data[0].id).toBe(result.id)
     expect(runtime.ui.getState().warnings).toHaveLength(1)
     services.tags.fetchPaginated = mock(async () => [])
@@ -151,7 +151,7 @@ describe('Frontend workflows', () => {
     services.tasks.update = mock(async () => {
       throw new Error('Write failed')
     })
-    expect(await 
+    await expect(
       runtime.commands.execute('task.transition', {
         id: 'one',
         status: ProgressStatus.PAUSED,
@@ -181,8 +181,8 @@ describe('Frontend workflows', () => {
     services.tasks.delete = async () => {
       throw new Error('Delete failed')
     }
-    expect(await 
-      runtime.commands.execute('entity.mutate', {
+    await expect(
+      runtime.commands.execute('entry.mutate', {
         kind: 'tasks',
         action: 'delete',
         id: 'one',
@@ -190,7 +190,7 @@ describe('Frontend workflows', () => {
     ).rejects.toThrow()
     expect(runtime.tracking.getActiveTracking()?.taskId).toBe('one')
     services.tasks.delete = remove
-    await runtime.commands.execute('entity.mutate', {
+    await runtime.commands.execute('entry.mutate', {
       kind: 'tasks',
       action: 'delete',
       id: 'one',
@@ -287,7 +287,7 @@ describe('Frontend workflows', () => {
     await runtime.search('tasks', 'Match')
     const key = 'search:tasks:Match'
     const off = runtime.queries.activate(key)
-    await runtime.commands.execute('entity.mutate', {
+    await runtime.commands.execute('entry.mutate', {
       kind: 'tasks',
       action: 'update',
       id: 'one',

@@ -4,7 +4,7 @@ import { UnHussleDB } from '@d/database/UnHussleDB'
 import { createBackendRuntime } from '@d/workflows/runtime'
 import { createUnitOfWork } from '@d/workflows/unitOfWork'
 import { tasks, tags, junctionTags, junctionUrls } from '@d/database/schemas'
-import type { EntityRecord } from '@c/workflows/contracts'
+import type { EntryRecord } from '@c/workflows/contracts'
 
 describe('Transactional command handlers', () => {
   const database = new UnHussleDB(':memory:')
@@ -16,11 +16,11 @@ describe('Transactional command handlers', () => {
     const runtime = createBackendRuntime(database)
     const db = await database.getDb()
     let events = 0
-    runtime.events.on('entity.changed', () => {
+    runtime.events.on('entry.changed', () => {
       events++
     })
-    expect(await 
-      runtime.commands.execute('entity.mutate', {
+    await expect(
+      runtime.commands.execute('entry.mutate', {
         kind: 'tasks',
         action: 'create',
         changes: {
@@ -45,20 +45,20 @@ describe('Transactional command handlers', () => {
     const db = await database.getDb()
     let committed = false
     let count = 0
-    runtime.events.on('entity.changed', (event) => {
+    runtime.events.on('entry.changed', (event) => {
       count++
       committed = !!db
         .select()
         .from(tasks)
-        .where(eq(tasks.id, (event.result as EntityRecord).id))
+        .where(eq(tasks.id, (event.result as EntryRecord).id))
         .get()
       throw new Error('Independent listener failed')
     })
-    const result = (await runtime.commands.execute('entity.mutate', {
+    const result = (await runtime.commands.execute('entry.mutate', {
       kind: 'tasks',
       action: 'create',
       changes: { title: 'Committed' },
-    })) as EntityRecord
+    })) as EntryRecord
     expect(result.id).toBeTruthy()
     expect(committed).toBe(true)
     expect(count).toBe(1)
@@ -68,7 +68,7 @@ describe('Transactional command handlers', () => {
   test('bulk deletion cleans junctions and preserves shared attachment records', async () => {
     const runtime = createBackendRuntime(database)
     const db = await database.getDb()
-    await runtime.commands.execute('entity.mutate', {
+    await runtime.commands.execute('entry.mutate', {
       kind: 'tasks',
       action: 'create',
       changes: {
@@ -77,7 +77,7 @@ describe('Transactional command handlers', () => {
         urls: [{ url: 'https://bulk.example' }],
       },
     })
-    const result = await runtime.commands.execute('entity.mutate', {
+    const result = await runtime.commands.execute('entry.mutate', {
       kind: 'tasks',
       action: 'deleteAll',
     })
@@ -93,20 +93,20 @@ describe('Transactional command handlers', () => {
   test('tag deletion cleans referencing junctions without deleting the owner', async () => {
     const runtime = createBackendRuntime(database)
     const db = await database.getDb()
-    const owner = (await runtime.commands.execute('entity.mutate', {
+    const owner = (await runtime.commands.execute('entry.mutate', {
       kind: 'tasks',
       action: 'create',
       changes: {
         title: 'Surviving owner',
         tags: [{ title: 'delete_reference' }],
       },
-    })) as EntityRecord
+    })) as EntryRecord
     const tag = db
       .select()
       .from(tags)
       .where(eq(tags.title, 'delete_reference'))
       .get()!
-    await runtime.commands.execute('entity.mutate', {
+    await runtime.commands.execute('entry.mutate', {
       kind: 'tags',
       action: 'delete',
       id: tag.id,
@@ -126,8 +126,8 @@ describe('Transactional command handlers', () => {
 
   test('unsupported attachment capability is rejected before any write', async () => {
     const runtime = createBackendRuntime(database)
-    expect(await 
-      runtime.commands.execute('entity.mutate', {
+    await expect(
+      runtime.commands.execute('entry.mutate', {
         kind: 'resources',
         action: 'create',
         changes: {
@@ -135,12 +135,12 @@ describe('Transactional command handlers', () => {
           tags: [{ title: 'ignored_before' }],
         },
       }),
-    ).rejects.toThrow('Attachments are not supported')
+    ).rejects.toThrow('Supporters are not supported for resources')
     runtime.dispose()
   })
 
   test('unit of work rejects async transaction callbacks', async () => {
-    expect(await 
+    await expect(
       createUnitOfWork(database).transaction(async () => 1),
     ).rejects.toThrow('must be synchronous')
   })

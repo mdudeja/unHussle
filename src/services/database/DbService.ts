@@ -1,5 +1,5 @@
 import { makeJSONRequest } from '@/lib/server'
-import { DbEntityTypes, WithAttachments } from '@c/types/index'
+import { DbEntityTypes, WithSupporters } from '@c/types/index'
 
 export class DbService<T extends DbEntityTypes> {
   dbUrl: string
@@ -41,7 +41,7 @@ export class DbService<T extends DbEntityTypes> {
     })
   }
 
-  async create(data: WithAttachments<T['Write']>) {
+  async create(data: WithSupporters<T['Write']>) {
     return makeJSONRequest<T['Read']>({
       url: `${this.dbUrl}/${this.baseEndpoint}`,
       method: 'POST',
@@ -49,7 +49,7 @@ export class DbService<T extends DbEntityTypes> {
     })
   }
 
-  async update(id: string, data: WithAttachments<T['Update']>) {
+  async update(id: string, data: WithSupporters<T['Update']>) {
     return makeJSONRequest<T['Read']>({
       url: `${this.dbUrl}/${this.baseEndpoint}/${id}`,
       method: 'PATCH',

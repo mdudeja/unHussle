@@ -1,5 +1,5 @@
 import { backendRuntime } from '@d/workflows/runtime'
-import type { EntityKind } from '@c/workflows/contracts'
+import type { EntryKind } from '@c/workflows/contracts'
 import {
   areas,
   tags,
@@ -108,7 +108,7 @@ export type RouteGeneratorConfig<
 > = {
   name: keyof (typeof db)['query']
   prefix: string
-  kind: EntityKind
+  kind: EntryKind
   schemas: RouteGeneratorSchemas
   repository: IRepository<T>
 }
@@ -212,7 +212,7 @@ export const routeGenerator = <
       '/',
       async ({ body, logger }) => {
         logger.debug(`Add ${config.name} with id: ${body.id}`)
-        const result = await backendRuntime.commands.execute('entity.mutate', {
+        const result = await backendRuntime.commands.execute('entry.mutate', {
           kind: config.kind,
           action: 'create',
           changes: body,
@@ -235,7 +235,7 @@ export const routeGenerator = <
       '/:id',
       async ({ params: { id }, body, logger }) => {
         logger.debug(`Update ${config.name} with id: ${id}`)
-        const result = await backendRuntime.commands.execute('entity.mutate', {
+        const result = await backendRuntime.commands.execute('entry.mutate', {
           kind: config.kind,
           action: 'update',
           id,
@@ -259,7 +259,7 @@ export const routeGenerator = <
       '/all',
       async ({ logger }) => {
         logger.debug(`Delete all ${config.name} `)
-        const result = await backendRuntime.commands.execute('entity.mutate', {
+        const result = await backendRuntime.commands.execute('entry.mutate', {
           kind: config.kind,
           action: 'deleteAll',
         })
@@ -275,7 +275,7 @@ export const routeGenerator = <
       '/:id',
       async ({ params: { id }, logger }) => {
         logger.debug(`Delete ${config.name} with id: ${id}`)
-        const result = await backendRuntime.commands.execute('entity.mutate', {
+        const result = await backendRuntime.commands.execute('entry.mutate', {
           kind: config.kind,
           action: 'delete',
           id,

@@ -36,7 +36,7 @@ describe('Resources Store', () => {
 
   test('throw error when creating resource with missing fields', async () => {
     const { add } = useStore.getState().resources
-    expect(await add({} as Parameters<typeof add>[0])).rejects.toThrow()
+    await expect(add({} as Parameters<typeof add>[0])).rejects.toThrow()
   })
 
   test('fetch resources', async () => {
@@ -69,7 +69,7 @@ describe('Resources Store', () => {
 
   test('throw error when updating non-existent resource', async () => {
     const { update } = useStore.getState().resources
-    expect(await update('non-existent-id', { title: 'Fail' })).rejects.toThrow()
+    await expect(update('non-existent-id', { title: 'Fail' })).rejects.toThrow()
   })
 
   test('delete a resource', async () => {
@@ -92,6 +92,6 @@ describe('Resources Store', () => {
 
   test('throw error when deleting non-existent resource', async () => {
     const { remove } = useStore.getState().resources
-    expect(await remove('non-existent-id')).rejects.toThrow()
+    await expect(remove('non-existent-id')).rejects.toThrow()
   })
 })

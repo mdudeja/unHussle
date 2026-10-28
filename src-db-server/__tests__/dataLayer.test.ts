@@ -1,7 +1,7 @@
 import type { Url } from '@d/database/schemas/urls.schema'
 import { createBackendRuntime } from '@d/workflows/runtime'
 import type { EntityKind, MutationResult } from '@c/workflows/contracts'
-import type { WithAttachments, Task, Tag } from '@c/types'
+import type { WithSupporters, Task, Tag } from '@c/types'
 import { describe, test, expect, beforeAll, afterAll } from 'bun:test'
 import { UnHussleDB } from '@d/database/UnHussleDB'
 import { Priority, ProgressStatus } from '@c/types/index'
@@ -430,9 +430,9 @@ describe('Data Layer Tests', () => {
         return [
           name,
           {
-            add: async (changes: WithAttachments<Task['Write']>) =>
+            add: async (changes: WithSupporters<Task['Write']>) =>
               hydrate(
-                await runtime.commands.execute('entity.mutate', {
+                await runtime.commands.execute('entry.mutate', {
                   kind,
                   action: 'create',
                   changes,
@@ -440,10 +440,10 @@ describe('Data Layer Tests', () => {
               ),
             update: async (
               id: string,
-              changes: WithAttachments<Task['Update']>,
+              changes: WithSupporters<Task['Update']>,
             ) =>
               hydrate(
-                await runtime.commands.execute('entity.mutate', {
+                await runtime.commands.execute('entry.mutate', {
                   kind,
                   action: 'update',
                   id,
@@ -451,7 +451,7 @@ describe('Data Layer Tests', () => {
                 }),
               ),
             delete: async (id: string) =>
-              runtime.commands.execute('entity.mutate', {
+              runtime.commands.execute('entry.mutate', {
                 kind,
                 action: 'delete',
                 id,
@@ -564,7 +564,7 @@ describe('Data Layer Tests', () => {
 
     test('update of a missing entity rejects', async () => {
       for (const [, repository] of repositories()) {
-        expect(await 
+        await expect(
           repository.update('missing-id', { tags: [{ title: 'x' }] }),
         ).rejects.toThrow('NOT_FOUND')
       }

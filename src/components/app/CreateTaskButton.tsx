@@ -2,7 +2,7 @@ import { useEntityList } from '@/workflows/hooks'
 import { useMemo, useState } from 'react'
 import { useStore } from '@/store'
 import { Logger } from '@c/Logger'
-import { Priority, ProgressStatus, Task, WithAttachments } from '@c/types/index'
+import { Priority, ProgressStatus, Task, WithSupporters } from '@c/types/index'
 import { resolveTaskSchedule } from '@c/taskSchedule'
 import { Button } from '@/components/ui/button'
 import { Plus } from 'lucide-react'
@@ -13,7 +13,7 @@ import {
 
 // The rule only gets submitted while `is_recurring` is on (see `visibleWhen`
 // in the task fields), so seeding it here just gives the editor a starting value.
-const taskDefaultValues: Partial<WithAttachments<Task['Write']>> = {
+const taskDefaultValues: Partial<WithSupporters<Task['Write']>> = {
   status: ProgressStatus.PLANNED,
   priority: Priority.MEDIUM,
   is_recurring: false,
@@ -52,12 +52,12 @@ export const CreateTaskButtonComponent = () => {
   }
 
   const handleSubmit = async (
-    values: Partial<WithAttachments<Task['Write']>>,
+    values: Partial<WithSupporters<Task['Write']>>,
   ) => {
     setIsSubmitting(true)
     setErrorMessage(undefined)
     try {
-      await tasks.add(values as WithAttachments<Task['Write']>)
+      await tasks.add(values as WithSupporters<Task['Write']>)
       setIsDialogOpen(false)
     } catch (error) {
       Logger.getInstance().error(`Failed to create task: ${String(error)}`)

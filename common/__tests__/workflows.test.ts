@@ -13,7 +13,7 @@ describe('Workflow runtime', () => {
 
   test('commands have one owner, typed results, and injected context', async () => {
     const runtime = make()
-    expect(await runtime.commands.execute('save', 1)).rejects.toThrow(
+    await expect(runtime.commands.execute('save', 1)).rejects.toThrow(
       'No handler',
     )
     const unregister = runtime.commands.handle(
@@ -25,7 +25,7 @@ describe('Workflow runtime', () => {
     )
     expect(await runtime.commands.execute('save', 3)).toBe(5)
     unregister()
-    expect(await runtime.commands.execute('save', 1)).rejects.toThrow(
+    await expect(runtime.commands.execute('save', 1)).rejects.toThrow(
       'No handler',
     )
   })
@@ -37,7 +37,8 @@ describe('Workflow runtime', () => {
       steps.push('validate')
       throw new Error('Invalid input')
     })
-    expect(await runtime.commands.execute('save', 0)).rejects.toThrow(
+
+    await expect(runtime.commands.execute('save', 0)).rejects.toThrow(
       'Invalid input',
     )
     expect(steps).toEqual(['validate'])
@@ -55,7 +56,7 @@ describe('Workflow runtime', () => {
     expect(await runtime.events.publish('saved', 3)).toHaveLength(1)
     runtime.dispose()
     expect(await runtime.events.publish('saved', 3)).toEqual([])
-    expect(await runtime.commands.execute('save', 0)).rejects.toThrow(
+    await expect(runtime.commands.execute('save', 0)).rejects.toThrow(
       'No handler',
     )
   })
