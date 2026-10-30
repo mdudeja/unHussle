@@ -1,5 +1,9 @@
 type Command = { input: unknown; result: unknown }
-type Handler<I, O, C> = (input: I, context: C) => O | Promise<O>
+export type Handler<I, O, C> = (
+  command: string,
+  input: I,
+  context: C,
+) => O | Promise<O>
 
 /** One owner for required work; any number of independent completion listeners. */
 export function createRuntime<
@@ -33,7 +37,7 @@ export function createRuntime<
       ): Promise<Commands[K]['result']> {
         const handler = handlers.get(name)
         if (!handler) throw new Error(`No handler for command: ${String(name)}`)
-        return await handler(input, context)
+        return await handler(String(name), input, context)
       },
     },
     events: {
@@ -52,7 +56,9 @@ export function createRuntime<
       publish<K extends keyof Events>(name: K, payload: Events[K]) {
         return Promise.allSettled(
           [...(listeners.get(name) ?? [])].map((listener) =>
-            Promise.resolve().then(() => listener(payload, context)),
+            Promise.resolve().then(() =>
+              listener(String(name), payload, context),
+            ),
           ),
         )
       },

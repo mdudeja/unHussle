@@ -50,6 +50,7 @@ export const entitySchema = {
   project_id: t.text('project_id'),
   area_id: t.text('area_id'),
   goal_id: t.text('goal_id'),
+  custom_data: t.text({ mode: 'json' }).$type<Record<string, unknown>>(),
   ...timestampsSchema,
 }
 
@@ -63,6 +64,9 @@ export const entityCollectionSchema = {
   icon: t.text(),
   color: t.text(),
   description: t.text(),
+  custom_data: t.text({ mode: 'json' }).$type<Record<string, unknown>>(),
+  count_tasks: t.integer({ mode: 'number' }).default(0),
+  count_resources: t.integer({ mode: 'number' }).default(0),
   ...timestampsSchema,
 }
 
@@ -72,6 +76,9 @@ export const entitySupporterSchema = {
     .primaryKey()
     .$defaultFn(() => createId()),
   description: t.text(),
+  count_tasks: t.integer({ mode: 'number' }).default(0),
+  count_resources: t.integer({ mode: 'number' }).default(0),
+  count_pga: t.integer({ mode: 'number' }).default(0),
   ...timestampsSchema,
 }
 

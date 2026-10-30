@@ -20,8 +20,8 @@ export const projects = sqliteTable(
   {
     ...entityCollectionSchema,
     ...statusSchema,
-    area_id: text().references(() => areas.id),
-    goal_id: text().references(() => goals.id),
+    area_id: text().references(() => areas.id, { onDelete: 'set null' }),
+    goal_id: text().references(() => goals.id, { onDelete: 'set null' }),
     due_date: integer({ mode: 'number' }),
   },
   (table) => [

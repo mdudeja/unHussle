@@ -1,8 +1,8 @@
 {
   "version": "6",
   "dialect": "sqlite",
-  "id": "1bce4190-e62f-4572-ae9f-aefec5bc40da",
-  "prevId": "2cafa72e-bf47-44ad-99e1-4d7d76ad4dcf",
+  "id": "1e895e43-327d-4728-99b7-833acf4cd081",
+  "prevId": "00000000-0000-0000-0000-000000000000",
   "tables": {
     "areas": {
       "name": "areas",
@@ -49,6 +49,29 @@
           "primaryKey": false,
           "notNull": false,
           "autoincrement": false
+        },
+        "custom_data": {
+          "name": "custom_data",
+          "type": "text",
+          "primaryKey": false,
+          "notNull": false,
+          "autoincrement": false
+        },
+        "count_tasks": {
+          "name": "count_tasks",
+          "type": "integer",
+          "primaryKey": false,
+          "notNull": false,
+          "autoincrement": false,
+          "default": 0
+        },
+        "count_resources": {
+          "name": "count_resources",
+          "type": "integer",
+          "primaryKey": false,
+          "notNull": false,
+          "autoincrement": false,
+          "default": 0
         },
         "created_at": {
           "name": "created_at",
@@ -152,6 +175,29 @@
           "primaryKey": false,
           "notNull": false,
           "autoincrement": false
+        },
+        "custom_data": {
+          "name": "custom_data",
+          "type": "text",
+          "primaryKey": false,
+          "notNull": false,
+          "autoincrement": false
+        },
+        "count_tasks": {
+          "name": "count_tasks",
+          "type": "integer",
+          "primaryKey": false,
+          "notNull": false,
+          "autoincrement": false,
+          "default": 0
+        },
+        "count_resources": {
+          "name": "count_resources",
+          "type": "integer",
+          "primaryKey": false,
+          "notNull": false,
+          "autoincrement": false,
+          "default": 0
         },
         "created_at": {
           "name": "created_at",
@@ -308,6 +354,13 @@
         },
         "goal_id": {
           "name": "goal_id",
+          "type": "text",
+          "primaryKey": false,
+          "notNull": false,
+          "autoincrement": false
+        },
+        "custom_data": {
+          "name": "custom_data",
           "type": "text",
           "primaryKey": false,
           "notNull": false,
@@ -631,6 +684,13 @@
           "notNull": false,
           "autoincrement": false
         },
+        "custom_data": {
+          "name": "custom_data",
+          "type": "text",
+          "primaryKey": false,
+          "notNull": false,
+          "autoincrement": false
+        },
         "created_at": {
           "name": "created_at",
           "type": "integer",
@@ -788,6 +848,29 @@
           "notNull": false,
           "autoincrement": false
         },
+        "custom_data": {
+          "name": "custom_data",
+          "type": "text",
+          "primaryKey": false,
+          "notNull": false,
+          "autoincrement": false
+        },
+        "count_tasks": {
+          "name": "count_tasks",
+          "type": "integer",
+          "primaryKey": false,
+          "notNull": false,
+          "autoincrement": false,
+          "default": 0
+        },
+        "count_resources": {
+          "name": "count_resources",
+          "type": "integer",
+          "primaryKey": false,
+          "notNull": false,
+          "autoincrement": false,
+          "default": 0
+        },
         "created_at": {
           "name": "created_at",
           "type": "integer",
@@ -908,7 +991,7 @@
           "columnsTo": [
             "id"
           ],
-          "onDelete": "no action",
+          "onDelete": "set null",
           "onUpdate": "no action"
         },
         "projects_goal_id_goals_id_fk": {
@@ -921,7 +1004,7 @@
           "columnsTo": [
             "id"
           ],
-          "onDelete": "no action",
+          "onDelete": "set null",
           "onUpdate": "no action"
         }
       },
@@ -945,6 +1028,30 @@
           "primaryKey": false,
           "notNull": false,
           "autoincrement": false
+        },
+        "count_tasks": {
+          "name": "count_tasks",
+          "type": "integer",
+          "primaryKey": false,
+          "notNull": false,
+          "autoincrement": false,
+          "default": 0
+        },
+        "count_resources": {
+          "name": "count_resources",
+          "type": "integer",
+          "primaryKey": false,
+          "notNull": false,
+          "autoincrement": false,
+          "default": 0
+        },
+        "count_pga": {
+          "name": "count_pga",
+          "type": "integer",
+          "primaryKey": false,
+          "notNull": false,
+          "autoincrement": false,
+          "default": 0
         },
         "created_at": {
           "name": "created_at",
@@ -1012,6 +1119,30 @@
           "primaryKey": false,
           "notNull": false,
           "autoincrement": false
+        },
+        "count_tasks": {
+          "name": "count_tasks",
+          "type": "integer",
+          "primaryKey": false,
+          "notNull": false,
+          "autoincrement": false,
+          "default": 0
+        },
+        "count_resources": {
+          "name": "count_resources",
+          "type": "integer",
+          "primaryKey": false,
+          "notNull": false,
+          "autoincrement": false,
+          "default": 0
+        },
+        "count_pga": {
+          "name": "count_pga",
+          "type": "integer",
+          "primaryKey": false,
+          "notNull": false,
+          "autoincrement": false,
+          "default": 0
         },
         "created_at": {
           "name": "created_at",
@@ -1102,6 +1233,30 @@
           "notNull": false,
           "autoincrement": false
         },
+        "count_tasks": {
+          "name": "count_tasks",
+          "type": "integer",
+          "primaryKey": false,
+          "notNull": false,
+          "autoincrement": false,
+          "default": 0
+        },
+        "count_resources": {
+          "name": "count_resources",
+          "type": "integer",
+          "primaryKey": false,
+          "notNull": false,
+          "autoincrement": false,
+          "default": 0
+        },
+        "count_pga": {
+          "name": "count_pga",
+          "type": "integer",
+          "primaryKey": false,
+          "notNull": false,
+          "autoincrement": false,
+          "default": 0
+        },
         "created_at": {
           "name": "created_at",
           "type": "integer",
@@ -1128,7 +1283,7 @@
           "name": "task_id",
           "type": "text",
           "primaryKey": false,
-          "notNull": false,
+          "notNull": true,
           "autoincrement": false
         },
         "start_time": {
@@ -1419,9 +1574,7 @@
   "_meta": {
     "schemas": {},
     "tables": {},
-    "columns": {
-      "\"tasks\".\"scheduled_for\"": "\"tasks\".\"scheduled_start\""
-    }
+    "columns": {}
   },
   "internal": {
     "indexes": {}

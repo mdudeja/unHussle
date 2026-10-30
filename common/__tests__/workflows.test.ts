@@ -18,7 +18,7 @@ describe('Workflow runtime', () => {
     )
     const unregister = runtime.commands.handle(
       'save',
-      (value, { offset }) => value + offset,
+      (_name, value, { offset }) => value + offset,
     )
     expect(() => runtime.commands.handle('save', () => 0)).toThrow(
       'Duplicate command',
@@ -45,7 +45,7 @@ describe('Workflow runtime', () => {
     runtime.events.on('saved', () => {
       throw new Error('Listener failed')
     })
-    const off = runtime.events.on('saved', (value, { offset }) => {
+    const off = runtime.events.on('saved', (_name, value, { offset }) => {
       steps.push(String(value + offset))
     })
     expect(

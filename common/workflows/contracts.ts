@@ -1,3 +1,7 @@
+import type { TableWithId } from '@d/database/repositories/BaseRepository'
+import type { SyncTx } from '@d/database/repositories/helpers'
+import type { transactionRepository } from '@d/workflows/unitOfWork'
+
 export type EntityKind = 'tasks' | 'resources'
 export type EntityCollectionKind = 'projects' | 'areas' | 'goals'
 export type EntitySupporterKind = 'tags' | 'urls' | 'time_entries'
@@ -10,18 +14,156 @@ export type MutationInput = {
   kind: EntryKind
   action: 'create' | 'update' | 'delete' | 'deleteAll'
   id?: string
+  /** Supporter ids (junction `refId`) affected by the command. */
+  ids?: string[]
+  /** Entity / collection ids (junction `attachedToId`) affected by the command. */
+  attachedIds?: string[]
   changes?: Record<string, unknown>
 }
-export type MutationResult = EntryRecord | { deleted: number }
+/** Bulk actions return every affected row so later actions can derive `ids` / `attachedIds`. */
+export type MutationResult = EntryRecord | EntryRecord[] | void
 export type MutationEvent = MutationInput & {
   operationId: string
   result: MutationResult
 }
+
+const _commandHeads = [
+  'entry',
+  'entity',
+  'entityCollection',
+  'entitySupporter',
+] as const
+
+export type CommandHead = (typeof _commandHeads)[number]
+
+/** The command family that owns mutations for each kind. */
+export const commandHeadForKind: {
+  [K in EntryKind]: Exclude<CommandHead, 'entry'>
+} = {
+  tasks: 'entity',
+  resources: 'entity',
+  projects: 'entityCollection',
+  areas: 'entityCollection',
+  goals: 'entityCollection',
+  tags: 'entitySupporter',
+  urls: 'entitySupporter',
+  time_entries: 'entitySupporter',
+}
+
+const _kindHeads = [
+  'tasks',
+  'resources',
+  'projects',
+  'areas',
+  'goals',
+  'tags',
+  'urls',
+  'time_entries',
+] as const
+
 export type MutationCommands = {
-  'entry.mutate': { input: MutationInput; result: MutationResult }
+  [A in (typeof _commandHeads)[number] as `${A}.add`]: {
+    input: MutationInput & { action: 'create' }
+    result: EntryRecord | void
+  }
+} & {
+  [C in (typeof _commandHeads)[number] as `${C}.change`]: {
+    input: MutationInput & {
+      action: 'update'
+      id: string
+      changes: Record<string, unknown>
+    }
+    result: EntryRecord | void
+  }
+} & {
+  [D in (typeof _commandHeads)[number] as `${D}.delete`]: {
+    input: MutationInput & { action: 'delete'; id: string }
+    result: EntryRecord | void
+  }
+} & {
+  [K in (typeof _commandHeads)[number] as `${K}.deleteAll`]: {
+    input: MutationInput & { action: 'deleteAll' }
+    result: EntryRecord[] | void
+  }
+} & {
+  [T in (typeof _kindHeads)[number] as `${T}.add`]: {
+    input: MutationInput & { action: 'create' }
+    result: EntryRecord | void
+  }
+} & {
+  [U in (typeof _kindHeads)[number] as `${U}.change`]: {
+    input: MutationInput & {
+      action: 'update'
+      id: string
+      changes: Record<string, unknown>
+    }
+    result: EntryRecord | void
+  }
+} & {
+  [V in (typeof _kindHeads)[number] as `${V}.delete`]: {
+    input: MutationInput & { action: 'delete'; id: string }
+    result: EntryRecord | void
+  }
+} & {
+  [W in (typeof _kindHeads)[number] as `${W}.deleteAll`]: {
+    input: MutationInput & { action: 'deleteAll' }
+    result: EntryRecord[] | void
+  }
 }
 
 export type AppEvents = {
-  'entry.changed': MutationEvent
-  'tracking.changed': { taskId: string | null }
+  [A in (typeof _commandHeads)[number] as `${A}.add`]: MutationEvent
+} & {
+  [C in (typeof _commandHeads)[number] as `${C}.change`]: MutationEvent
+} & {
+  [D in (typeof _commandHeads)[number] as `${D}.delete`]: MutationEvent
+} & {
+  [K in (typeof _commandHeads)[number] as `${K}.deleteAll`]: MutationEvent
+} & {
+  [T in (typeof _kindHeads)[number] as `${T}.add`]: MutationEvent
+} & {
+  [U in (typeof _kindHeads)[number] as `${U}.change`]: MutationEvent
+} & {
+  [V in (typeof _kindHeads)[number] as `${V}.delete`]: MutationEvent
+} & {
+  [W in (typeof _kindHeads)[number] as `${W}.deleteAll`]: MutationEvent
 }
+
+export type CommandAction =
+  | 'createRow'
+  | 'updateRow'
+  | 'deleteRow'
+  | 'deleteAllRows'
+  | 'updateSupporters'
+  | 'updateSupporterCounts'
+  | 'updateCollectionCounts'
+  | 'announceAffectedEntities'
+  | 'deleteJunctions'
+  | `handler:${keyof MutationCommands}`
+
+export type CommandHandlers = {
+  [K in keyof MutationCommands]?: CommandAction[]
+}
+
+export type AppEventListeners = {
+  [K in keyof AppEvents]?: ((event: AppEvents[K]) => void | Promise<void>)[]
+}
+
+/** Queues an event that is published only after the command's transaction commits. */
+export type Announce = <K extends keyof AppEvents>(
+  name: K,
+  payload: AppEvents[K],
+) => void
+
+/** Per-command context handed to every action of that command. */
+export type ActionContext<Context> = Context & {
+  operationId: string
+  announce: Announce
+}
+
+export type TransactionWorkUnit<T> = (context: {
+  tx: SyncTx
+  repository: <Table extends TableWithId>(
+    table: Table,
+  ) => ReturnType<typeof transactionRepository<Table>>
+}) => T

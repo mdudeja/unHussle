@@ -1,6 +1,10 @@
 import type { Url } from '@d/database/schemas/urls.schema'
 import { createBackendRuntime } from '@d/workflows/runtime'
-import type { EntityKind, MutationResult } from '@c/workflows/contracts'
+import {
+  commandHeadForKind,
+  type EntryKind,
+  type MutationResult,
+} from '@c/workflows/contracts'
 import type { WithSupporters, Task, Tag } from '@c/types'
 import { describe, test, expect, beforeAll, afterAll } from 'bun:test'
 import { UnHussleDB } from '@d/database/UnHussleDB'
@@ -419,7 +423,8 @@ describe('Data Layer Tests', () => {
       ] as const
       const runtime = createBackendRuntime(uDB)
       return entries.map(([name, read]) => {
-        const kind = `${name}s` as EntityKind
+        const kind = `${name}s` as EntryKind
+        const head = commandHeadForKind[kind]
         const hydrate = (result: MutationResult) =>
           runtime.hydrate<{
             id: string
@@ -432,7 +437,7 @@ describe('Data Layer Tests', () => {
           {
             add: async (changes: WithSupporters<Task['Write']>) =>
               hydrate(
-                await runtime.commands.execute('entry.mutate', {
+                await runtime.commands.execute(`${head}.add`, {
                   kind,
                   action: 'create',
                   changes,
@@ -443,7 +448,7 @@ describe('Data Layer Tests', () => {
               changes: WithSupporters<Task['Update']>,
             ) =>
               hydrate(
-                await runtime.commands.execute('entry.mutate', {
+                await runtime.commands.execute(`${head}.change`, {
                   kind,
                   action: 'update',
                   id,
@@ -451,7 +456,7 @@ describe('Data Layer Tests', () => {
                 }),
               ),
             delete: async (id: string) =>
-              runtime.commands.execute('entry.mutate', {
+              runtime.commands.execute(`${head}.delete`, {
                 kind,
                 action: 'delete',
                 id,

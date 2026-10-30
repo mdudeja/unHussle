@@ -1,5 +1,5 @@
 import { backendRuntime } from '@d/workflows/runtime'
-import type { EntryKind } from '@c/workflows/contracts'
+import { commandHeadForKind, type EntryKind } from '@c/workflows/contracts'
 import {
   areas,
   tags,
@@ -118,6 +118,8 @@ export const routeGenerator = <
 >(
   config: RouteGeneratorConfig<T>,
 ) => {
+  const head = commandHeadForKind[config.kind]
+
   return new Elysia({ prefix: config.prefix, name: config.name })
     .decorate('db', db)
     .decorate('logger', Logger.getInstance())
@@ -212,7 +214,7 @@ export const routeGenerator = <
       '/',
       async ({ body, logger }) => {
         logger.debug(`Add ${config.name} with id: ${body.id}`)
-        const result = await backendRuntime.commands.execute('entry.mutate', {
+        const result = await backendRuntime.commands.execute(`${head}.add`, {
           kind: config.kind,
           action: 'create',
           changes: body,
@@ -235,7 +237,7 @@ export const routeGenerator = <
       '/:id',
       async ({ params: { id }, body, logger }) => {
         logger.debug(`Update ${config.name} with id: ${id}`)
-        const result = await backendRuntime.commands.execute('entry.mutate', {
+        const result = await backendRuntime.commands.execute(`${head}.change`, {
           kind: config.kind,
           action: 'update',
           id,
@@ -259,12 +261,15 @@ export const routeGenerator = <
       '/all',
       async ({ logger }) => {
         logger.debug(`Delete all ${config.name} `)
-        const result = await backendRuntime.commands.execute('entry.mutate', {
-          kind: config.kind,
-          action: 'deleteAll',
-        })
+        const result = await backendRuntime.commands.execute(
+          `${head}.deleteAll`,
+          {
+            kind: config.kind,
+            action: 'deleteAll',
+          },
+        )
 
-        return result as { deleted: number }
+        return { deleted: Array.isArray(result) ? result.length : 0 }
       },
       {
         response: Type.Object({ deleted: Type.Number() }),
@@ -275,7 +280,7 @@ export const routeGenerator = <
       '/:id',
       async ({ params: { id }, logger }) => {
         logger.debug(`Delete ${config.name} with id: ${id}`)
-        const result = await backendRuntime.commands.execute('entry.mutate', {
+        const result = await backendRuntime.commands.execute(`${head}.delete`, {
           kind: config.kind,
           action: 'delete',
           id,

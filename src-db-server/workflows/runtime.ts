@@ -1,33 +1,77 @@
 import { createRuntime } from '@c/workflows/runtime'
 import type {
+  ActionContext,
+  Announce,
   AppEvents,
   MutationCommands,
+  MutationInput,
   MutationResult,
   EntryRecord,
-  EntitySupporterKind,
+  CommandAction,
+  TransactionWorkUnit,
 } from '@c/workflows/contracts'
-import type { TagInput, TimeEntryInput, UrlInput } from '@c/types'
 import { Logger } from '@c/Logger'
 import { UnHussleDB } from '@d/database/UnHussleDB'
-import * as tables from '@d/database/schemas'
-import { toUrlParts } from '@d/database/repositories/helpers'
-import { createUnitOfWork } from './unitOfWork'
-import {
-  supporterCapabilities,
-  removeOwnerSupporters,
-  removeReferenceSupporters,
-  syncSupporters,
-} from './supporters'
+import { createUnitOfWork } from '@d/workflows/unitOfWork'
+import { commandHandlerRegistry } from '@d/workflows/commandHandlers'
+import { createCommandActions } from '@d/workflows/commandActions'
 
-const entityTables = {
-  tasks: tables.tasks,
-  projects: tables.projects,
-  areas: tables.areas,
-  goals: tables.goals,
-  resources: tables.resources,
-  tags: tables.tags,
-  urls: tables.urls,
-  time_entries: tables.timeEntries,
+const supporterKinds: MutationInput['kind'][] = ['tags', 'urls', 'time_entries']
+
+/**
+ * Goes through the list and replaces any action that starts with handler: with the actions for that handler, recursively.
+ * and returns the cleaned list.
+ * */
+function replaceNestedActions(
+  actionList: CommandAction[],
+  visited: Set<keyof MutationCommands> = new Set(),
+): CommandAction[] {
+  const cleanedList: CommandAction[] = []
+  for (const action of actionList) {
+    if (action.startsWith('handler:')) {
+      const handlerName = action.replace(
+        'handler:',
+        '',
+      ) as keyof MutationCommands
+      if (visited.has(handlerName)) {
+        throw new Error(`Circular command handler reference: ${handlerName}`)
+      }
+      const nestedActions = commandHandlerRegistry[handlerName]
+      if (nestedActions && nestedActions.length > 0) {
+        const replacedNestedActions = replaceNestedActions(
+          nestedActions,
+          new Set(visited).add(handlerName),
+        )
+        cleanedList.push(...replacedNestedActions)
+      }
+    } else {
+      cleanedList.push(action)
+    }
+  }
+  return cleanedList
+}
+
+/** Feeds an action's output into the input of the next action in the chain. */
+function carryForward(input: MutationInput, result: MutationResult) {
+  let ids: string[] | undefined
+  const next = { ...input }
+
+  if (Array.isArray(result)) {
+    ids = result.map((row) => row.id)
+  } else if (result && 'id' in result) {
+    next.id = result.id
+    ids = [result.id]
+  }
+
+  if (ids && (input.action === 'delete' || input.action === 'deleteAll')) {
+    if (supporterKinds.includes(input.kind)) {
+      next.ids = ids
+    } else {
+      next.attachedIds = ids
+    }
+  }
+
+  return next
 }
 
 export function createBackendRuntime(database: UnHussleDB) {
@@ -38,81 +82,84 @@ export function createBackendRuntime(database: UnHussleDB) {
   const runtime = createRuntime<MutationCommands, AppEvents, typeof context>(
     context,
   )
-  runtime.commands.handle(
-    'entry.mutate',
-    async (input, { unitOfWork, logger }) => {
-      const operationId = crypto.randomUUID()
-      const { kind, action, id, changes = {} } = input
-      const { tags, urls, time_entries, ...values } = changes
-      const capability = supporterCapabilities[kind]
-      if (
-        (tags !== undefined && !capability?.tags) ||
-        (urls !== undefined && !capability?.urls) ||
-        (time_entries !== undefined && !capability?.time_entries)
-      ) {
-        throw new Error(`Supporters are not supported for ${kind}`)
-      }
-      if (kind === 'urls' && typeof values.url === 'string')
-        values.parts = toUrlParts(values.url)
-      const result = (await unitOfWork.transaction(({ tx, repository }) => {
-        const repo = repository(entityTables[kind])
-        if (action === 'deleteAll') {
-          const ids = repo.all().map((row) => row.id)
-          removeOwnerSupporters(tx, ids)
-          if (['tags', 'urls', 'time_entries'].includes(kind)) {
-            removeReferenceSupporters(tx, kind as EntitySupporterKind, ids)
-          }
-          return { deleted: repo.deleteAll().length }
+  const availableActions = createCommandActions<typeof context>()
+
+  for (const commandName in commandHandlerRegistry) {
+    runtime.commands.handle(
+      commandName as keyof MutationCommands,
+      async (handlerName, input, context) => {
+        const { unitOfWork, logger } = context
+        logger.info(
+          `Executing command: ${handlerName} for input: ${JSON.stringify(input)}`,
+        )
+        const actionsForCommand =
+          commandHandlerRegistry[handlerName as keyof MutationCommands]
+
+        if (!actionsForCommand || actionsForCommand.length === 0) {
+          return
         }
-        if (action === 'delete') {
-          if (!id) throw new Error('An entity id is required')
-          removeOwnerSupporters(tx, [id])
-          if (['tags', 'urls', 'time_entries'].includes(kind)) {
-            removeReferenceSupporters(tx, kind as EntitySupporterKind, [id])
-          }
-          const row = repo.delete(id)
-          if (!row) throw new Error('NOT_FOUND')
-          return row
+
+        const operationId = crypto.randomUUID()
+        let currentInput: MutationInput = input
+
+        // Announcements are held until commit and dropped on rollback.
+        const announcements: Parameters<Announce>[] = []
+        const actionContext: ActionContext<typeof context> = {
+          ...context,
+          operationId,
+          announce: (name, payload) => {
+            announcements.push([name, payload])
+          },
         }
-        const row =
-          action === 'create'
-            ? repo.insert(
-                values as (typeof entityTables)[typeof kind]['$inferInsert'],
-              )
-            : id
-              ? repo.update(id, values)
-              : undefined
-        if (!row)
-          throw new Error(
-            action === 'create' ? `Failed to insert ${kind}` : 'NOT_FOUND',
-          )
-        if (capability)
-          syncSupporters(
-            tx,
-            row.id,
-            {
-              tags: tags as TagInput[] | undefined,
-              urls: urls as UrlInput[] | undefined,
-              time_entries: time_entries as TimeEntryInput[] | undefined,
+
+        // Units are built lazily so each action sees the previous action's output.
+        const work = replaceNestedActions(actionsForCommand).map(
+          (actionName): TransactionWorkUnit<MutationResult> =>
+            (transaction) => {
+              const action = availableActions[actionName]
+              if (!action) {
+                logger.warn(`Action not found: ${actionName}. Skipping...`)
+                return
+              }
+
+              const unit = action(actionName, currentInput, actionContext)
+              if (unit instanceof Promise)
+                throw new Error(
+                  `Action ${actionName} must return its work unit synchronously`,
+                )
+
+              const result = unit(transaction)
+              currentInput = carryForward(currentInput, result)
+              return result
             },
-            { replace: action === 'update' },
-          )
-        return row
-      })) as MutationResult
-      const outcomes = await runtime.events.publish('entry.changed', {
-        ...input,
-        operationId,
-        result,
-      })
-      for (const outcome of outcomes)
-        if (outcome.status === 'rejected') {
-          logger.error(
-            `Post-commit listener failed (${operationId}): ${String(outcome.reason)}`,
-          )
-        }
-      return result
-    },
-  )
+        )
+
+        const result = await unitOfWork.transaction(work)
+
+        const outcomes = (
+          await Promise.all([
+            runtime.events.publish(handlerName as keyof AppEvents, {
+              ...input,
+              operationId,
+              result,
+            }),
+            ...announcements.map(([name, payload]) =>
+              runtime.events.publish(name, payload),
+            ),
+          ])
+        ).flat()
+        for (const outcome of outcomes)
+          if (outcome.status === 'rejected') {
+            logger.error(
+              `Post-commit listener failed (${operationId}): ${String(outcome.reason)}`,
+            )
+          }
+
+        return result
+      },
+    )
+  }
+
   return {
     ...runtime,
     async hydrate<T>(

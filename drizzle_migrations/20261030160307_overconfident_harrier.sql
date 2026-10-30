@@ -5,6 +5,9 @@ CREATE TABLE `areas` (
 	`icon` text,
 	`color` text,
 	`description` text,
+	`custom_data` text,
+	`count_tasks` integer DEFAULT 0,
+	`count_resources` integer DEFAULT 0,
 	`created_at` integer NOT NULL,
 	`updated_at` integer NOT NULL
 );
@@ -21,6 +24,9 @@ CREATE TABLE `goals` (
 	`icon` text,
 	`color` text,
 	`description` text,
+	`custom_data` text,
+	`count_tasks` integer DEFAULT 0,
+	`count_resources` integer DEFAULT 0,
 	`created_at` integer NOT NULL,
 	`updated_at` integer NOT NULL,
 	`status` text DEFAULT 'planned',
@@ -44,11 +50,13 @@ CREATE TABLE `tasks` (
 	`project_id` text,
 	`area_id` text,
 	`goal_id` text,
+	`custom_data` text,
 	`created_at` integer NOT NULL,
 	`updated_at` integer NOT NULL,
 	`status` text DEFAULT 'planned',
 	`priority` text DEFAULT 'medium',
 	`anchor_id` text,
+	`anchor_type` text DEFAULT 'any_after',
 	`estimated_minutes` integer,
 	`spent_minutes` integer DEFAULT 0 NOT NULL,
 	`due_date` integer,
@@ -58,7 +66,8 @@ CREATE TABLE `tasks` (
 	`is_chore` integer DEFAULT false NOT NULL,
 	`is_quick` integer DEFAULT false NOT NULL,
 	`stack_order` integer DEFAULT 0 NOT NULL,
-	`scheduled_for` integer,
+	`scheduled_start` integer,
+	`scheduled_end` integer,
 	`started_at` integer,
 	`completed_at` integer,
 	FOREIGN KEY (`project_id`) REFERENCES `projects`(`id`) ON UPDATE no action ON DELETE set null,
@@ -72,7 +81,8 @@ CREATE INDEX `tasks_area_idx` ON `tasks` (`area_id`);--> statement-breakpoint
 CREATE INDEX `tasks_goal_idx` ON `tasks` (`goal_id`);--> statement-breakpoint
 CREATE INDEX `tasks_status_idx` ON `tasks` (`status`);--> statement-breakpoint
 CREATE INDEX `tasks_due_date_idx` ON `tasks` (`due_date`);--> statement-breakpoint
-CREATE INDEX `tasks_scheduled_for_idx` ON `tasks` (`scheduled_for`);--> statement-breakpoint
+CREATE INDEX `tasks_scheduled_start_idx` ON `tasks` (`scheduled_start`);--> statement-breakpoint
+CREATE INDEX `tasks_scheduled_end_idx` ON `tasks` (`scheduled_end`);--> statement-breakpoint
 CREATE INDEX `tasks_title_idx` ON `tasks` (`title`);--> statement-breakpoint
 CREATE INDEX `tasks_created_at_idx` ON `tasks` (`created_at`);--> statement-breakpoint
 CREATE INDEX `tasks_updated_at_idx` ON `tasks` (`updated_at`);--> statement-breakpoint
@@ -83,6 +93,7 @@ CREATE TABLE `resources` (
 	`project_id` text,
 	`area_id` text,
 	`goal_id` text,
+	`custom_data` text,
 	`created_at` integer NOT NULL,
 	`updated_at` integer NOT NULL,
 	FOREIGN KEY (`project_id`) REFERENCES `projects`(`id`) ON UPDATE no action ON DELETE set null,
@@ -104,14 +115,17 @@ CREATE TABLE `projects` (
 	`icon` text,
 	`color` text,
 	`description` text,
+	`custom_data` text,
+	`count_tasks` integer DEFAULT 0,
+	`count_resources` integer DEFAULT 0,
 	`created_at` integer NOT NULL,
 	`updated_at` integer NOT NULL,
 	`status` text DEFAULT 'planned',
 	`area_id` text,
 	`goal_id` text,
 	`due_date` integer,
-	FOREIGN KEY (`area_id`) REFERENCES `areas`(`id`) ON UPDATE no action ON DELETE no action,
-	FOREIGN KEY (`goal_id`) REFERENCES `goals`(`id`) ON UPDATE no action ON DELETE no action
+	FOREIGN KEY (`area_id`) REFERENCES `areas`(`id`) ON UPDATE no action ON DELETE set null,
+	FOREIGN KEY (`goal_id`) REFERENCES `goals`(`id`) ON UPDATE no action ON DELETE set null
 );
 --> statement-breakpoint
 CREATE INDEX `projects_title_idx` ON `projects` (`title`);--> statement-breakpoint
@@ -126,6 +140,9 @@ CREATE UNIQUE INDEX `projects_title_unique` ON `projects` (`title`);--> statemen
 CREATE TABLE `tags` (
 	`id` text PRIMARY KEY NOT NULL,
 	`description` text,
+	`count_tasks` integer DEFAULT 0,
+	`count_resources` integer DEFAULT 0,
+	`count_pga` integer DEFAULT 0,
 	`created_at` integer NOT NULL,
 	`updated_at` integer NOT NULL,
 	`title` text NOT NULL,
@@ -137,6 +154,9 @@ CREATE UNIQUE INDEX `tags_title_unique` ON `tags` (`title`);--> statement-breakp
 CREATE TABLE `urls` (
 	`id` text PRIMARY KEY NOT NULL,
 	`description` text,
+	`count_tasks` integer DEFAULT 0,
+	`count_resources` integer DEFAULT 0,
+	`count_pga` integer DEFAULT 0,
 	`created_at` integer NOT NULL,
 	`updated_at` integer NOT NULL,
 	`title` text,
@@ -151,10 +171,13 @@ CREATE UNIQUE INDEX `urls_url_unique` ON `urls` (`url`);--> statement-breakpoint
 CREATE TABLE `time_entries` (
 	`id` text PRIMARY KEY NOT NULL,
 	`description` text,
+	`count_tasks` integer DEFAULT 0,
+	`count_resources` integer DEFAULT 0,
+	`count_pga` integer DEFAULT 0,
 	`created_at` integer NOT NULL,
 	`updated_at` integer NOT NULL,
 	`title` text DEFAULT '',
-	`task_id` text,
+	`task_id` text NOT NULL,
 	`start_time` integer NOT NULL,
 	`end_time` integer,
 	`duration` integer DEFAULT 0,
