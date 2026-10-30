@@ -4,6 +4,7 @@ import type {
   Announce,
   AppEvents,
   MutationCommands,
+  MutationEvent,
   MutationInput,
   MutationResult,
   EntryRecord,
@@ -136,13 +137,17 @@ export function createBackendRuntime(database: UnHussleDB) {
 
         const result = await unitOfWork.transaction(work)
 
+        // Publish under the command (`entity.add`) and its kind (`tasks.add`)
+        // so listeners can subscribe to a whole family or a single kind.
+        const event: MutationEvent = { ...input, operationId, result }
+        const verb = handlerName.slice(handlerName.indexOf('.') + 1)
+        const eventNames = new Set([handlerName, `${input.kind}.${verb}`])
+
         const outcomes = (
           await Promise.all([
-            runtime.events.publish(handlerName as keyof AppEvents, {
-              ...input,
-              operationId,
-              result,
-            }),
+            ...[...eventNames].map((name) =>
+              runtime.events.publish(name as keyof AppEvents, event),
+            ),
             ...announcements.map(([name, payload]) =>
               runtime.events.publish(name, payload),
             ),

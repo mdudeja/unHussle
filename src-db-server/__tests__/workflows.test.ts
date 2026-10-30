@@ -72,6 +72,38 @@ describe('Transactional command handlers', () => {
     runtime.dispose()
   })
 
+  test('mutations are also published under the kind-specific event', async () => {
+    const runtime = createBackendRuntime(database)
+    const received: string[] = []
+    for (const name of [
+      'entity.add',
+      'tasks.add',
+      'resources.add',
+      'entity.deleteAll',
+      'resources.deleteAll',
+    ] as const)
+      runtime.events.on(name, (eventName, event) => {
+        received.push(`${eventName}:${event.kind}`)
+      })
+
+    await runtime.commands.execute('entity.add', {
+      kind: 'tasks',
+      action: 'create',
+      changes: { title: 'Kind event' },
+    })
+    await runtime.commands.execute('entity.deleteAll', {
+      kind: 'resources',
+      action: 'deleteAll',
+    })
+    expect(received).toEqual([
+      'entity.add:tasks',
+      'tasks.add:tasks',
+      'entity.deleteAll:resources',
+      'resources.deleteAll:resources',
+    ])
+    runtime.dispose()
+  })
+
   test('the created row id is carried into supporter sync', async () => {
     const runtime = createBackendRuntime(database)
     const db = await database.getDb()
