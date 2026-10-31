@@ -1,6 +1,6 @@
 import type { StoreApi } from 'zustand/vanilla'
 import type { StoreState } from '@/store'
-import type { EntryKind } from '@c/workflows/contracts'
+import { commandHeadForKind, type EntryKind } from '@c/workflows/contracts'
 import { getFrontendRuntime } from '@/workflows/runtime'
 import { DbEntityTypes, WithSupporters } from '@c/types/index'
 import { StateCreator } from 'zustand'
@@ -27,6 +27,7 @@ export default function generateCreateDbConnectedStateSlice<
     const runtime = () =>
       getFrontendRuntime(api as unknown as StoreApi<StoreState>)
     const kind = sliceName
+    const head = commandHeadForKind[kind]
     let pending = 0
     const operation = async <R>(work: () => Promise<R>): Promise<R> => {
       pending++
@@ -70,7 +71,7 @@ export default function generateCreateDbConnectedStateSlice<
         add: (changes: WithSupporters<T['Write']>) =>
           operation(
             async () =>
-              runtime().commands.execute('entry.mutate', {
+              runtime().commands.execute(`${head}.add`, {
                 kind,
                 action: 'create',
                 changes,
@@ -78,7 +79,7 @@ export default function generateCreateDbConnectedStateSlice<
           ),
         update: (id: string, changes: WithSupporters<T['Update']>) =>
           operation(async () => {
-            await runtime().commands.execute('entry.mutate', {
+            await runtime().commands.execute(`${head}.change`, {
               kind,
               action: 'update',
               id,
@@ -87,7 +88,7 @@ export default function generateCreateDbConnectedStateSlice<
           }),
         remove: (id: string) =>
           operation(async () => {
-            await runtime().commands.execute('entry.mutate', {
+            await runtime().commands.execute(`${head}.delete`, {
               kind,
               action: 'delete',
               id,
@@ -95,7 +96,7 @@ export default function generateCreateDbConnectedStateSlice<
           }),
         reset: () =>
           operation(async () => {
-            await runtime().commands.execute('entry.mutate', {
+            await runtime().commands.execute(`${head}.deleteAll`, {
               kind,
               action: 'deleteAll',
             })

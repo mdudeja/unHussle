@@ -18,6 +18,7 @@ describe('Tags Store', () => {
     expect(state.tags.data).toEqual([])
   })
 
+  // Tag titles are normalized (trimmed, `#` stripped, lowercased) on write.
   test('create a new tag', async () => {
     const { add } = useStore.getState().tags
     const newEntityTagData = {
@@ -26,7 +27,7 @@ describe('Tags Store', () => {
     await add(newEntityTagData)
     const state = useStore.getState()
     const newEntityTag = state.tags.data.find(
-      (et) => et.title === 'New Entity Tag',
+      (et) => et.title === 'new entity tag',
     )
     expect(newEntityTag).toBeDefined()
     expect(state.tags.data).toHaveLength(1)
@@ -56,7 +57,7 @@ describe('Tags Store', () => {
 
     let state = useStore.getState()
     const entityTagToUpdate = state.tags.data.find(
-      (et) => et.title === 'Entity Tag to Update',
+      (et) => et.title === 'entity tag to update',
     )
     expect(entityTagToUpdate).toBeDefined()
 
@@ -66,7 +67,7 @@ describe('Tags Store', () => {
     const updatedEntityTag = state.tags.data.find(
       (et) => et.id === entityTagToUpdate!.id,
     )
-    expect(updatedEntityTag!.title).toBe('Updated Entity Tag Title')
+    expect(updatedEntityTag!.title).toBe('updated entity tag title')
   })
 
   test('delete an existing tag', async () => {
@@ -78,7 +79,7 @@ describe('Tags Store', () => {
 
     let state = useStore.getState()
     const entityTagToDelete = state.tags.data.find(
-      (et) => et.title === 'Entity Tag to Delete',
+      (et) => et.title === 'entity tag to delete',
     )
     expect(entityTagToDelete).toBeDefined()
 

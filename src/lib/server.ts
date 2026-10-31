@@ -2,10 +2,12 @@ export const makeJSONRequest = async <T>({
   url,
   method,
   body,
+  headers,
 }: {
   url: string
   method: 'GET' | 'POST' | 'PATCH' | 'DELETE'
   body?: unknown
+  headers?: Record<string, string>
 }) => {
   const reqInit: RequestInit = {
     method,
@@ -13,6 +15,7 @@ export const makeJSONRequest = async <T>({
     headers: {
       'Content-Type': 'application/json',
       Accept: 'application/json',
+      ...headers,
     },
   }
   const res = await fetch(url, reqInit)

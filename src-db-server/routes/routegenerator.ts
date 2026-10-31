@@ -93,6 +93,9 @@ export type RouteGeneratorSchemas =
       base: typeof timeEntries
     }
 
+/** Lets clients correlate a mutation with the events it publishes. */
+export const operationIdHeader = 'x-operation-id'
+
 // Initialize DB Access
 const uDB = UnHussleDB.getInstance()
 const db = await uDB.getDb()
@@ -212,11 +215,12 @@ export const routeGenerator = <
 
     .post(
       '/',
-      async ({ body, logger }) => {
+      async ({ body, headers, logger }) => {
         logger.debug(`Add ${config.name} with id: ${body.id}`)
         const result = await backendRuntime.commands.execute(`${head}.add`, {
           kind: config.kind,
           action: 'create',
+          operationId: headers[operationIdHeader],
           changes: body,
         })
 
@@ -235,11 +239,12 @@ export const routeGenerator = <
 
     .patch(
       '/:id',
-      async ({ params: { id }, body, logger }) => {
+      async ({ params: { id }, body, headers, logger }) => {
         logger.debug(`Update ${config.name} with id: ${id}`)
         const result = await backendRuntime.commands.execute(`${head}.change`, {
           kind: config.kind,
           action: 'update',
+          operationId: headers[operationIdHeader],
           id,
           changes: body,
         })
@@ -259,13 +264,14 @@ export const routeGenerator = <
 
     .delete(
       '/all',
-      async ({ logger }) => {
+      async ({ headers, logger }) => {
         logger.debug(`Delete all ${config.name} `)
         const result = await backendRuntime.commands.execute(
           `${head}.deleteAll`,
           {
             kind: config.kind,
             action: 'deleteAll',
+            operationId: headers[operationIdHeader],
           },
         )
 
@@ -278,11 +284,12 @@ export const routeGenerator = <
 
     .delete(
       '/:id',
-      async ({ params: { id }, logger }) => {
+      async ({ params: { id }, headers, logger }) => {
         logger.debug(`Delete ${config.name} with id: ${id}`)
         const result = await backendRuntime.commands.execute(`${head}.delete`, {
           kind: config.kind,
           action: 'delete',
+          operationId: headers[operationIdHeader],
           id,
         })
 

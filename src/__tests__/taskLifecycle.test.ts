@@ -11,7 +11,7 @@ import {
   deleteTask,
   pauseTask,
   startTask,
-} from '@/workflows/commands'
+} from '@/workflows/taskCommands'
 import { ProgressStatus } from '@c/types/index'
 
 // The time tracker keeps its session in localStorage, which bun doesn't have.

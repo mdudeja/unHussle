@@ -5,56 +5,153 @@ import {
   getFrontendRuntime,
   type EntryTransport,
 } from '@/workflows/runtime'
+import type { EventHandlers, EventTransport } from '@/workflows/eventStream'
+import type { MutationOptions } from '@/services/database/DbService'
 import { useStore, type StoreState } from '@/store'
 import { ProgressStatus } from '@c/types'
-import type { EntityKind, EntryKind, EntryRecord } from '@c/workflows/contracts'
+import {
+  commandHeadForKind,
+  type EntityKind,
+  type EntryKind,
+  type EntryRecord,
+  type MutationEvent,
+} from '@c/workflows/contracts'
 
-function fixture(initialStorage?: string) {
+const kinds = [
+  'tasks',
+  'projects',
+  'areas',
+  'goals',
+  'resources',
+  'tags',
+  'urls',
+  'time_entries',
+] as const
+
+/** Stands in for the SSE stream: delivers events in order, like the real one. */
+function fakeEventStream() {
+  let handlers: EventHandlers | undefined
+  let queue: Promise<unknown> = Promise.resolve()
+  const transport: EventTransport = {
+    connect: (next) => {
+      handlers = next
+    },
+    ready: () => Promise.resolve(),
+    close: () => {
+      handlers = undefined
+    },
+  }
+  const enqueue = (work: () => void | Promise<void> | undefined) => {
+    queue = queue.then(work)
+    return queue
+  }
+  return {
+    transport,
+    emit: (name: string, payload: unknown) =>
+      enqueue(() => handlers?.onEvent(name, payload)),
+    resync: () => enqueue(() => handlers?.onResync()),
+  }
+}
+
+function fixture({
+  initialStorage,
+  emitEvents = true,
+  eventTimeoutMs,
+}: {
+  initialStorage?: string
+  emitEvents?: boolean
+  eventTimeoutMs?: number
+} = {}) {
+  const stream = fakeEventStream()
   const rows = new Map<EntryKind, Map<string, EntryRecord>>()
+
+  // Publishes what the backend would: the family event, then the kind event.
+  const publish = (
+    kind: EntryKind,
+    verb: string,
+    event: Omit<MutationEvent, 'kind' | 'operationId'>,
+    options?: MutationOptions,
+  ) => {
+    if (!emitEvents) return
+    const payload = {
+      ...event,
+      kind,
+      operationId: options?.operationId ?? crypto.randomUUID(),
+    }
+    setTimeout(() => {
+      void stream.emit(`${commandHeadForKind[kind]}.${verb}`, payload)
+      void stream.emit(`${kind}.${verb}`, payload)
+    }, 0)
+  }
+
   const services = Object.fromEntries(
-    (
-      [
-        'tasks',
-        'projects',
-        'areas',
-        'goals',
-        'resources',
-        'tags',
-        'urls',
-        'time_entries',
-      ] as const
-    ).map((kind) => {
+    kinds.map((kind) => {
       const data = new Map<string, EntryRecord>()
       rows.set(kind, data)
       const service: EntryTransport = {
-        create: mock(async (changes: Record<string, unknown>) => {
-          const row = { id: crypto.randomUUID(), ...changes }
-          data.set(row.id, row)
-          return row
-        }),
-        update: mock(async (id: string, changes: Record<string, unknown>) => {
-          const previous = data.get(id)
-          if (!previous) throw new Error('Missing entity')
-          const row = { ...previous, ...changes }
-          data.set(id, row)
-          return row
-        }),
-        delete: mock(async (id: string) => {
+        create: mock(
+          async (
+            changes: Record<string, unknown>,
+            options?: MutationOptions,
+          ) => {
+            const row = { id: crypto.randomUUID(), ...changes }
+            data.set(row.id, row)
+            publish(
+              kind,
+              'add',
+              { action: 'create', changes, result: row },
+              options,
+            )
+            return row
+          },
+        ),
+        update: mock(
+          async (
+            id: string,
+            changes: Record<string, unknown>,
+            options?: MutationOptions,
+          ) => {
+            const previous = data.get(id)
+            if (!previous) throw new Error('Missing entity')
+            const row = { ...previous, ...changes }
+            data.set(id, row)
+            publish(
+              kind,
+              'change',
+              { action: 'update', id, changes, result: row },
+              options,
+            )
+            return row
+          },
+        ),
+        delete: mock(async (id: string, options?: MutationOptions) => {
           const row = data.get(id)
           if (!row) throw new Error('Missing entity')
           data.delete(id)
+          publish(
+            kind,
+            'delete',
+            { action: 'delete', id, result: row },
+            options,
+          )
           return row
         }),
-        reset: async () => {
-          const deleted = data.size
+        reset: async (options?: MutationOptions) => {
+          const deleted = [...data.values()]
           data.clear()
-          return { deleted }
+          publish(
+            kind,
+            'deleteAll',
+            { action: 'deleteAll', result: deleted },
+            options,
+          )
+          return { deleted: deleted.length }
         },
         fetchPaginated: mock(async () => [...data.values()]),
         fetchById: async (id) => {
           const row = data.get(id)
           if (!row) throw new Error('Missing entity')
-          return row
+          return { ...row, hydrated: true }
         },
         search: async (term) =>
           [...data.values()].filter((row) => String(row.title).includes(term)),
@@ -62,6 +159,7 @@ function fixture(initialStorage?: string) {
       return [kind, service]
     }),
   ) as Record<EntryKind, EntryTransport>
+
   const initial = useStore.getInitialState()
   const store = createStore<StoreState>(() => ({
     ...initial,
@@ -86,27 +184,37 @@ function fixture(initialStorage?: string) {
   const runtime = createFrontendRuntime(store, {
     services,
     storage,
+    transport: stream.transport,
+    eventTimeoutMs,
     now: () => 61001,
   })
-  return { runtime, store, services, rows, saved }
+  return { runtime, store, services, rows, saved, stream }
 }
 
 describe('Frontend workflows', () => {
   test('slice operations publish through the same runtime consumed by React', async () => {
     const runtime = getFrontendRuntime(useStore)
     const seen: string[] = []
-    const off = runtime.events.on('entry.changed', (event, context) => {
+    const record = (name: string, event: MutationEvent) => {
+      if (event.kind === 'tasks') seen.push(`${name}:${event.action}`)
+    }
+    const offAdd = runtime.events.on('entity.add', (name, event, context) => {
       expect(context.store.getState).toBe(useStore.getState)
-      if (event.kind === 'tasks') seen.push(event.action)
+      record(name, event)
     })
+    const offDelete = runtime.events.on('entity.delete', record)
     try {
       const task = await useStore
         .getState()
         .tasks.add({ title: 'Workflow integration' })
+      expect(
+        useStore.getState().tasks.data.some((row) => row.id === task.id),
+      ).toBe(true)
       await useStore.getState().tasks.remove(task.id)
-      expect(seen).toEqual(['create', 'delete'])
+      expect(seen).toEqual(['entity.add:create', 'entity.delete:delete'])
     } finally {
-      off()
+      offAdd()
+      offDelete()
     }
   })
 
@@ -120,12 +228,48 @@ describe('Frontend workflows', () => {
     expect(getFrontendRuntime(api)).toBe(getFrontendRuntime(useStore))
   })
 
+  test('a command resolves once its events have put the hydrated row in the store', async () => {
+    const { runtime, store } = fixture()
+    const result = (await runtime.commands.execute('entity.add', {
+      kind: 'tasks',
+      action: 'create',
+      changes: { title: 'Hydrated' },
+    })) as EntryRecord
+    expect(store.getState().tasks.data).toHaveLength(1)
+    expect(store.getState().tasks.data[0]).toMatchObject({
+      id: result.id,
+      hydrated: true,
+    })
+    runtime.dispose()
+  })
+
+  test('events from another window update the store without a local command', async () => {
+    const { runtime, store, rows, stream } = fixture()
+    rows.get('projects')!.set('remote', { id: 'remote', title: 'Remote' })
+    const event = {
+      kind: 'projects',
+      operationId: 'elsewhere',
+      result: { id: 'remote', title: 'Remote' },
+    }
+    await stream.emit('entityCollection.add', { ...event, action: 'create' })
+    expect(store.getState().projects.data.map((row) => row.id)).toEqual([
+      'remote',
+    ])
+    await stream.emit('entityCollection.delete', {
+      ...event,
+      action: 'delete',
+      id: 'remote',
+    })
+    expect(store.getState().projects.data).toEqual([])
+    runtime.dispose()
+  })
+
   test('attachment refresh failure warns without failing save; retry performs no write', async () => {
     const { runtime, store, services } = fixture()
     services.tags.fetchPaginated = mock(async () => {
       throw new Error('Read failed')
     })
-    const result = (await runtime.commands.execute('entry.mutate', {
+    const result = (await runtime.commands.execute('entity.add', {
       kind: 'tasks',
       action: 'create',
       changes: {
@@ -182,7 +326,7 @@ describe('Frontend workflows', () => {
       throw new Error('Delete failed')
     }
     await expect(
-      runtime.commands.execute('entry.mutate', {
+      runtime.commands.execute('entity.delete', {
         kind: 'tasks',
         action: 'delete',
         id: 'one',
@@ -190,12 +334,97 @@ describe('Frontend workflows', () => {
     ).rejects.toThrow()
     expect(runtime.tracking.getActiveTracking()?.taskId).toBe('one')
     services.tasks.delete = remove
-    await runtime.commands.execute('entry.mutate', {
+    await runtime.commands.execute('entity.delete', {
       kind: 'tasks',
       action: 'delete',
       id: 'one',
     })
     expect(runtime.tracking.getActiveTracking()).toBeNull()
+    runtime.dispose()
+  })
+
+  test('deleting the tracked task elsewhere stops tracking and announces it', async () => {
+    const { runtime, stream } = fixture()
+    runtime.tracking.start('one', 1000)
+    const changes: (string | null)[] = []
+    runtime.events.on('tracking.changed', (_name, { taskId }) => {
+      changes.push(taskId)
+    })
+    await stream.emit('tasks.delete', {
+      kind: 'tasks',
+      action: 'delete',
+      id: 'other',
+      operationId: 'elsewhere',
+      result: { id: 'other' },
+    })
+    expect(runtime.tracking.getActiveTracking()?.taskId).toBe('one')
+    await stream.emit('tasks.delete', {
+      kind: 'tasks',
+      action: 'delete',
+      id: 'one',
+      operationId: 'elsewhere',
+      result: { id: 'one' },
+    })
+    expect(runtime.tracking.getActiveTracking()).toBeNull()
+    expect(changes).toEqual([null])
+    runtime.dispose()
+  })
+
+  test('announced member changes reload those rows', async () => {
+    const { runtime, store, rows, stream } = fixture()
+    rows.get('tasks')!.set('one', { id: 'one', title: 'One', project_id: 'p' })
+    await runtime.fetchList('tasks')
+    expect(store.getState().tasks.data[0].project_id).toBe('p')
+
+    rows.get('tasks')!.set('one', { id: 'one', title: 'One', project_id: null })
+    await stream.emit('tasks.change', {
+      kind: 'tasks',
+      action: 'update',
+      attachedIds: ['one'],
+      operationId: 'project-deleted',
+      result: undefined,
+    })
+    expect(store.getState().tasks.data).toHaveLength(1)
+    expect(store.getState().tasks.data[0]).toMatchObject({
+      id: 'one',
+      project_id: null,
+      hydrated: true,
+    })
+    runtime.dispose()
+  })
+
+  test('missing events time out into a reload instead of hanging', async () => {
+    const { runtime, store, services } = fixture({
+      emitEvents: false,
+      eventTimeoutMs: 20,
+    })
+    const result = (await runtime.commands.execute('entity.add', {
+      kind: 'tasks',
+      action: 'create',
+      changes: { title: 'Event lost' },
+    })) as EntryRecord
+    expect(services.tasks.fetchPaginated).toHaveBeenCalledTimes(1)
+    expect(store.getState().tasks.data.map((row) => row.id)).toEqual([
+      result.id,
+    ])
+    runtime.dispose()
+  })
+
+  test('resync reloads active queries and loaded lists', async () => {
+    const { runtime, store, rows, stream } = fixture()
+    rows.get('tasks')!.set('one', { id: 'one', title: 'Match' })
+    await runtime.fetchList('tasks')
+    await runtime.search('tasks', 'Match')
+    const off = runtime.queries.activate('search:tasks:Match')
+
+    rows.get('tasks')!.set('two', { id: 'two', title: 'Match too' })
+    await stream.resync()
+    expect(
+      (runtime.queries.snapshot('search:tasks:Match').data as EntryRecord[])
+        .length,
+    ).toBe(2)
+    expect(store.getState().tasks.data).toHaveLength(2)
+    off()
     runtime.dispose()
   })
 
@@ -225,9 +454,9 @@ describe('Frontend workflows', () => {
   })
 
   test('restores existing localStorage sessions', () => {
-    const { runtime } = fixture(
-      JSON.stringify({ taskId: 'restored', startTime: 1000 }),
-    )
+    const { runtime } = fixture({
+      initialStorage: JSON.stringify({ taskId: 'restored', startTime: 1000 }),
+    })
     expect(runtime.tracking.getActiveTracking()).toEqual({
       taskId: 'restored',
       startTime: 1000,
@@ -261,11 +490,13 @@ describe('Frontend workflows', () => {
     const { runtime, services } = fixture()
     const create = services.urls.create
     let fails = true
-    services.urls.create = mock(async (input: Record<string, unknown>) => {
-      if (input.url === 'https://failed.example' && fails)
-        throw new Error('Unavailable')
-      return create(input)
-    })
+    services.urls.create = mock(
+      async (input: Record<string, unknown>, options?: MutationOptions) => {
+        if (input.url === 'https://failed.example' && fails)
+          throw new Error('Unavailable')
+        return create(input, options)
+      },
+    )
     const result = await runtime.commands.execute('brainDump.submit', {
       urls: [
         { url: 'https://saved.example' },
@@ -287,7 +518,7 @@ describe('Frontend workflows', () => {
     await runtime.search('tasks', 'Match')
     const key = 'search:tasks:Match'
     const off = runtime.queries.activate(key)
-    await runtime.commands.execute('entry.mutate', {
+    await runtime.commands.execute('entity.change', {
       kind: 'tasks',
       action: 'update',
       id: 'one',

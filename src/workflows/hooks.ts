@@ -46,7 +46,7 @@ export function useWorkflowQuery<T>(
   }
 }
 
-export function useEntityList(kind: EntryKind, page = 1, enabled = true) {
+export function useEntryList(kind: EntryKind, page = 1, enabled = true) {
   const runtime = useWorkflowRuntime()
   return useWorkflowQuery<EntryRecord[]>(
     {
@@ -61,7 +61,7 @@ export function useEntityList(kind: EntryKind, page = 1, enabled = true) {
   )
 }
 
-export function useEntityDetail(kind: EntryKind, id: string) {
+export function useEntryDetail(kind: EntryKind, id: string) {
   const runtime = useWorkflowRuntime()
   return useWorkflowQuery({
     key: `detail:${kind}:${id}`,
@@ -70,7 +70,7 @@ export function useEntityDetail(kind: EntryKind, id: string) {
   })
 }
 
-export function useEntitySearch<T extends { id: string }>(
+export function useEntrySearch<T extends { id: string }>(
   kind: EntryKind,
   term: string,
 ) {

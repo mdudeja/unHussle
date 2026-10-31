@@ -1,4 +1,4 @@
-import { useEntityList, useWorkflowRuntime } from '@/workflows/hooks'
+import { useEntryList, useWorkflowRuntime } from '@/workflows/hooks'
 import React, { useState, useRef, useMemo } from 'react'
 import { useStore } from '@/store'
 import { Input } from '@/components/ui/input'
@@ -106,7 +106,7 @@ export const BrainDumpInputComponent = () => {
   const projects = useStore((state) => state.projects)
   const goals = useStore((state) => state.goals)
   const runtime = useWorkflowRuntime()
-  useEntityList('tags')
+  useEntryList('tags')
   const [submissionError, setSubmissionError] = useState<string | undefined>()
 
   // `#` autocomplete for areas, projects, goals and tags. Selecting a suggestion

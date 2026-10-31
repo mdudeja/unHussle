@@ -7,13 +7,13 @@ import { Play, Coffee } from 'lucide-react'
 import { TaskTimerComponent } from '@/components/app/TaskTimer'
 import { Badge } from '@/components/ui/badge'
 import { cn } from '@/lib/utils'
-import { startTask } from '@/workflows/commands'
+import { startTask } from '@/workflows/taskCommands'
 import { Logger } from '@c/Logger'
-import { useEntityList } from '@/workflows/hooks'
+import { useEntryList } from '@/workflows/hooks'
 
 export const NextTaskCardComponent = ({ ref }: React.ComponentProps<'div'>) => {
   const { tasks, projects, areas } = useStore()
-  const taskQuery = useEntityList('tasks')
+  const taskQuery = useEntryList('tasks')
   const isLoading = tasks.isLoading || taskQuery.isLoading
 
   const nextTask = useMemo(() => {

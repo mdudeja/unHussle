@@ -10,8 +10,10 @@ import { tagRoutes } from '@d/routes/tags'
 import { resourcesRoutes } from './routes/resources'
 import { urlRoutes } from './routes/urls'
 import { timeEntriesRoutes } from './routes/time_entries'
+import { eventRoutes } from './routes/events'
 import { runSeed } from './database/seed/run-seed'
 import { Logger } from '@c/Logger'
+import { VERSION } from '@c/version'
 
 const logger = Logger.getInstance()
 
@@ -32,8 +34,9 @@ const app = new Elysia()
   .decorate('logger', logger)
 
   .mapResponse(({ responseValue, set, path }) => {
-    // Skip compression for Swagger documentation routes
-    if (path?.startsWith('/api')) {
+    // Skip compression for Swagger documentation routes and raw responses
+    // (e.g. the `/events` stream, which must not be buffered).
+    if (path?.startsWith('/api') || responseValue instanceof Response) {
       return
     }
 
@@ -60,7 +63,7 @@ const app = new Elysia()
       documentation: {
         info: {
           title: 'unHussle API',
-          version: '1.0.0',
+          version: VERSION,
         },
       },
     }),
@@ -101,6 +104,9 @@ const app = new Elysia()
   .use(tagRoutes)
   .use(urlRoutes)
   .use(timeEntriesRoutes)
+
+  // backend events, streamed to the frontend
+  .use(eventRoutes)
 
   .listen(PORT)
 

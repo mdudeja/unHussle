@@ -19,7 +19,7 @@ export const completeTask = (id: string) =>
 export const cancelTask = (id: string) =>
   transition(id, ProgressStatus.CANCELLED)
 export const deleteTask = async (id: string): Promise<void> => {
-  await getFrontendRuntime(useStore).commands.execute('entry.mutate', {
+  await getFrontendRuntime(useStore).commands.execute('entity.delete', {
     kind: 'tasks',
     action: 'delete',
     id,

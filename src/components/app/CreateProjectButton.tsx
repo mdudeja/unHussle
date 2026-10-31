@@ -1,4 +1,4 @@
-import { useEntityList } from '@/workflows/hooks'
+import { useEntryList } from '@/workflows/hooks'
 import { useMemo, useState } from 'react'
 import { useStore } from '@/store'
 import { Logger } from '@c/Logger'
@@ -26,8 +26,8 @@ export const CreateProjectButtonComponent = () => {
   const goals = useStore((state) => state.goals)
 
   const [isDialogOpen, setIsDialogOpen] = useState(false)
-  useEntityList('areas', 1, isDialogOpen)
-  useEntityList('goals', 1, isDialogOpen)
+  useEntryList('areas', 1, isDialogOpen)
+  useEntryList('goals', 1, isDialogOpen)
 
   const [isSubmitting, setIsSubmitting] = useState(false)
   const [errorMessage, setErrorMessage] = useState<string | undefined>(

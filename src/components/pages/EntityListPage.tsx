@@ -1,4 +1,4 @@
-import { useEntityList, useEntitySearch } from '@/workflows/hooks'
+import { useEntryList, useEntrySearch } from '@/workflows/hooks'
 import { ReactNode } from 'react'
 import { useSearchParams } from 'react-router'
 import { LucideIcon } from 'lucide-react'
@@ -97,14 +97,14 @@ export function EntityListPage<TData extends { id: string }>({
   const slice = useStore(selectSlice)
   const [searchParams, setSearchParams] = useSearchParams()
 
-  const listQuery = useEntityList(kind)
+  const listQuery = useEntryList(kind)
 
   const selectedId = searchParams.get(entitySearchParams.id)
   const isRelatedShown = searchParams.has(entitySearchParams.related)
   const searchValue = searchParams.get(entitySearchParams.search) ?? ''
   const searchTerm = useDebouncedValue(searchValue.trim(), SEARCH_DEBOUNCE_MS)
 
-  const searchQuery = useEntitySearch<TData>(kind, searchTerm)
+  const searchQuery = useEntrySearch<TData>(kind, searchTerm)
   const isSearchActive = searchValue.trim() !== ''
   const isSearching =
     isSearchActive &&

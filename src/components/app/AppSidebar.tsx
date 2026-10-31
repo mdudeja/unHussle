@@ -1,4 +1,4 @@
-import { useEntityList } from '@/workflows/hooks'
+import { useEntryList } from '@/workflows/hooks'
 import type { LucideIcon } from 'lucide-react'
 import {
   FolderKanban,
@@ -116,12 +116,12 @@ export const AppSidebarComponent = () => {
   const urls = useStore((state) => state.urls)
   const tags = useStore((state) => state.tags)
 
-  const projectsQuery = useEntityList('projects')
-  const areasQuery = useEntityList('areas')
-  const goalsQuery = useEntityList('goals')
-  const tasksQuery = useEntityList('tasks')
-  const urlsQuery = useEntityList('urls')
-  const tagsQuery = useEntityList('tags')
+  const projectsQuery = useEntryList('projects')
+  const areasQuery = useEntryList('areas')
+  const goalsQuery = useEntryList('goals')
+  const tasksQuery = useEntryList('tasks')
+  const urlsQuery = useEntryList('urls')
+  const tagsQuery = useEntryList('tags')
 
   const groups = [
     {

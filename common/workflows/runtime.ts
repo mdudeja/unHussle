@@ -17,6 +17,7 @@ export function createRuntime<
     keyof Events,
     Set<Handler<unknown, void, Context>>
   >()
+  const anyListeners = new Set<Handler<unknown, void, Context>>()
   return {
     commands: {
       handle<K extends Name>(
@@ -53,9 +54,17 @@ export function createRuntime<
           group.delete(registered)
         }
       },
+      /** Listens to every published event, e.g. for forwarding or logging. */
+      onAny(handler: Handler<Events[keyof Events], void, Context>) {
+        const registered = handler as Handler<unknown, void, Context>
+        anyListeners.add(registered)
+        return () => {
+          anyListeners.delete(registered)
+        }
+      },
       publish<K extends keyof Events>(name: K, payload: Events[K]) {
         return Promise.allSettled(
-          [...(listeners.get(name) ?? [])].map((listener) =>
+          [...(listeners.get(name) ?? []), ...anyListeners].map((listener) =>
             Promise.resolve().then(() =>
               listener(String(name), payload, context),
             ),
@@ -66,6 +75,7 @@ export function createRuntime<
     dispose() {
       handlers.clear()
       listeners.clear()
+      anyListeners.clear()
     },
   }
 }

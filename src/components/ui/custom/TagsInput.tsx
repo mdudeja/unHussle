@@ -1,4 +1,4 @@
-import { useEntityList } from '@/workflows/hooks'
+import { useEntryList } from '@/workflows/hooks'
 import React, { useMemo, useRef, useState } from 'react'
 import { X } from 'lucide-react'
 import { useStore } from '@/store'
@@ -47,7 +47,7 @@ export function TagsInput({
   const selected = useMemo(() => value ?? [], [value])
   const normalizedQuery = slugifyTag(query)
 
-  useEntityList('tags')
+  useEntryList('tags')
 
   const options = useMemo<TagOption[]>(() => {
     const selectedTitles = new Set(selected.map((tag) => tag.title))

@@ -100,7 +100,7 @@ export function createBackendRuntime(database: UnHussleDB) {
           return
         }
 
-        const operationId = crypto.randomUUID()
+        const operationId = input.operationId ?? crypto.randomUUID()
         let currentInput: MutationInput = input
 
         // Announcements are held until commit and dropped on rollback.

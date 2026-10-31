@@ -4,13 +4,13 @@ import {
 } from '@/components/app'
 import { NextTaskCardComponent } from '@/components/app/NextTaskCard'
 import { PageViewComponent } from '@/components/pages/PageView'
-import { useEntityList } from '@/workflows/hooks'
+import { useEntryList } from '@/workflows/hooks'
 
 export default function HomePage() {
-  useEntityList('tasks')
-  useEntityList('areas')
-  useEntityList('goals')
-  useEntityList('projects')
+  useEntryList('tasks')
+  useEntryList('areas')
+  useEntryList('goals')
+  useEntryList('projects')
 
   return (
     <PageViewComponent>

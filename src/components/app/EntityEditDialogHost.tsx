@@ -1,4 +1,4 @@
-import { useEntityDetail, useEntityList } from '@/workflows/hooks'
+import { useEntryDetail, useEntryList } from '@/workflows/hooks'
 import { useMemo, useState } from 'react'
 import { useStore } from '@/store'
 import { EditingEntity } from '@/store/slices/createUISlice'
@@ -32,16 +32,16 @@ const EntityEditDialog = ({ editing }: { editing: EditingEntity }) => {
   const areas = useStore((state) => state.areas)
   const goals = useStore((state) => state.goals)
 
-  useEntityList('projects', 1, editing.kind === 'tasks')
-  useEntityList(
+  useEntryList('projects', 1, editing.kind === 'tasks')
+  useEntryList(
     'areas',
     1,
     ['tasks', 'projects', 'goals'].includes(editing.kind),
   )
-  useEntityList('goals', 1, ['tasks', 'projects'].includes(editing.kind))
+  useEntryList('goals', 1, ['tasks', 'projects'].includes(editing.kind))
 
   const entry = entityRegistry[editing.kind]
-  const detail = useEntityDetail(editing.kind, editing.id)
+  const detail = useEntryDetail(editing.kind, editing.id)
   const item = detail.data
   const [isSubmitting, setIsSubmitting] = useState(false)
   const [errorMessage, setErrorMessage] = useState<string | undefined>()

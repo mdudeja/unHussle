@@ -1,19 +1,12 @@
 import { createStore, type StoreApi } from 'zustand/vanilla'
 import { createRuntime } from '@c/workflows/runtime'
 import type {
-  AppEvents,
   EntryKind,
   EntryRecord,
-  MutationCommands,
+  MutationEvent,
   MutationInput,
-  MutationResult,
 } from '@c/workflows/contracts'
-import {
-  ProgressStatus,
-  type Task,
-  type WithSupporters,
-  type UrlInput,
-} from '@c/types'
+import { ProgressStatus } from '@c/types'
 import { getNowMillis } from '@c/datetimeUtils'
 import { Logger } from '@c/Logger'
 import type { StoreState } from '@/store'
@@ -24,32 +17,36 @@ import {
   type SessionStorage,
   type WorkflowUIState,
 } from './tracking'
+import type {
+  EntryTransport,
+  FrontendCommands,
+  FrontendEvents,
+  Transition,
+} from './contracts'
+import { createSseTransport, type EventTransport } from './eventStream'
+import { createOperationTracker, settlesWithin } from './operations'
+import { createReactions } from './reactions'
+import { reactionRegistry } from './reactionRegistry'
+import {
+  mutationHeads,
+  mutationVerbs,
+  type MutationVerb,
+} from './commandRegistry'
 
-export type EntryTransport = {
-  create(this: void, changes: Record<string, unknown>): Promise<EntryRecord>
-  update(
-    this: void,
-    id: string,
-    changes: Record<string, unknown>,
-  ): Promise<EntryRecord>
-  delete(this: void, id: string): Promise<EntryRecord>
-  reset(this: void): Promise<unknown>
-  fetchPaginated(this: void, page: number, size: number): Promise<EntryRecord[]>
-  fetchById(this: void, id: string): Promise<EntryRecord>
-  search(this: void, term: string): Promise<EntryRecord[]>
-}
-type Transition = {
-  id: string
-  status: ProgressStatus
-  changes?: Record<string, unknown>
-}
-type Commands = MutationCommands & {
-  'task.transition': { input: Transition; result: EntryRecord }
-  'brainDump.submit': {
-    input: { task?: WithSupporters<Task['Write']>; urls?: UrlInput[] }
-    result: { failedUrls: UrlInput[] }
-  }
-}
+export type { EntryTransport } from './contracts'
+
+type MutationCommand = `${(typeof mutationHeads)[number]}.${MutationVerb}`
+
+const allKinds: EntryKind[] = [
+  'tasks',
+  'resources',
+  'projects',
+  'areas',
+  'goals',
+  'tags',
+  'urls',
+  'time_entries',
+]
 
 const queryKindToLabel: Record<string, string> = {
   search: 'search results',
@@ -66,10 +63,20 @@ export function createFrontendRuntime(
     services?: Record<EntryKind, EntryTransport>
     storage?: SessionStorage
     now?: () => number
+    transport?: EventTransport
+    /** How long a command waits for its events before reloading instead. */
+    eventTimeoutMs?: number
+    /** How long a command waits for the event stream to connect. */
+    readyTimeoutMs?: number
   } = {},
 ) {
   let disposed = false
+  const logger = Logger.getInstance()
   const queries = createQueryCoordinator()
+  const operations = createOperationTracker()
+  const transport = options.transport ?? createSseTransport()
+  const eventTimeoutMs = options.eventTimeoutMs ?? 3000
+  const readyTimeoutMs = options.readyTimeoutMs ?? 1000
   const ui = createStore<WorkflowUIState>(() => ({
     tracking: null,
     warnings: [],
@@ -82,24 +89,6 @@ export function createFrontendRuntime(
 
   const services: Record<EntryKind, EntryTransport> =
     options.services ?? entityServices
-
-  const context = {
-    store,
-    services,
-    queries,
-    tracking,
-    ui,
-    now: options.now ?? getNowMillis,
-    logger: Logger.getInstance(),
-  }
-  const runtime = createRuntime<Commands, AppEvents, typeof context>(context)
-  let lifecycleQueue: Promise<unknown> = Promise.resolve()
-
-  const serialize = <T>(work: () => Promise<T>) => {
-    const result = lifecycleQueue.then(work)
-    lifecycleQueue = result.catch(() => {})
-    return result
-  }
 
   const projectRecord = (kind: EntryKind, data: EntryRecord[]) => {
     if (disposed) return
@@ -134,7 +123,7 @@ export function createFrontendRuntime(
       queryKindToLabel[entityKind] ??
       entityKind ??
       'related data'
-    context.logger.error(`Follow-up refresh failed (${id}): ${String(error)}`)
+    logger.error(`Follow-up refresh failed (${id}): ${String(error)}`)
     ui.setState(({ warnings }) => ({
       warnings: [
         ...warnings.filter((warning) => warning.id !== id),
@@ -146,7 +135,7 @@ export function createFrontendRuntime(
               await queries.ensure(key)
               dismissWarning(id)
             } catch (retryError) {
-              context.logger.error(
+              logger.error(
                 `Refresh retry failed (${id}): ${String(retryError)}`,
               )
             }
@@ -156,82 +145,126 @@ export function createFrontendRuntime(
     }))
   }
 
-  runtime.events.on('entry.changed', async (event) => {
-    const extra: string[] = []
-    if (event.action === 'create' || event.action === 'update') {
-      for (const kind of ['tags', 'urls'] as const) {
-        if (event.changes?.[kind] !== undefined) extra.push(defineList(kind))
-      }
-    }
-    const outcomes = await queries.invalidate([event.kind], extra)
+  const invalidate = async (
+    operationId: string,
+    kinds: EntryKind[],
+    extraKeys: string[] = [],
+  ) => {
+    const outcomes = await queries.invalidate(kinds, extraKeys)
     for (const { key, error } of outcomes)
-      if (error) warnRefresh(event.operationId, key, error)
+      if (error) warnRefresh(operationId, key, error)
+  }
+
+  const context = {
+    store,
+    services,
+    queries,
+    tracking,
+    ui,
+    now: options.now ?? getNowMillis,
+    logger,
+    isDisposed: () => disposed,
+    defineList,
+    warnRefresh,
+    publishTracking: () =>
+      runtime.events.publish('tracking.changed', {
+        taskId: tracking.getActiveTracking()?.taskId ?? null,
+      }),
+  }
+  const runtime = createRuntime<
+    FrontendCommands,
+    FrontendEvents,
+    typeof context
+  >(context)
+
+  // Reactions: what the frontend does in response to each event.
+  const reactions = createReactions<typeof context>()
+  for (const name of Object.keys(reactionRegistry) as (keyof FrontendEvents)[])
+    runtime.events.on(name, async (eventName, event, reactionContext) => {
+      for (const reactionName of reactionRegistry[name] ?? []) {
+        const reaction = reactions[reactionName]
+        if (!reaction) {
+          logger.warn(`Reaction not found: ${reactionName}. Skipping...`)
+          continue
+        }
+        try {
+          await reaction(eventName, event as MutationEvent, reactionContext)
+        } catch (error) {
+          logger.error(
+            `Reaction ${reactionName} failed for ${eventName}: ${String(error)}`,
+          )
+        }
+      }
+    })
+
+  // Backend events are republished on the local bus, one at a time.
+  transport.connect({
+    onEvent: async (name, payload) => {
+      if (disposed) return
+      const outcomes = await runtime.events.publish(
+        name as keyof FrontendEvents,
+        payload as never,
+      )
+      for (const outcome of outcomes)
+        if (outcome.status === 'rejected')
+          logger.error(
+            `Event listener failed (${name}): ${String(outcome.reason)}`,
+          )
+      operations.handled(
+        (payload as MutationEvent | undefined)?.operationId,
+        name,
+      )
+    },
+    onResync: async () => {
+      if (disposed) return
+      logger.warn('Event stream resynchronising; reloading data')
+      const loaded = allKinds.filter(
+        (kind) => store.getState()[kind].data.length,
+      )
+      await invalidate(
+        'resync',
+        allKinds,
+        loaded.map((kind) => defineList(kind)),
+      )
+    },
   })
 
-  const publishTracking = () =>
-    runtime.events.publish('tracking.changed', {
-      taskId: tracking.getActiveTracking()?.taskId ?? null,
-    })
-
-  const mutate = async (input: MutationInput): Promise<MutationResult> => {
-    const { kind, action, id, changes = {} } = input
-    const service = services[kind]
-    let result: MutationResult
-    switch (action) {
-      case 'create':
-        result = await service.create(changes)
-        break
-      case 'update':
-        if (!id) throw new Error('Missing id for update action')
-        result = await service.update(id, changes)
-        break
-      case 'delete':
-        if (!id) throw new Error('Missing id for delete action')
-        result = await service.delete(id)
-        break
-      case 'deleteAll':
-        // eslint-disable-next-line no-case-declarations
-        const response = await service.reset()
-        result =
-          response && typeof response === 'object' && 'deleted' in response
-            ? (response as { deleted: number })
-            : { deleted: 0 }
-        break
-      default:
-        throw new Error('Unsupported mutation action')
-    }
-    const rows = store.getState()[kind].data as EntryRecord[]
-    projectRecord(
-      kind,
-      action === 'deleteAll'
-        ? []
-        : action === 'delete'
-          ? rows.filter((row) => row.id !== id)
-          : action === 'create'
-            ? [
-                ...rows.filter((row) => row.id !== (result as EntryRecord).id),
-                result as EntryRecord,
-              ]
-            : rows.map((row) =>
-                row.id === id ? (result as EntryRecord) : row,
-              ),
-    )
+  /**
+   * Sends a mutation and waits until its events have been handled, so callers
+   * observe the updated store. Falls back to reloading if the events are lost.
+   */
+  const send = async (command: MutationCommand, input: MutationInput) => {
+    const verb = command.slice(command.indexOf('.') + 1) as MutationVerb
     const operationId = crypto.randomUUID()
-    const outcomes = await runtime.events.publish('entry.changed', {
-      ...input,
-      result,
-      operationId,
-    })
-    for (const outcome of outcomes)
-      if (outcome.status === 'rejected') {
-        context.logger.error(
-          `Completion listener failed (${operationId}): ${String(outcome.reason)}`,
+    const operation = operations.begin(operationId, [
+      command,
+      `${input.kind}.${verb}`,
+    ])
+    try {
+      await settlesWithin(transport.ready(), readyTimeoutMs)
+      const result = await mutationVerbs[verb](services[input.kind], input, {
+        operationId,
+      })
+      if (!(await settlesWithin(operation.settled, eventTimeoutMs))) {
+        logger.warn(
+          `No events received for ${command} (${operationId}); reloading ${input.kind}`,
         )
+        await invalidate(operationId, [input.kind], [defineList(input.kind)])
       }
+      return result
+    } finally {
+      operation.cancel()
+    }
+  }
+
+  let lifecycleQueue: Promise<unknown> = Promise.resolve()
+  const serialize = <T>(work: () => Promise<T>) => {
+    const result = lifecycleQueue.then(work)
+    lifecycleQueue = result.catch(() => {})
     return result
   }
 
-  const transition = async ({
+  const transitionTask = async ({
     id,
     status,
     changes = {},
@@ -242,7 +275,10 @@ export function createFrontendRuntime(
       session &&
       session.taskId !== id
     ) {
-      await transition({ id: session.taskId, status: ProgressStatus.PAUSED })
+      await transitionTask({
+        id: session.taskId,
+        status: ProgressStatus.PAUSED,
+      })
       session = null
     }
     const task = await services.tasks.fetchById(id)
@@ -261,7 +297,7 @@ export function createFrontendRuntime(
         Math.ceil(Math.max(0, context.now() - session.startTime) / 60000)
     }
 
-    const result = (await mutate({
+    const result = (await send('entity.change', {
       kind: 'tasks',
       action: 'update',
       id,
@@ -274,18 +310,20 @@ export function createFrontendRuntime(
       tracking.getActiveTracking()?.taskId !== id
     )
       tracking.start(id, context.now())
-    await publishTracking()
+    await context.publishTracking()
     return result
   }
 
-  runtime.commands.handle('task.transition', (input) =>
-    serialize(() => transition(input)),
+  runtime.commands.handle('task.transition', (_command, input) =>
+    serialize(() => transitionTask(input)),
   )
 
-  runtime.commands.handle('entry.mutate', (input) => {
+  // Task status changes and deletions go through the serialized lifecycle;
+  // tracking cleanup on delete is a reaction, so it applies to any source.
+  const mutate = (command: MutationCommand, input: MutationInput) => {
     if (
       input.kind === 'tasks' &&
-      input.action === 'update' &&
+      command === 'entity.change' &&
       input.id &&
       input.changes?.status
     ) {
@@ -297,28 +335,31 @@ export function createFrontendRuntime(
     }
     if (
       input.kind === 'tasks' &&
-      (input.action === 'delete' || input.action === 'deleteAll')
-    ) {
-      return serialize(async () => {
-        const result = await mutate(input)
-        if (
-          input.action === 'deleteAll' ||
-          tracking.getActiveTracking()?.taskId === input.id
-        ) {
-          tracking.clear()
-          await publishTracking()
-        }
-        return result
-      })
-    }
-    return mutate(input)
-  })
+      (command === 'entity.delete' || command === 'entity.deleteAll')
+    )
+      return serialize(() => send(command, input))
+    return send(command, input)
+  }
 
-  runtime.commands.handle('brainDump.submit', async ({ task, urls = [] }) => {
+  for (const head of mutationHeads)
+    for (const verb of Object.keys(mutationVerbs) as MutationVerb[]) {
+      const name: MutationCommand = `${head}.${verb}`
+      runtime.commands.handle(
+        name,
+        (_command, input) =>
+          mutate(name, input) as Promise<
+            FrontendCommands[MutationCommand]['result']
+          >,
+      )
+    }
+
+  runtime.commands.handle('brainDump.submit', async (_command, input) => {
+    const { urls = [] } = input
+    let { task } = input
     if (!task) {
       const outcomes = await Promise.allSettled(
         urls.map((url) =>
-          runtime.commands.execute('entry.mutate', {
+          runtime.commands.execute('entitySupporter.add', {
             kind: 'urls',
             action: 'create',
             changes: url,
@@ -344,7 +385,7 @@ export function createFrontendRuntime(
       if (!area) throw new Error('Brain Dump area not found')
       task = { ...task, area_id: area.id }
     }
-    await runtime.commands.execute('entry.mutate', {
+    await runtime.commands.execute('entity.add', {
       kind: 'tasks',
       action: 'create',
       changes: task,
@@ -370,6 +411,8 @@ export function createFrontendRuntime(
 
   const dispose = () => {
     disposed = true
+    transport.close()
+    operations.dispose()
     runtime.dispose()
     queries.dispose()
     ui.setState({ tracking: null, warnings: [] })
@@ -404,9 +447,11 @@ export function dependencies(kind: EntryKind): EntryKind[] {
       ? [...hydrated, 'tags', 'urls']
       : [kind]
 }
+
 export type FrontendRuntime = ReturnType<typeof createFrontendRuntime>
 let instances = new WeakMap<StoreApi<StoreState>['getState'], FrontendRuntime>()
 const liveInstances = new Set<FrontendRuntime>()
+
 export function getFrontendRuntime(store: StoreApi<StoreState>) {
   let runtime = instances.get(store.getState)
   if (!runtime) {
@@ -416,9 +461,11 @@ export function getFrontendRuntime(store: StoreApi<StoreState>) {
   }
   return runtime
 }
+
 export function disposeFrontendRuntimes() {
   for (const runtime of liveInstances) runtime.dispose()
   liveInstances.clear()
   instances = new WeakMap()
 }
+
 if (import.meta.hot) import.meta.hot.dispose(disposeFrontendRuntimes)
