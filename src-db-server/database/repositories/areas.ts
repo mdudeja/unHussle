@@ -2,7 +2,14 @@ import { Area, areas } from '../schemas'
 import { UnHussleDB } from '../UnHussleDB'
 import { IRepository } from './IRepository.interface'
 import { BaseRepository } from './BaseRepository'
-import { taggedIds, unwrapJunctions, withTags, withUrls } from './helpers'
+import {
+  mergeCollectionMembers,
+  taggedIds,
+  unwrapJunctions,
+  withMembers,
+  withTags,
+  withUrls,
+} from './helpers'
 
 import type { HydratedArea } from '@c/types/Hydrated'
 export type { HydratedArea } from '@c/types/Hydrated'
@@ -13,6 +20,7 @@ export class AreasRepository
 {
   private readonly relations = {
     tasks: true,
+    goals: true,
     resources: true,
     projects: true,
     tags: withTags,
@@ -51,9 +59,27 @@ export class AreasRepository
 
     const area = await db.query.areas.findFirst({
       where: (areas, { eq }) => eq(areas.id, id),
-      with: this.relations,
+      with: {
+        ...this.relations,
+        projects: withMembers,
+        goals: { with: { ...withMembers.with, projects: withMembers } },
+      },
     })
-    return area ? unwrapJunctions(area) : null
+    if (!area) return null
+
+    // A project can reach the area only through one of its goals, so fold
+    // each goal's projects into the goal before folding goals into the area.
+    const goals = area.goals.map((goal) => {
+      const { projects: _projects, ...rest } = mergeCollectionMembers(goal, [
+        'projects',
+      ])
+      return rest
+    })
+
+    return mergeCollectionMembers(unwrapJunctions({ ...area, goals }), [
+      'projects',
+      'goals',
+    ])
   }
 
   async search(query: string, limit: number): Promise<HydratedArea[]> {

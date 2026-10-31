@@ -7,6 +7,7 @@ import { resources } from './resources.schema'
 import { projects } from './projects.schema'
 import { junctionTags } from './junction.tags.schema'
 import { junctionUrls } from './junction.urls.schema'
+import { goals } from './goals.schema'
 
 export const areas = sqliteTable(
   'areas',
@@ -25,6 +26,7 @@ export const areas = sqliteTable(
 export const areasRelations = relations(areas, ({ many }) => ({
   tasks: many(tasks),
   resources: many(resources),
+  goals: many(goals),
   projects: many(projects),
   tags: many(junctionTags),
   urls: many(junctionUrls),

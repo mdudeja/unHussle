@@ -39,6 +39,61 @@ export const unwrapJunctions = <T extends object>(entity: T): Unwrapped<T> => {
   return result as Unwrapped<T>
 }
 
+// Nested `with` config that loads a linked collection's own members
+export const withMembers = { with: { tasks: true, resources: true } } as const
+
+type Members = { tasks?: { id: string }[]; resources?: { id: string }[] }
+type WithoutMembers<V> = V extends readonly (infer Row)[]
+  ? Omit<Row, keyof Members>[]
+  : V extends object
+    ? Omit<V, keyof Members>
+    : V
+
+type Merged<T, K extends keyof T> = Omit<T, K> & {
+  [P in K]: WithoutMembers<T[P]>
+}
+
+const byId = <T extends { id: string }>(rows: T[]) => [
+  ...new Map(rows.map((row) => [row.id, row])).values(),
+]
+
+const withoutMembers = (row: Members) => {
+  const { tasks: _tasks, resources: _resources, ...rest } = row
+  return rest
+}
+
+// Folds the tasks and resources of linked collections (loaded with
+// `withMembers`) into the entity's own lists, de-duplicated by id, and strips
+// them from the collection rows so they keep their base shape.
+export const mergeCollectionMembers = <
+  T extends Members,
+  K extends keyof T & string,
+>(
+  entity: T,
+  collections: K[],
+): Merged<T, K> => {
+  const result = { ...entity } as Record<string, unknown>
+  const tasks = [...(entity.tasks ?? [])]
+  const resources = [...(entity.resources ?? [])]
+
+  for (const key of collections) {
+    const value = entity[key] as Members | Members[] | null | undefined
+    if (!value) continue
+    const rows = Array.isArray(value) ? value : [value]
+    for (const row of rows) {
+      tasks.push(...(row.tasks ?? []))
+      resources.push(...(row.resources ?? []))
+    }
+    result[key] = Array.isArray(value)
+      ? value.map(withoutMembers)
+      : withoutMembers(value)
+  }
+
+  result.tasks = byId(tasks)
+  result.resources = byId(resources)
+  return result as Merged<T, K>
+}
+
 // Subquery of ids of any entity attached to a tag whose title matches `pattern`.
 // Left un-awaited so it embeds as `IN (SELECT ...)` in the caller's query.
 export const taggedIds = (db: NonNullable<UnHussleDB['db']>, pattern: string) =>

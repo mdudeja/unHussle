@@ -2,7 +2,14 @@ import { Goal, goals } from '../schemas'
 import { UnHussleDB } from '../UnHussleDB'
 import { IRepository } from './IRepository.interface'
 import { BaseRepository } from './BaseRepository'
-import { taggedIds, unwrapJunctions, withTags, withUrls } from './helpers'
+import {
+  mergeCollectionMembers,
+  taggedIds,
+  unwrapJunctions,
+  withMembers,
+  withTags,
+  withUrls,
+} from './helpers'
 
 import type { HydratedGoal } from '@c/types/Hydrated'
 export type { HydratedGoal } from '@c/types/Hydrated'
@@ -52,9 +59,15 @@ export class GoalsRepository
 
     const goal = await db.query.goals.findFirst({
       where: (goals, { eq }) => eq(goals.id, id),
-      with: this.relations,
+      with: {
+        ...this.relations,
+        area: withMembers,
+        projects: withMembers,
+      },
     })
-    return goal ? unwrapJunctions(goal) : null
+    if (!goal) return null
+
+    return mergeCollectionMembers(unwrapJunctions(goal), ['area', 'projects'])
   }
 
   async search(query: string, limit: number): Promise<HydratedGoal[]> {

@@ -600,4 +600,121 @@ describe('Data Layer Tests', () => {
       }
     })
   })
+
+  describe('Collection details include tasks of linked collections', () => {
+    // area ← goal ← goalProject (no area_id), and area ← areaProject
+    const ids = {} as Record<
+      | 'area'
+      | 'goal'
+      | 'areaProject'
+      | 'goalProject'
+      | 'areaTask'
+      | 'sharedTask'
+      | 'goalTask'
+      | 'goalProjectTask'
+      | 'goalProjectResource',
+      string
+    >
+    const taskIds = (entity: { tasks?: { id: string }[] } | null) =>
+      (entity?.tasks ?? []).map((task) => task.id).sort()
+    const sorted = (...values: string[]) => [...values].sort()
+
+    beforeAll(async () => {
+      const [area] = await db
+        .insert(schema.areas)
+        .values({ title: 'Members Area' })
+        .returning()
+      const [goal] = await db
+        .insert(schema.goals)
+        .values({ title: 'Members Goal', area_id: area.id })
+        .returning()
+      const [areaProject] = await db
+        .insert(schema.projects)
+        .values({ title: 'Area Project', area_id: area.id })
+        .returning()
+      const [goalProject] = await db
+        .insert(schema.projects)
+        .values({ title: 'Goal Project', goal_id: goal.id })
+        .returning()
+      const addTask = async (values: Partial<Task['Write']>) =>
+        (
+          await db
+            .insert(schema.tasks)
+            .values({ title: 'Member Task', ...values })
+            .returning()
+        )[0].id
+      const [goalProjectResource] = await db
+        .insert(schema.resources)
+        .values({ title: 'Goal Project Resource', project_id: goalProject.id })
+        .returning()
+
+      Object.assign(ids, {
+        area: area.id,
+        goal: goal.id,
+        areaProject: areaProject.id,
+        goalProject: goalProject.id,
+        areaTask: await addTask({ area_id: area.id }),
+        sharedTask: await addTask({
+          area_id: area.id,
+          project_id: areaProject.id,
+        }),
+        goalTask: await addTask({ goal_id: goal.id }),
+        goalProjectTask: await addTask({ project_id: goalProject.id }),
+        goalProjectResource: goalProjectResource.id,
+      })
+    })
+
+    test('area reaches tasks through its projects, goals and goal projects', async () => {
+      const area = await new AreasRepository(
+        UnHussleDB.getInstance(testDbPath),
+      ).getById(ids.area)
+
+      expect(taskIds(area)).toEqual(
+        sorted(
+          ids.areaTask,
+          ids.sharedTask,
+          ids.goalTask,
+          ids.goalProjectTask,
+        ),
+      )
+      expect(area?.resources?.map((resource) => resource.id)).toEqual([
+        ids.goalProjectResource,
+      ])
+      // Only directly linked projects are listed, and nested rows keep their base shape
+      expect(area?.projects?.map((project) => project.id)).toEqual([
+        ids.areaProject,
+      ])
+      expect(area?.projects?.[0]).not.toHaveProperty('tasks')
+      expect(area?.goals?.[0]).not.toHaveProperty('tasks')
+      expect(area?.goals?.[0]).not.toHaveProperty('projects')
+    })
+
+    test('goal reaches tasks through its projects and area', async () => {
+      const goal = await new GoalsRepository(
+        UnHussleDB.getInstance(testDbPath),
+      ).getById(ids.goal)
+
+      expect(taskIds(goal)).toEqual(
+        sorted(
+          ids.goalTask,
+          ids.goalProjectTask,
+          ids.areaTask,
+          ids.sharedTask,
+        ),
+      )
+      expect(goal?.area).not.toHaveProperty('tasks')
+    })
+
+    test('project reaches tasks through its goal and area, once each', async () => {
+      const projects = new ProjectsRepository(UnHussleDB.getInstance(testDbPath))
+
+      expect(taskIds(await projects.getById(ids.goalProject))).toEqual(
+        sorted(ids.goalProjectTask, ids.goalTask),
+      )
+      // sharedTask is both the project's own and its area's
+      expect(taskIds(await projects.getById(ids.areaProject))).toEqual(
+        sorted(ids.sharedTask, ids.areaTask),
+      )
+    })
+  })
 })

@@ -33,6 +33,7 @@ type ProjectRelations = {
 export type HydratedProject = Project['Read'] & ProjectRelations
 
 type AreaRelations = {
+  goals?: Goal['Read'][]
   tasks?: Task['Read'][]
   resources?: Resource['Read'][]
   projects?: Project['Read'][]

@@ -2,7 +2,14 @@ import { Project, projects } from '../schemas'
 import { UnHussleDB } from '../UnHussleDB'
 import { IRepository } from './IRepository.interface'
 import { BaseRepository } from './BaseRepository'
-import { taggedIds, unwrapJunctions, withTags, withUrls } from './helpers'
+import {
+  mergeCollectionMembers,
+  taggedIds,
+  unwrapJunctions,
+  withMembers,
+  withTags,
+  withUrls,
+} from './helpers'
 
 import type { HydratedProject } from '@c/types/Hydrated'
 export type { HydratedProject } from '@c/types/Hydrated'
@@ -55,9 +62,15 @@ export class ProjectsRepository
 
     const project = await db.query.projects.findFirst({
       where: (projects, { eq }) => eq(projects.id, id),
-      with: this.relations,
+      with: {
+        ...this.relations,
+        area: withMembers,
+        goal: withMembers,
+      },
     })
-    return project ? unwrapJunctions(project) : null
+    if (!project) return null
+
+    return mergeCollectionMembers(unwrapJunctions(project), ['area', 'goal'])
   }
 
   async search(query: string, limit: number): Promise<HydratedProject[]> {

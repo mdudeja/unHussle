@@ -117,6 +117,7 @@ export const selectAreaSchema = Type.Object({
   ...selectAreaBaseSchema.properties,
   tasks: Type.Optional(Type.Array(selectTaskBaseSchema)),
   resources: Type.Optional(Type.Array(selectResourceBaseSchema)),
+  goals: Type.Optional(Type.Array(selectGoalBaseSchema)),
   projects: Type.Optional(Type.Array(selectProjectBaseSchema)),
   tags: Type.Optional(Type.Array(selectTagsSchema)),
   urls: Type.Optional(Type.Array(selectUrlsSchema)),
