@@ -16,6 +16,8 @@ import { UnHussleDB } from '@d/database/UnHussleDB'
 import { createUnitOfWork } from '@d/workflows/unitOfWork'
 import { commandHandlerRegistry } from '@d/workflows/commandHandlers'
 import { createCommandActions } from '@d/workflows/commandActions'
+import { backendTelemetry } from '@d/workflows/telemetry'
+import type { Telemetry } from '@c/workflows/telemetry'
 
 const supporterKinds: MutationInput['kind'][] = ['tags', 'urls', 'time_entries']
 
@@ -75,23 +77,29 @@ function carryForward(input: MutationInput, result: MutationResult) {
   return next
 }
 
-export function createBackendRuntime(database: UnHussleDB) {
+export function createBackendRuntime(
+  database: UnHussleDB,
+  { telemetry = backendTelemetry }: { telemetry?: Telemetry } = {},
+) {
   const context = {
     unitOfWork: createUnitOfWork(database),
     logger: Logger.getInstance(),
   }
   const runtime = createRuntime<MutationCommands, AppEvents, typeof context>(
     context,
+    { telemetry },
   )
   const availableActions = createCommandActions<typeof context>()
 
   for (const commandName in commandHandlerRegistry) {
     runtime.commands.handle(
       commandName as keyof MutationCommands,
-      async (handlerName, input, context) => {
+      async (handlerName, input, context, trace) => {
         const { unitOfWork, logger } = context
-        logger.info(
+        // Payloads hold user data, so they are only logged at debug level.
+        logger.debug(
           `Executing command: ${handlerName} for input: ${JSON.stringify(input)}`,
+          { traceId: trace?.traceId },
         )
         const actionsForCommand =
           commandHandlerRegistry[handlerName as keyof MutationCommands]
@@ -100,7 +108,9 @@ export function createBackendRuntime(database: UnHussleDB) {
           return
         }
 
-        const operationId = input.operationId ?? crypto.randomUUID()
+        const operationId =
+          input.operationId ?? trace?.traceId ?? crypto.randomUUID()
+        const verb = handlerName.slice(handlerName.indexOf('.') + 1)
         let currentInput: MutationInput = input
 
         // Announcements are held until commit and dropped on rollback.
@@ -123,41 +133,76 @@ export function createBackendRuntime(database: UnHussleDB) {
                 return
               }
 
-              const unit = action(actionName, currentInput, actionContext)
-              if (unit instanceof Promise)
-                throw new Error(
-                  `Action ${actionName} must return its work unit synchronously`,
-                )
+              const run = () => {
+                const unit = action(actionName, currentInput, actionContext)
+                if (unit instanceof Promise)
+                  throw new Error(
+                    `Action ${actionName} must return its work unit synchronously`,
+                  )
 
-              const result = unit(transaction)
-              currentInput = carryForward(currentInput, result)
-              return result
+                const result = unit(transaction)
+                currentInput = carryForward(currentInput, result)
+                return result
+              }
+              if (!trace) return run()
+
+              // Runs inside the synchronous SQLite transaction, so the span is too.
+              return telemetry.span(
+                'action',
+                actionName,
+                (span) => {
+                  const result = run()
+                  if (Array.isArray(result))
+                    span.setAttrs({ rows: result.length })
+                  return result
+                },
+                {
+                  traceId: trace.traceId,
+                  parentId: trace.spanId,
+                  attrs: { kind: input.kind, verb },
+                },
+              )
             },
         )
 
-        const result = await unitOfWork.transaction(work)
+        let result: MutationResult
+        try {
+          result = await unitOfWork.transaction(work)
+        } catch (error) {
+          trace?.setAttrs({ rolledBack: true })
+          throw error
+        }
 
         // Publish under the command (`entity.add`) and its kind (`tasks.add`)
         // so listeners can subscribe to a whole family or a single kind.
         const event: MutationEvent = { ...input, operationId, result }
-        const verb = handlerName.slice(handlerName.indexOf('.') + 1)
         const eventNames = new Set([handlerName, `${input.kind}.${verb}`])
+        const meta = { traceId: trace?.traceId, parentId: trace?.spanId }
+        trace?.setAttrs({
+          kind: input.kind,
+          operationId,
+          announcements: announcements.length,
+          events: [...eventNames, ...announcements.map(([name]) => name)].join(
+            ',',
+          ),
+        })
 
         const outcomes = (
           await Promise.all([
             ...[...eventNames].map((name) =>
-              runtime.events.publish(name as keyof AppEvents, event),
+              runtime.events.publish(name as keyof AppEvents, event, meta),
             ),
             ...announcements.map(([name, payload]) =>
-              runtime.events.publish(name, payload),
+              runtime.events.publish(name, payload, meta),
             ),
           ])
         ).flat()
         for (const outcome of outcomes)
           if (outcome.status === 'rejected') {
-            logger.error(
-              `Post-commit listener failed (${operationId}): ${String(outcome.reason)}`,
-            )
+            logger.error(`Post-commit listener failed (${operationId})`, {
+              error: outcome.reason,
+              traceId: trace?.traceId,
+            })
           }
 
         return result
@@ -177,7 +222,8 @@ export function createBackendRuntime(database: UnHussleDB) {
         return hydrated
       } catch (error) {
         context.logger.error(
-          `Post-commit hydration failed; write must not be retried automatically: ${String(error)}`,
+          'Post-commit hydration failed; write must not be retried automatically',
+          { error },
         )
         throw error
       }

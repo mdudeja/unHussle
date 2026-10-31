@@ -33,7 +33,7 @@ export function useWorkflowQuery<T>(
     queries
       .ensure(key)
       .catch((error) =>
-        Logger.getInstance().error(`Failed to load ${key}: ${String(error)}`),
+        Logger.getInstance().error(`Failed to load ${key}`, { error }),
       )
     return deactivate
   }, [queries, key, enabled, isDBReady])

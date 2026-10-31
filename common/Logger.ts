@@ -1,3 +1,17 @@
+import { serializeError } from '@c/workflows/telemetry'
+
+/** Optional structured context; the trace id and error stack are appended. */
+export type LogMeta = { error?: unknown; traceId?: string }
+
+const format = (message: string, { error, traceId }: LogMeta = {}) => {
+  let line = traceId ? `${message} [trace ${traceId}]` : message
+  if (error !== undefined) {
+    const { name, message: reason, stack } = serializeError(error)
+    line += `: ${stack ?? `${name}: ${reason}`}`
+  }
+  return line
+}
+
 export class Logger {
   private logMarkerMap: { [key: string]: number } = {
     debug: 1,
@@ -28,27 +42,27 @@ export class Logger {
     return this.instance
   }
 
-  debug(message: string) {
+  debug(message: string, meta?: LogMeta) {
     if (this.logMarker <= this.logMarkerMap['debug']) {
-      console.debug(`DEBUG: ${message}`)
+      console.debug(`DEBUG: ${format(message, meta)}`)
     }
   }
 
-  info(message: string) {
+  info(message: string, meta?: LogMeta) {
     if (this.logMarker <= this.logMarkerMap['info']) {
-      console.info(`INFO: ${message}`)
+      console.info(`INFO: ${format(message, meta)}`)
     }
   }
 
-  warn(message: string) {
+  warn(message: string, meta?: LogMeta) {
     if (this.logMarker <= this.logMarkerMap['warn']) {
-      console.warn(`WARN: ${message}`)
+      console.warn(`WARN: ${format(message, meta)}`)
     }
   }
 
-  error(message: string) {
+  error(message: string, meta?: LogMeta) {
     if (this.logMarker <= this.logMarkerMap['error']) {
-      console.error(`ERROR: ${message}`)
+      console.error(`ERROR: ${format(message, meta)}`)
     }
   }
 }

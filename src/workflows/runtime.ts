@@ -1,5 +1,6 @@
 import { createStore, type StoreApi } from 'zustand/vanilla'
-import { createRuntime } from '@c/workflows/runtime'
+import { createRuntime, type TraceMeta } from '@c/workflows/runtime'
+import type { SpanScope, Telemetry } from '@c/workflows/telemetry'
 import type {
   EntryKind,
   EntryRecord,
@@ -27,6 +28,7 @@ import { createSseTransport, type EventTransport } from './eventStream'
 import { createOperationTracker, settlesWithin } from './operations'
 import { createReactions } from './reactions'
 import { reactionRegistry } from './reactionRegistry'
+import { frontendTelemetry } from './telemetry'
 import {
   mutationHeads,
   mutationVerbs,
@@ -68,13 +70,19 @@ export function createFrontendRuntime(
     eventTimeoutMs?: number
     /** How long a command waits for the event stream to connect. */
     readyTimeoutMs?: number
+    telemetry?: Telemetry
   } = {},
 ) {
   let disposed = false
   const logger = Logger.getInstance()
-  const queries = createQueryCoordinator()
+  const telemetry = options.telemetry ?? frontendTelemetry
+  const queries = createQueryCoordinator({ telemetry })
   const operations = createOperationTracker()
-  const transport = options.transport ?? createSseTransport()
+  const transport = options.transport ?? createSseTransport({ telemetry })
+  // Local operations in flight, so their events join the command's trace.
+  const traces = new Map<string, TraceMeta>()
+  const traceOf = (operationId: string | undefined): TraceMeta =>
+    (operationId && traces.get(operationId)) || { traceId: operationId }
   const eventTimeoutMs = options.eventTimeoutMs ?? 3000
   const readyTimeoutMs = options.readyTimeoutMs ?? 1000
   const ui = createStore<WorkflowUIState>(() => ({
@@ -123,7 +131,13 @@ export function createFrontendRuntime(
       queryKindToLabel[entityKind] ??
       entityKind ??
       'related data'
-    logger.error(`Follow-up refresh failed (${id}): ${String(error)}`)
+    const { traceId } = traceOf(operationId)
+    telemetry.signal(
+      'refresh.failed',
+      { key: `${queryKind}:${entityKind}` },
+      { traceId, error },
+    )
+    logger.error(`Follow-up refresh failed (${id})`, { error, traceId })
     ui.setState(({ warnings }) => ({
       warnings: [
         ...warnings.filter((warning) => warning.id !== id),
@@ -135,9 +149,9 @@ export function createFrontendRuntime(
               await queries.ensure(key)
               dismissWarning(id)
             } catch (retryError) {
-              logger.error(
-                `Refresh retry failed (${id}): ${String(retryError)}`,
-              )
+              logger.error(`Refresh retry failed (${id})`, {
+                error: retryError,
+              })
             }
           },
         },
@@ -175,48 +189,70 @@ export function createFrontendRuntime(
     FrontendCommands,
     FrontendEvents,
     typeof context
-  >(context)
+  >(context, { telemetry })
 
   // Reactions: what the frontend does in response to each event.
   const reactions = createReactions<typeof context>()
   for (const name of Object.keys(reactionRegistry) as (keyof FrontendEvents)[])
-    runtime.events.on(name, async (eventName, event, reactionContext) => {
-      for (const reactionName of reactionRegistry[name] ?? []) {
-        const reaction = reactions[reactionName]
-        if (!reaction) {
-          logger.warn(`Reaction not found: ${reactionName}. Skipping...`)
-          continue
+    runtime.events.on(
+      name,
+      async (eventName, event, reactionContext, listener) => {
+        for (const reactionName of reactionRegistry[name] ?? []) {
+          const reaction = reactions[reactionName]
+          if (!reaction) {
+            logger.warn(`Reaction not found: ${reactionName}. Skipping...`)
+            continue
+          }
+          try {
+            await telemetry.span(
+              'reaction',
+              reactionName,
+              (span) =>
+                reaction(
+                  eventName,
+                  event as MutationEvent,
+                  reactionContext,
+                  span,
+                ),
+              {
+                traceId: listener?.traceId,
+                parentId: listener?.spanId,
+                attrs: { event: eventName },
+              },
+            )
+          } catch (error) {
+            logger.error(`Reaction ${reactionName} failed for ${eventName}`, {
+              error,
+              traceId: listener?.traceId,
+            })
+          }
         }
-        try {
-          await reaction(eventName, event as MutationEvent, reactionContext)
-        } catch (error) {
-          logger.error(
-            `Reaction ${reactionName} failed for ${eventName}: ${String(error)}`,
-          )
-        }
-      }
-    })
+      },
+      { label: 'reactions' },
+    )
 
   // Backend events are republished on the local bus, one at a time.
   transport.connect({
     onEvent: async (name, payload) => {
       if (disposed) return
+      const operationId = (payload as MutationEvent | undefined)?.operationId
+      const meta = traceOf(operationId)
       const outcomes = await runtime.events.publish(
         name as keyof FrontendEvents,
         payload as never,
+        meta,
       )
       for (const outcome of outcomes)
         if (outcome.status === 'rejected')
-          logger.error(
-            `Event listener failed (${name}): ${String(outcome.reason)}`,
-          )
-      operations.handled(
-        (payload as MutationEvent | undefined)?.operationId,
-        name,
-      )
+          logger.error(`Event listener failed (${name})`, {
+            error: outcome.reason,
+            traceId: meta.traceId,
+          })
+      operations.handled(operationId, name)
     },
     onResync: async () => {
       if (disposed) return
+      telemetry.signal('stream.resync')
       logger.warn('Event stream resynchronising; reloading data')
       const loaded = allKinds.filter(
         (kind) => store.getState()[kind].data.length,
@@ -233,29 +269,81 @@ export function createFrontendRuntime(
    * Sends a mutation and waits until its events have been handled, so callers
    * observe the updated store. Falls back to reloading if the events are lost.
    */
-  const send = async (command: MutationCommand, input: MutationInput) => {
+  const send = async (
+    command: MutationCommand,
+    input: MutationInput,
+    trace?: SpanScope,
+  ) => {
     const verb = command.slice(command.indexOf('.') + 1) as MutationVerb
     const operationId = crypto.randomUUID()
+    const traceId = trace?.traceId ?? operationId
+    const child = { traceId, parentId: trace?.spanId }
+    trace?.setAttrs({ kind: input.kind, operationId })
+    traces.set(operationId, child)
     const operation = operations.begin(operationId, [
       command,
       `${input.kind}.${verb}`,
     ])
     try {
-      await settlesWithin(transport.ready(), readyTimeoutMs)
-      const result = await mutationVerbs[verb](services[input.kind], input, {
-        operationId,
-      })
-      if (!(await settlesWithin(operation.settled, eventTimeoutMs))) {
+      await telemetry.span(
+        'wait',
+        'stream.ready',
+        (span) =>
+          settlesWithin(transport.ready(), readyTimeoutMs).then((ready) => {
+            span.setAttrs({ ready })
+          }),
+        child,
+      )
+      const result = await telemetry.span(
+        'http',
+        command,
+        (span) =>
+          mutationVerbs[verb](services[input.kind], input, {
+            operationId,
+            traceId,
+            parentSpanId: span.spanId,
+          }),
+        { ...child, attrs: { kind: input.kind, verb } },
+      )
+      const settled = await telemetry.span(
+        'wait',
+        'events.settle',
+        (span) =>
+          settlesWithin(operation.settled, eventTimeoutMs).then((settled) => {
+            span.setAttrs({ settled })
+            return settled
+          }),
+        child,
+      )
+      if (!settled) {
+        telemetry.signal(
+          'events.timeout',
+          { command, kind: input.kind, timeoutMs: eventTimeoutMs },
+          child,
+        )
         logger.warn(
           `No events received for ${command} (${operationId}); reloading ${input.kind}`,
+          { traceId },
         )
         await invalidate(operationId, [input.kind], [defineList(input.kind)])
       }
       return result
     } finally {
       operation.cancel()
+      traces.delete(operationId)
     }
   }
+
+  /** A mutation sent from inside another command, with its own command span. */
+  const sendNested = (
+    command: MutationCommand,
+    input: MutationInput,
+    parent?: SpanScope,
+  ) =>
+    telemetry.span('command', command, (span) => send(command, input, span), {
+      traceId: parent?.traceId,
+      parentId: parent?.spanId,
+    })
 
   let lifecycleQueue: Promise<unknown> = Promise.resolve()
   const serialize = <T>(work: () => Promise<T>) => {
@@ -264,21 +352,20 @@ export function createFrontendRuntime(
     return result
   }
 
-  const transitionTask = async ({
-    id,
-    status,
-    changes = {},
-  }: Transition): Promise<EntryRecord> => {
+  const transitionTask = async (
+    { id, status, changes = {} }: Transition,
+    trace?: SpanScope,
+  ): Promise<EntryRecord> => {
     let session = tracking.getActiveTracking()
     if (
       status === ProgressStatus.IN_PROGRESS &&
       session &&
       session.taskId !== id
     ) {
-      await transitionTask({
-        id: session.taskId,
-        status: ProgressStatus.PAUSED,
-      })
+      await transitionTask(
+        { id: session.taskId, status: ProgressStatus.PAUSED },
+        trace,
+      )
       session = null
     }
     const task = await services.tasks.fetchById(id)
@@ -297,12 +384,11 @@ export function createFrontendRuntime(
         Math.ceil(Math.max(0, context.now() - session.startTime) / 60000)
     }
 
-    const result = (await send('entity.change', {
-      kind: 'tasks',
-      action: 'update',
-      id,
-      changes: values,
-    })) as EntryRecord
+    const result = (await sendNested(
+      'entity.change',
+      { kind: 'tasks', action: 'update', id, changes: values },
+      trace,
+    )) as EntryRecord
 
     if (stopsTracking) tracking.clear()
     if (
@@ -314,31 +400,41 @@ export function createFrontendRuntime(
     return result
   }
 
-  runtime.commands.handle('task.transition', (_command, input) =>
-    serialize(() => transitionTask(input)),
+  runtime.commands.handle(
+    'task.transition',
+    (_command, input, _context, trace) =>
+      serialize(() => transitionTask(input, trace)),
   )
 
   // Task status changes and deletions go through the serialized lifecycle;
   // tracking cleanup on delete is a reaction, so it applies to any source.
-  const mutate = (command: MutationCommand, input: MutationInput) => {
+  const mutate = (
+    command: MutationCommand,
+    input: MutationInput,
+    trace?: SpanScope,
+  ) => {
     if (
       input.kind === 'tasks' &&
       command === 'entity.change' &&
       input.id &&
       input.changes?.status
     ) {
-      return runtime.commands.execute('task.transition', {
-        id: input.id,
-        status: input.changes.status as ProgressStatus,
-        changes: input.changes,
-      })
+      return runtime.commands.execute(
+        'task.transition',
+        {
+          id: input.id,
+          status: input.changes.status as ProgressStatus,
+          changes: input.changes,
+        },
+        { traceId: trace?.traceId, parentId: trace?.spanId },
+      )
     }
     if (
       input.kind === 'tasks' &&
       (command === 'entity.delete' || command === 'entity.deleteAll')
     )
-      return serialize(() => send(command, input))
-    return send(command, input)
+      return serialize(() => send(command, input, trace))
+    return send(command, input, trace)
   }
 
   for (const head of mutationHeads)
@@ -346,52 +442,56 @@ export function createFrontendRuntime(
       const name: MutationCommand = `${head}.${verb}`
       runtime.commands.handle(
         name,
-        (_command, input) =>
-          mutate(name, input) as Promise<
+        (_command, input, _context, trace) =>
+          mutate(name, input, trace) as Promise<
             FrontendCommands[MutationCommand]['result']
           >,
       )
     }
 
-  runtime.commands.handle('brainDump.submit', async (_command, input) => {
-    const { urls = [] } = input
-    let { task } = input
-    if (!task) {
-      const outcomes = await Promise.allSettled(
-        urls.map((url) =>
-          runtime.commands.execute('entitySupporter.add', {
-            kind: 'urls',
-            action: 'create',
-            changes: url,
-          }),
-        ),
-      )
-      return {
-        failedUrls: urls.filter(
-          (_, index) => outcomes[index].status === 'rejected',
-        ),
+  runtime.commands.handle(
+    'brainDump.submit',
+    async (_command, input, _context, trace) => {
+      const nested = { traceId: trace?.traceId, parentId: trace?.spanId }
+      const { urls = [] } = input
+      let { task } = input
+      if (!task) {
+        const outcomes = await Promise.allSettled(
+          urls.map((url) =>
+            runtime.commands.execute(
+              'entitySupporter.add',
+              { kind: 'urls', action: 'create', changes: url },
+              nested,
+            ),
+          ),
+        )
+        return {
+          failedUrls: urls.filter(
+            (_, index) => outcomes[index].status === 'rejected',
+          ),
+        }
       }
-    }
-    if (!task.area_id && !task.project_id && !task.goal_id) {
-      const areas = await ensureList('areas')
-      let area = areas.find(
-        (row) => String(row.title).toLowerCase() === 'brain dump',
-      )
-      if (!area) {
-        area = (await services.areas.search('Brain Dump')).find(
+      if (!task.area_id && !task.project_id && !task.goal_id) {
+        const areas = await ensureList('areas')
+        let area = areas.find(
           (row) => String(row.title).toLowerCase() === 'brain dump',
         )
+        if (!area) {
+          area = (await services.areas.search('Brain Dump')).find(
+            (row) => String(row.title).toLowerCase() === 'brain dump',
+          )
+        }
+        if (!area) throw new Error('Brain Dump area not found')
+        task = { ...task, area_id: area.id }
       }
-      if (!area) throw new Error('Brain Dump area not found')
-      task = { ...task, area_id: area.id }
-    }
-    await runtime.commands.execute('entity.add', {
-      kind: 'tasks',
-      action: 'create',
-      changes: task,
-    })
-    return { failedUrls: [] }
-  })
+      await runtime.commands.execute(
+        'entity.add',
+        { kind: 'tasks', action: 'create', changes: task },
+        nested,
+      )
+      return { failedUrls: [] }
+    },
+  )
 
   const fetchList = async (kind: EntryKind, page = 1) => {
     const key = defineList(kind, page)

@@ -60,7 +60,7 @@ export const CreateTaskButtonComponent = () => {
       await tasks.add(values as WithSupporters<Task['Write']>)
       setIsDialogOpen(false)
     } catch (error) {
-      Logger.getInstance().error(`Failed to create task: ${String(error)}`)
+      Logger.getInstance().error('Failed to create task', { error })
       setErrorMessage(
         'Could not create the task. Please check the details and try again.',
       )

@@ -1,4 +1,5 @@
 import { backendRuntime } from '@d/workflows/runtime'
+import { traceOf } from '@d/routes/telemetry'
 import { commandHeadForKind, type EntryKind } from '@c/workflows/contracts'
 import {
   areas,
@@ -127,9 +128,7 @@ export const routeGenerator = <
     .decorate('db', db)
     .decorate('logger', Logger.getInstance())
     .onError(({ code, status, error, logger }) => {
-      logger.error(
-        `Error in ${config.name} route (${code}): ${error instanceof Error ? error.message : JSON.stringify(error)}`,
-      )
+      logger.error(`Error in ${config.name} route (${code})`, { error })
 
       if (code === 'NOT_FOUND') {
         return status(404, `${config.name} not found`)
@@ -215,14 +214,18 @@ export const routeGenerator = <
 
     .post(
       '/',
-      async ({ body, headers, logger }) => {
+      async ({ body, headers, logger, request }) => {
         logger.debug(`Add ${config.name} with id: ${body.id}`)
-        const result = await backendRuntime.commands.execute(`${head}.add`, {
-          kind: config.kind,
-          action: 'create',
-          operationId: headers[operationIdHeader],
-          changes: body,
-        })
+        const result = await backendRuntime.commands.execute(
+          `${head}.add`,
+          {
+            kind: config.kind,
+            action: 'create',
+            operationId: headers[operationIdHeader],
+            changes: body,
+          },
+          traceOf(request),
+        )
 
         return Value.Parse(
           config.schemas.select,
@@ -239,15 +242,19 @@ export const routeGenerator = <
 
     .patch(
       '/:id',
-      async ({ params: { id }, body, headers, logger }) => {
+      async ({ params: { id }, body, headers, logger, request }) => {
         logger.debug(`Update ${config.name} with id: ${id}`)
-        const result = await backendRuntime.commands.execute(`${head}.change`, {
-          kind: config.kind,
-          action: 'update',
-          operationId: headers[operationIdHeader],
-          id,
-          changes: body,
-        })
+        const result = await backendRuntime.commands.execute(
+          `${head}.change`,
+          {
+            kind: config.kind,
+            action: 'update',
+            operationId: headers[operationIdHeader],
+            id,
+            changes: body,
+          },
+          traceOf(request),
+        )
 
         return Value.Parse(
           config.schemas.select,
@@ -264,7 +271,7 @@ export const routeGenerator = <
 
     .delete(
       '/all',
-      async ({ headers, logger }) => {
+      async ({ headers, logger, request }) => {
         logger.debug(`Delete all ${config.name} `)
         const result = await backendRuntime.commands.execute(
           `${head}.deleteAll`,
@@ -273,6 +280,7 @@ export const routeGenerator = <
             action: 'deleteAll',
             operationId: headers[operationIdHeader],
           },
+          traceOf(request),
         )
 
         return { deleted: Array.isArray(result) ? result.length : 0 }
@@ -284,14 +292,18 @@ export const routeGenerator = <
 
     .delete(
       '/:id',
-      async ({ params: { id }, headers, logger }) => {
+      async ({ params: { id }, headers, logger, request }) => {
         logger.debug(`Delete ${config.name} with id: ${id}`)
-        const result = await backendRuntime.commands.execute(`${head}.delete`, {
-          kind: config.kind,
-          action: 'delete',
-          operationId: headers[operationIdHeader],
-          id,
-        })
+        const result = await backendRuntime.commands.execute(
+          `${head}.delete`,
+          {
+            kind: config.kind,
+            action: 'delete',
+            operationId: headers[operationIdHeader],
+            id,
+          },
+          traceOf(request),
+        )
 
         return Value.Parse(config.schemas.select, result)
       },

@@ -190,7 +190,7 @@ export const BrainDumpInputComponent = () => {
           )
         } else resetForm()
       } catch (error) {
-        Logger.getInstance().error(`Failed to add urls: ${String(error)}`)
+        Logger.getInstance().error('Failed to add urls', { error })
       } finally {
         setIsSubmitting(false)
       }
@@ -235,7 +235,7 @@ export const BrainDumpInputComponent = () => {
       // Reset form
       resetForm()
     } catch (error) {
-      Logger.getInstance().error(`Failed to create task: ${String(error)}`)
+      Logger.getInstance().error('Failed to create task', { error })
       setSubmissionError('Could not save the task. Please try again.')
     } finally {
       setIsSubmitting(false)

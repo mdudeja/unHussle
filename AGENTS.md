@@ -178,6 +178,32 @@ Rules for both sides:
   or reactions. A failing listener or reaction never fails a committed write.
 - Events are not durable and writes are never retried automatically.
 
+**Telemetry** (`common/workflows/telemetry.ts`)
+
+- `createRuntime(context, { telemetry })` records a span per command, event and
+  listener. Handlers and listeners receive their span as a 4th argument
+  (`trace`). A nested command passes `{ traceId: trace.traceId, parentId:
+  trace.spanId }` as `execute`'s 3rd argument. Pass the same to `publish`.
+  There is no AsyncLocalStorage, because the webview doesn't have it.
+- The backend adds `action` spans (in the transaction, so they're synchronous)
+  and `http` spans (`routes/telemetry.ts`). It marks a failed command
+  `rolledBack`. The frontend adds `reaction`, `http`, `wait` and `query` spans,
+  plus signals: `events.timeout`, `stream.resync`, `stream.reconnect`,
+  `refresh.failed`. Uncaught errors and render errors become `error` spans.
+- Trace id: the frontend root command's trace. It goes to the backend as
+  `x-trace-id` / `x-parent-span-id`. `operationId` stays unique per request
+  and is mapped back to the trace when its events arrive. Backend-only commands
+  use the `operationId`.
+- `GET /telemetry?traceId=&kind=&status=&since=&limit=` returns the backend ring
+  buffer (2 000 spans). The sidecar also appends JSONL to `telemetry.jsonl`
+  next to the DB file. The dev-only inspector (`Ctrl+Shift+O`,
+  `src/components/dev/WorkflowInspector.tsx`) merges both halves.
+- Rules: attrs hold ids and counts, never payloads (user data). Payloads are
+  logged only at debug level. Sinks and subscribers never throw into the
+  workflow. Telemetry is never published on `AppEvents`, since it would recurse
+  and flood the SSE replay buffer. Log errors with
+  `logger.error(message, { error, traceId })`, not `String(error)`.
+
 Extending:
 
 - Backend: add an action to `commandActions.ts` (and `CommandAction` in

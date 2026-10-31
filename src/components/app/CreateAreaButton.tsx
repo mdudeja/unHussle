@@ -38,7 +38,7 @@ export const CreateAreaButtonComponent = () => {
       await areas.add(values as WithSupporters<Area['Write']>)
       setIsDialogOpen(false)
     } catch (error) {
-      Logger.getInstance().error(`Failed to create area: ${String(error)}`)
+      Logger.getInstance().error('Failed to create area', { error })
       setErrorMessage(
         'Could not create the project. Please check the details and try again.',
       )

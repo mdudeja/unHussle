@@ -66,7 +66,8 @@ const EntityEditDialog = ({ editing }: { editing: EditingEntity }) => {
       closeEditor()
     } catch (error) {
       Logger.getInstance().error(
-        `Failed to update ${entry.label} ${editing.id}: ${String(error)}`,
+        `Failed to update ${entry.label} ${editing.id}`,
+        { error },
       )
       setErrorMessage(
         `Could not save the ${entry.label}. Please check the details and try again.`,

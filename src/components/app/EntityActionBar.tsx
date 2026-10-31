@@ -55,9 +55,9 @@ export function EntityActionBar<T>({
       await action.run(item)
       return true
     } catch (err) {
-      Logger.getInstance().error(
-        `Action "${action.label}" failed: ${String(err)}`,
-      )
+      Logger.getInstance().error(`Action "${action.label}" failed`, {
+        error: err,
+      })
       onError(`Could not ${action.label.toLowerCase()}: ${errorMessage(err)}`)
       return false
     } finally {

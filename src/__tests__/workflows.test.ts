@@ -16,6 +16,7 @@ import {
   type EntryRecord,
   type MutationEvent,
 } from '@c/workflows/contracts'
+import { createTelemetry, type Span } from '@c/workflows/telemetry'
 
 const kinds = [
   'tasks',
@@ -181,14 +182,16 @@ function fixture({
       saved.delete(key)
     },
   }
+  const telemetry = createTelemetry({ side: 'frontend' })
   const runtime = createFrontendRuntime(store, {
     services,
     storage,
     transport: stream.transport,
     eventTimeoutMs,
+    telemetry,
     now: () => 61001,
   })
-  return { runtime, store, services, rows, saved, stream }
+  return { runtime, store, services, rows, saved, stream, telemetry }
 }
 
 describe('Frontend workflows', () => {
@@ -527,5 +530,147 @@ describe('Frontend workflows', () => {
     expect(runtime.queries.snapshot(key).data).toEqual([])
     off()
     runtime.dispose()
+  })
+
+  describe('telemetry', () => {
+    const named = (spans: Span[], name: string) =>
+      spans.find((span) => span.name === name)!
+
+    test('a mutation traces command, request, events and reactions under one id', async () => {
+      const { runtime, telemetry } = fixture()
+      await runtime.commands.execute('entity.add', {
+        kind: 'tasks',
+        action: 'create',
+        changes: { title: 'Traced' },
+      })
+      const [command] = telemetry.recent({ kind: 'command' })
+      const spans = telemetry.recent({ traceId: command.traceId })
+      expect(command).toMatchObject({
+        name: 'entity.add',
+        status: 'ok',
+        attrs: { kind: 'tasks' },
+      })
+      // The operationId stays unique per request; its events join this trace.
+      expect(typeof command.attrs?.operationId).toBe('string')
+      for (const name of ['stream.ready', 'events.settle'])
+        expect(named(spans, name).parentId).toBe(command.spanId)
+      expect(spans.find((span) => span.kind === 'http')?.parentId).toBe(
+        command.spanId,
+      )
+      const familyEvent = spans.find(
+        (span) => span.kind === 'event' && span.name === 'entity.add',
+      )!
+      expect(familyEvent.parentId).toBe(command.spanId)
+      const listener = spans.find(
+        (span) =>
+          span.kind === 'listener' && span.parentId === familyEvent.spanId,
+      )!
+      expect(listener.name).toBe('reactions')
+      expect(
+        spans
+          .filter((span) => span.kind === 'reaction')
+          .filter((span) => span.parentId === listener.spanId)
+          .map((span) => span.name),
+      ).toEqual(['upsertRows', 'invalidateDependents'])
+      expect(spans.filter((span) => span.status === 'error')).toEqual([])
+      runtime.dispose()
+    })
+
+    test('nested commands join the parent trace', async () => {
+      const { runtime, rows, telemetry } = fixture()
+      rows.get('tasks')!.set('one', { id: 'one', title: 'One' })
+      await runtime.commands.execute('entity.change', {
+        kind: 'tasks',
+        action: 'update',
+        id: 'one',
+        changes: { status: ProgressStatus.COMPLETED },
+      })
+      const commands = telemetry.recent({ kind: 'command' })
+      expect(commands.map((span) => span.name)).toEqual([
+        'entity.change',
+        'task.transition',
+        'entity.change',
+      ])
+      // Spans are recorded when they end, so the innermost comes first.
+      const [inner, transition, outer] = commands
+      expect(transition.parentId).toBe(outer.spanId)
+      expect(inner.parentId).toBe(transition.spanId)
+      expect(new Set(commands.map((span) => span.traceId)).size).toBe(1)
+      expect(
+        telemetry.recent({ traceId: outer.traceId, kind: 'reaction' }).length,
+      ).toBeGreaterThan(0)
+      runtime.dispose()
+    })
+
+    test('lost events emit an events.timeout signal in the command trace', async () => {
+      const { runtime, telemetry } = fixture({
+        emitEvents: false,
+        eventTimeoutMs: 20,
+      })
+      await runtime.commands.execute('entity.add', {
+        kind: 'tasks',
+        action: 'create',
+        changes: { title: 'Event lost' },
+      })
+      const [command] = telemetry.recent({ kind: 'command' })
+      const [timeout] = telemetry.recent({ kind: 'signal' })
+      expect(timeout).toMatchObject({
+        name: 'events.timeout',
+        traceId: command.traceId,
+        attrs: { command: 'entity.add', kind: 'tasks', timeoutMs: 20 },
+      })
+      expect(named(telemetry.recent(), 'events.settle').attrs?.settled).toBe(
+        false,
+      )
+      runtime.dispose()
+    })
+
+    test('a throwing reaction is an error span; the command still resolves', async () => {
+      const { runtime, rows, saved, telemetry } = fixture()
+      rows.get('tasks')!.set('one', { id: 'one', title: 'One' })
+      runtime.tracking.start('one', 1000)
+      saved.delete = () => {
+        throw new Error('Storage unavailable')
+      }
+      await runtime.commands.execute('entity.delete', {
+        kind: 'tasks',
+        action: 'delete',
+        id: 'one',
+      })
+      const [failed] = telemetry.recent({ kind: 'reaction', status: 'error' })
+      expect(failed).toMatchObject({
+        name: 'stopTrackingIfDeleted',
+        error: { message: 'Storage unavailable' },
+      })
+      expect(failed.traceId).toBe(
+        telemetry.recent({ kind: 'command' })[0].traceId,
+      )
+      expect(telemetry.recent({ kind: 'command' })[0].status).toBe('ok')
+      runtime.dispose()
+    })
+
+    test('resyncs, refresh failures and loads are recorded', async () => {
+      const { runtime, services, stream, telemetry } = fixture()
+      await runtime.fetchList('tasks')
+      expect(named(telemetry.recent(), 'list:tasks').kind).toBe('query')
+
+      await stream.resync()
+      expect(named(telemetry.recent(), 'stream.resync').kind).toBe('signal')
+
+      services.tags.fetchPaginated = mock(async () => {
+        throw new Error('Read failed')
+      })
+      await runtime.commands.execute('entity.add', {
+        kind: 'tasks',
+        action: 'create',
+        changes: { title: 'Saved task', tags: [] },
+      })
+      expect(named(telemetry.recent(), 'refresh.failed')).toMatchObject({
+        status: 'error',
+        attrs: { key: 'list:tags' },
+        traceId: telemetry.recent({ kind: 'command' })[0].traceId,
+      })
+      runtime.dispose()
+    })
   })
 })

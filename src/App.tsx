@@ -11,6 +11,7 @@ import {
 import { TooltipProvider } from '@/components/ui/tooltip'
 import { AppSidebarComponent, EntityEditDialogHost } from '@/components/app'
 import { Logger } from '@c/Logger'
+import { WorkflowInspector } from '@/components/dev/WorkflowInspector'
 
 function App() {
   const { isDBReady, checkDBReady, dbError } = useStore()
@@ -20,7 +21,7 @@ function App() {
       return
     }
     checkDBReady().catch((err) =>
-      Logger.getInstance().error(`DB readiness check failed: ${String(err)}`),
+      Logger.getInstance().error('DB readiness check failed', { error: err }),
     )
   }, [isDBReady, checkDBReady])
 
@@ -50,6 +51,7 @@ function App() {
           <WorkflowWarnings />
           <Outlet />
           <EntityEditDialogHost />
+          {import.meta.env.DEV && <WorkflowInspector />}
         </SidebarInset>
       </SidebarProvider>
     </TooltipProvider>

@@ -55,7 +55,7 @@ const loadAndUpsert = async (
   const rows = await Promise.all(
     ids.map((id) =>
       context.services[kind].fetchById(id).catch((error: unknown) => {
-        context.logger.warn(`Could not reload ${kind} ${id}: ${String(error)}`)
+        context.logger.warn(`Could not reload ${kind} ${id}`, { error })
         return null
       }),
     ),

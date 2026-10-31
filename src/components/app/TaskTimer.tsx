@@ -42,9 +42,7 @@ export const TaskTimerComponent = ({
     try {
       await (isActive ? pauseTask(taskId) : startTask(taskId))
     } catch (error) {
-      Logger.getInstance().error(
-        `Failed to change task timer: ${String(error)}`,
-      )
+      Logger.getInstance().error('Failed to change task timer', { error })
     } finally {
       setIsSubmitting(false)
     }

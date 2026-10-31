@@ -53,7 +53,7 @@ export const CreateProjectButtonComponent = () => {
       await projects.add(values as WithSupporters<Project['Write']>)
       setIsDialogOpen(false)
     } catch (error) {
-      Logger.getInstance().error(`Failed to create project: ${String(error)}`)
+      Logger.getInstance().error('Failed to create project', { error })
       setErrorMessage(
         'Could not create the project. Please check the details and try again.',
       )

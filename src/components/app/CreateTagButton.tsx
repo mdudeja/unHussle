@@ -32,7 +32,7 @@ export const CreateTagButtonComponent = () => {
       await tags.add(values as Tag['Write'])
       setIsDialogOpen(false)
     } catch (error) {
-      Logger.getInstance().error(`Failed to create tag: ${String(error)}`)
+      Logger.getInstance().error('Failed to create tag', { error })
       setErrorMessage(
         'Could not create the tag. A tag with this name may already exist.',
       )

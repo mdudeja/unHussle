@@ -46,7 +46,7 @@ export const CreateGoalButtonComponent = () => {
       await goals.add(values as WithSupporters<Goal['Write']>)
       setIsDialogOpen(false)
     } catch (error) {
-      Logger.getInstance().error(`Failed to create goal: ${String(error)}`)
+      Logger.getInstance().error('Failed to create goal', { error })
       setErrorMessage(
         'Could not create the goal. Please check the details and try again.',
       )

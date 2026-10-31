@@ -49,7 +49,8 @@ export const createUISlice: StateCreator<UISlice> = (set) => ({
         }
       } catch (err) {
         Logger.getInstance().warn(
-          `Attempt ${attempt} to connect to database server failed: ${String(err)}`,
+          `Attempt ${attempt} to connect to database server failed`,
+          { error: err },
         )
         if (attempt === maxRetries) {
           set(() => ({

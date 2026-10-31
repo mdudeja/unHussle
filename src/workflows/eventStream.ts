@@ -1,4 +1,5 @@
 import { Logger } from '@c/Logger'
+import type { Telemetry } from '@c/workflows/telemetry'
 
 export type EventHandlers = {
   onEvent(name: string, payload: unknown): void | Promise<void>
@@ -64,10 +65,12 @@ export function createSseTransport({
   url = `http://localhost:${import.meta.env.VITE_DB_SERVER_PORT}/events`,
   fetchImpl = fetch,
   retryMs = 2000,
+  telemetry,
 }: {
   url?: string
   fetchImpl?: typeof fetch
   retryMs?: number
+  telemetry?: Telemetry
 } = {}): EventTransport {
   const logger = Logger.getInstance()
   let closed = false
@@ -98,6 +101,10 @@ export function createSseTransport({
         if (!response.ok || !response.body)
           throw new Error(`Event stream unavailable (${response.status})`)
 
+        if (opened)
+          telemetry?.signal('stream.reconnect', {
+            lastEventId: lastEventId ?? 'none',
+          })
         // Without an id the server cannot replay, so a reconnect must resync.
         if (opened && !lastEventId) await handlers.onResync()
         opened = true
@@ -127,7 +134,7 @@ export function createSseTransport({
         }
       } catch (error) {
         if (closed) break
-        logger.debug(`Event stream disconnected: ${String(error)}`)
+        logger.debug('Event stream disconnected', { error })
       }
       disconnect()
       if (!closed) await new Promise((done) => setTimeout(done, delay))

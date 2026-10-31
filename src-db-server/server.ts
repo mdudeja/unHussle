@@ -11,6 +11,7 @@ import { resourcesRoutes } from './routes/resources'
 import { urlRoutes } from './routes/urls'
 import { timeEntriesRoutes } from './routes/time_entries'
 import { eventRoutes } from './routes/events'
+import { httpTracing, telemetryRoutes } from './routes/telemetry'
 import { runSeed } from './database/seed/run-seed'
 import { Logger } from '@c/Logger'
 import { VERSION } from '@c/version'
@@ -25,13 +26,14 @@ logger.debug('Database Initialized.')
 try {
   await runSeed()
 } catch (error) {
-  logger.error(`Error running seed data: ${String(error)}`)
+  logger.error('Error running seed data', { error })
 }
 
 const PORT = parseInt(process.env.VITE_DB_SERVER_PORT || '3456', 10)
 
 const app = new Elysia()
   .decorate('logger', logger)
+  .use(httpTracing)
 
   .mapResponse(({ responseValue, set, path }) => {
     // Skip compression for Swagger documentation routes and raw responses
@@ -72,9 +74,7 @@ const app = new Elysia()
   .use(cors())
 
   .onError(({ error, code, path, logger }) => {
-    logger.error(
-      `Error on ${path}: ${error instanceof Error ? error.message : JSON.stringify(error)}`,
-    )
+    logger.error(`Error on ${path}`, { error })
     if (code === 'VALIDATION') {
       return error.detail(error.message)
     }
@@ -107,6 +107,9 @@ const app = new Elysia()
 
   // backend events, streamed to the frontend
   .use(eventRoutes)
+
+  // spans recorded by this process, for the dev inspector
+  .use(telemetryRoutes)
 
   .listen(PORT)
 

@@ -12,6 +12,7 @@ import {
   junctionUrls,
 } from '@d/database/schemas'
 import type { EntryRecord, MutationEvent } from '@c/workflows/contracts'
+import { createTelemetry } from '@c/workflows/telemetry'
 
 describe('Transactional command handlers', () => {
   const database = new UnHussleDB(':memory:')
@@ -365,6 +366,84 @@ describe('Transactional command handlers', () => {
       action: 'update',
       attachedIds: [task.id],
     })
+    runtime.dispose()
+  })
+
+  test('a collection delete is traced as command, ordered actions and events', async () => {
+    const telemetry = createTelemetry({ side: 'backend' })
+    const runtime = createBackendRuntime(database, { telemetry })
+    const project = (await runtime.commands.execute('entityCollection.add', {
+      kind: 'projects',
+      action: 'create',
+      changes: { title: 'Traced project' },
+    })) as EntryRecord
+    await runtime.commands.execute('entity.add', {
+      kind: 'tasks',
+      action: 'create',
+      changes: { title: 'Traced task', project_id: project.id },
+    })
+    telemetry.clear()
+
+    await runtime.commands.execute('entityCollection.delete', {
+      kind: 'projects',
+      action: 'delete',
+      operationId: 'trace-delete',
+      id: project.id,
+    })
+    const spans = telemetry.recent({ traceId: 'trace-delete' })
+    const [command] = spans.filter((span) => span.kind === 'command')
+    expect(command).toMatchObject({
+      name: 'entityCollection.delete',
+      status: 'ok',
+      attrs: {
+        kind: 'projects',
+        operationId: 'trace-delete',
+        announcements: 1,
+      },
+    })
+    const actions = spans.filter((span) => span.kind === 'action')
+    expect(actions.map((span) => span.name)).toEqual([
+      'announceAffectedEntities',
+      'deleteRow',
+      'deleteJunctions',
+      'updateSupporterCounts',
+    ])
+    expect(actions.every((span) => span.parentId === command.spanId)).toBe(true)
+    expect(
+      spans
+        .filter((span) => span.kind === 'event')
+        .map((span) => [span.name, span.parentId]),
+    ).toEqual([
+      ['entityCollection.delete', command.spanId],
+      ['projects.delete', command.spanId],
+      ['tasks.change', command.spanId],
+    ])
+    expect(telemetry.recent().length).toBe(spans.length)
+    runtime.dispose()
+  })
+
+  test('a failing action marks the command rolled back and publishes no events', async () => {
+    const telemetry = createTelemetry({ side: 'backend' })
+    const runtime = createBackendRuntime(database, { telemetry })
+    await expect(
+      runtime.commands.execute('entity.add', {
+        kind: 'tasks',
+        action: 'create',
+        operationId: 'trace-rollback',
+        changes: { title: 'Traced rollback', urls: [{ url: 'invalid' }] },
+      }),
+    ).rejects.toThrow()
+    const [command] = telemetry.recent({ kind: 'command' })
+    expect(command).toMatchObject({
+      traceId: 'trace-rollback',
+      status: 'error',
+      attrs: { rolledBack: true },
+    })
+    expect(command.error?.stack).toBeTruthy()
+    expect(
+      telemetry.recent({ kind: 'action', status: 'error' }).length,
+    ).toBeGreaterThan(0)
+    expect(telemetry.recent({ kind: 'event' })).toEqual([])
     runtime.dispose()
   })
 

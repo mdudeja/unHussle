@@ -8,6 +8,7 @@ type EventSourceRuntime = {
   events: {
     onAny(
       handler: (name: string, payload: AppEvents[keyof AppEvents]) => void,
+      options?: { label?: string },
     ): () => void
   }
 }
@@ -25,12 +26,15 @@ export function createEventForwarder(
   const buffer: EventFrame[] = []
   const clients = new Set<(frame: EventFrame) => void>()
 
-  const stop = runtime.events.onAny((name, payload) => {
-    const frame = { id: ++lastId, name, payload }
-    buffer.push(frame)
-    if (buffer.length > bufferSize) buffer.shift()
-    for (const send of clients) send(frame)
-  })
+  const stop = runtime.events.onAny(
+    (name, payload) => {
+      const frame = { id: ++lastId, name, payload }
+      buffer.push(frame)
+      if (buffer.length > bufferSize) buffer.shift()
+      for (const send of clients) send(frame)
+    },
+    { label: 'sse-forwarder' },
+  )
 
   return {
     lastId: () => lastId,

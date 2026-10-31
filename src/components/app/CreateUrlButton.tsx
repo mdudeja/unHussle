@@ -32,7 +32,7 @@ export const CreateUrlButtonComponent = () => {
       await urls.add(values as EntityUrl['Write'])
       setIsDialogOpen(false)
     } catch (error) {
-      Logger.getInstance().error(`Failed to create URL: ${String(error)}`)
+      Logger.getInstance().error('Failed to create URL', { error })
       setErrorMessage(
         'Could not save the URL. It may already be saved, or the address is invalid.',
       )

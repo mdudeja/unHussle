@@ -1,11 +1,28 @@
 import { makeJSONRequest } from '@/lib/server'
 import { DbEntityTypes, WithSupporters } from '@c/types/index'
+import { parentSpanHeader, traceIdHeader } from '@c/workflows/telemetry'
 
-/** Options for writes; `operationId` correlates the write with its backend events. */
-export type MutationOptions = { operationId?: string }
+/**
+ * Options for writes. `operationId` correlates the write with its backend
+ * events; `traceId` / `parentSpanId` join the backend spans to the caller's trace.
+ */
+export type MutationOptions = {
+  operationId?: string
+  traceId?: string
+  parentSpanId?: string
+}
 
-const mutationHeaders = ({ operationId }: MutationOptions = {}) =>
-  operationId ? { 'x-operation-id': operationId } : undefined
+const mutationHeaders = ({
+  operationId,
+  traceId,
+  parentSpanId,
+}: MutationOptions = {}) => {
+  const headers: Record<string, string> = {}
+  if (operationId) headers['x-operation-id'] = operationId
+  if (traceId) headers[traceIdHeader] = traceId
+  if (parentSpanId) headers[parentSpanHeader] = parentSpanId
+  return Object.keys(headers).length ? headers : undefined
+}
 
 export class DbService<T extends DbEntityTypes> {
   dbUrl: string

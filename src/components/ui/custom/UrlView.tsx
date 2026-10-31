@@ -24,13 +24,13 @@ function tauriView(url: string, key?: string) {
       onClick={() => {
         if (url.startsWith('http') || url.startsWith('www')) {
           openUrl(url).catch((err) => {
-            Logger.getInstance().error(`Failed to open URL: ${String(err)}`)
+            Logger.getInstance().error('Failed to open URL', { error: err })
           })
         } else {
           revealItemInDir(url).catch((err) => {
-            Logger.getInstance().error(
-              `Failed to reveal file in directory: ${String(err)}`,
-            )
+            Logger.getInstance().error('Failed to reveal file in directory', {
+              error: err,
+            })
           })
         }
       }}

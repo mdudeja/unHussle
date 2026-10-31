@@ -118,7 +118,7 @@ export function createCommandActions<Context extends { logger: Logger }>() {
     [K in CommandAction]?: CommandActionHandler<Context>
   } = {
     createRow: (eventName, input, { logger }) => {
-      logger.info(
+      logger.debug(
         `Executing action: ${eventName} for input: ${JSON.stringify(input)}`,
       )
       const { kind, changes = {} } = input
@@ -132,7 +132,7 @@ export function createCommandActions<Context extends { logger: Logger }>() {
     },
 
     updateRow: (eventName, input, { logger }) => {
-      logger.info(
+      logger.debug(
         `Executing action: ${eventName} for input: ${JSON.stringify(input)}`,
       )
       const { id, kind, changes = {} } = input
@@ -149,7 +149,7 @@ export function createCommandActions<Context extends { logger: Logger }>() {
     },
 
     deleteRow: (eventName, input, { logger }) => {
-      logger.info(
+      logger.debug(
         `Executing action: ${eventName} for input: ${JSON.stringify(input)}`,
       )
       const { id, kind } = input
@@ -165,7 +165,7 @@ export function createCommandActions<Context extends { logger: Logger }>() {
     },
 
     deleteAllRows: (eventName, input, { logger }) => {
-      logger.info(
+      logger.debug(
         `Executing action: ${eventName} for input: ${JSON.stringify(input)}`,
       )
       const { kind } = input
@@ -175,7 +175,7 @@ export function createCommandActions<Context extends { logger: Logger }>() {
     },
 
     updateSupporters: (eventName, input, { logger }) => {
-      logger.info(
+      logger.debug(
         `Executing action: ${eventName} for input: ${JSON.stringify(input)}`,
       )
       if (!input || !input.kind || !input.action || !input.id) {
@@ -210,7 +210,7 @@ export function createCommandActions<Context extends { logger: Logger }>() {
     },
 
     deleteJunctions: (eventName, input, { logger }) => {
-      logger.info(
+      logger.debug(
         `Executing action: ${eventName} for input: ${JSON.stringify(input)}`,
       )
 
@@ -246,7 +246,7 @@ export function createCommandActions<Context extends { logger: Logger }>() {
     },
 
     updateSupporterCounts: (eventName, input, { logger }) => {
-      logger.info(
+      logger.debug(
         `Executing action: ${eventName} for input: ${JSON.stringify(input)}`,
       )
 
@@ -256,7 +256,7 @@ export function createCommandActions<Context extends { logger: Logger }>() {
     },
 
     updateCollectionCounts: (eventName, input, { logger }) => {
-      logger.info(
+      logger.debug(
         `Executing action: ${eventName} for input: ${JSON.stringify(input)}`,
       )
 
@@ -272,7 +272,7 @@ export function createCommandActions<Context extends { logger: Logger }>() {
       input,
       { logger, operationId, announce },
     ) => {
-      logger.info(
+      logger.debug(
         `Executing action: ${eventName} for input: ${JSON.stringify(input)}`,
       )
       const { kind, action, id } = input

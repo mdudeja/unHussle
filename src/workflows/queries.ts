@@ -1,5 +1,6 @@
 import { createStore } from 'zustand/vanilla'
 import type { EntryKind } from '@c/workflows/contracts'
+import type { Telemetry } from '@c/workflows/telemetry'
 
 export type QueryState<T = unknown> = {
   data: T | null
@@ -23,10 +24,17 @@ type Registration = QueryDefinition<unknown> & {
   active: number
   generation: number
   pending?: Promise<unknown>
+  /** Callers that shared the pending request instead of sending their own. */
+  joined: number
 }
 
+/** `search:tasks:<term>` → `search:tasks`; the rest of a key may be user data. */
+const queryName = (key: string) => key.split(':').slice(0, 2).join(':')
+
 /** Requests, invalidation and stale-response protection belong to one owner. */
-export function createQueryCoordinator() {
+export function createQueryCoordinator({
+  telemetry,
+}: { telemetry?: Telemetry } = {}) {
   const store = createStore<{ entries: Record<string, QueryState> }>(() => ({
     entries: {},
   }))
@@ -51,15 +59,20 @@ export function createQueryCoordinator() {
         ...definition,
         active: 0,
         generation: 0,
+        joined: 0,
       } as Registration)
   }
 
   const ensure = async <T>(key: string): Promise<T> => {
     const registration = registrations.get(key)
     if (!registration) throw new Error(`Unregistered query: ${key}`)
-    if (registration.pending) return registration.pending as Promise<T>
+    if (registration.pending) {
+      registration.joined++
+      return registration.pending as Promise<T>
+    }
     const current = snapshot<T>(key)
     if (!current.stale && current.data !== null) return current.data
+    let obsolete = 0
     const work = async () => {
       // Invalidated requests may finish, but may never replace newer state.
       for (;;) {
@@ -68,18 +81,35 @@ export function createQueryCoordinator() {
         try {
           const data = await registration.load()
           if (disposed) return data
-          if (generation !== registration.generation) continue
+          if (generation !== registration.generation) {
+            obsolete++
+            continue
+          }
           registration.onData?.(data)
           patch(key, { data, stale: false, isLoading: false, error: null })
           return data
         } catch (error) {
-          if (generation !== registration.generation && !disposed) continue
+          if (generation !== registration.generation && !disposed) {
+            obsolete++
+            continue
+          }
           patch(key, { isLoading: false, stale: true, error: String(error) })
           throw error
         }
       }
     }
-    registration.pending = work().finally(() => {
+    registration.joined = 0
+    const traced = telemetry
+      ? () =>
+          telemetry.span('query', queryName(key), async (span) => {
+            try {
+              return await work()
+            } finally {
+              span.setAttrs({ joined: registration.joined, obsolete })
+            }
+          })
+      : work
+    registration.pending = traced().finally(() => {
       registration.pending = undefined
     })
     return registration.pending as Promise<T>
