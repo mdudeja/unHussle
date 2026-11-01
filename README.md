@@ -114,7 +114,7 @@ The sidebar's **Your pace** section has the planner views.
 
 - **Day** shows one day's stack. Appointments appear first, then the flexible
   stack. A saved day can be re-ordered with move up/down, have tasks
-  [pinned](#pinning) or be rescheduled. An unsaved (tentative) day can be
+  pinned or be rescheduled. An unsaved (tentative) day can be
   saved. When tasks change under a saved day, it is marked as changed but keeps
   your order until you reschedule. A badge shows when the day is on a break or
   wrapping up.
