@@ -1,6 +1,7 @@
 import type { TableWithId } from '@d/database/repositories/BaseRepository'
 import type { SyncTx } from '@d/database/repositories/helpers'
 import type { transactionRepository } from '@d/workflows/unitOfWork'
+import type { SchedulerEvents } from '@c/scheduler/contracts'
 
 export type EntityKind = 'tasks' | 'resources'
 export type EntityCollectionKind = 'projects' | 'areas' | 'goals'
@@ -113,7 +114,7 @@ export type MutationCommands = {
   }
 }
 
-export type AppEvents = {
+export type AppEvents = SchedulerEvents & {
   [A in (typeof _commandHeads)[number] as `${A}.add`]: MutationEvent
 } & {
   [C in (typeof _commandHeads)[number] as `${C}.change`]: MutationEvent
@@ -134,6 +135,10 @@ export type AppEvents = {
 export type CommandAction =
   | 'createRow'
   | 'updateRow'
+  | 'validateTask'
+  | 'trackTaskInterval'
+  | 'markPlansStale'
+  | 'syncPlanMembership'
   | 'deleteRow'
   | 'deleteAllRows'
   | 'updateSupporters'

@@ -98,24 +98,28 @@ export type DailyRecurranceRule = {
     }[]
   }
 }
+
 export type WeeklyRecurranceRule = {
   type: 'weekly'
   data: DailyRecurranceRule['data'] & {
     weekDays: number[]
   }
 }
+
 export type MonthlyRecurranceRule = {
   type: 'monthly'
   data: WeeklyRecurranceRule['data'] & {
     monthDays: number[]
   }
 }
+
 export type YearlyRecurranceRule = {
   type: 'yearly'
   data: MonthlyRecurranceRule['data'] & {
     months: number[]
   }
 }
+
 export type RecurranceRule =
   | DailyRecurranceRule
   | WeeklyRecurranceRule

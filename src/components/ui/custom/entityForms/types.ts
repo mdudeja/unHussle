@@ -1,6 +1,7 @@
 import type { LucideIcon } from 'lucide-react'
 
 export type FieldType =
+  | 'taskAnchor'
   | 'text'
   | 'textarea'
   | 'number'

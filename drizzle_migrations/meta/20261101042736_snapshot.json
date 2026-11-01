@@ -1,7 +1,7 @@
 {
   "version": "6",
   "dialect": "sqlite",
-  "id": "1e895e43-327d-4728-99b7-833acf4cd081",
+  "id": "8b3aacf3-5a25-4b3b-af00-0a870975ad1a",
   "prevId": "00000000-0000-0000-0000-000000000000",
   "tables": {
     "areas": {
@@ -411,6 +411,13 @@
           "autoincrement": false,
           "default": "'any_after'"
         },
+        "anchor_slot": {
+          "name": "anchor_slot",
+          "type": "integer",
+          "primaryKey": false,
+          "notNull": false,
+          "autoincrement": false
+        },
         "estimated_minutes": {
           "name": "estimated_minutes",
           "type": "integer",
@@ -535,6 +542,13 @@
           "name": "tasks_status_idx",
           "columns": [
             "status"
+          ],
+          "isUnique": false
+        },
+        "tasks_anchor_idx": {
+          "name": "tasks_anchor_idx",
+          "columns": [
+            "anchor_id"
           ],
           "isUnique": false
         },
@@ -1279,6 +1293,13 @@
           "autoincrement": false,
           "default": "''"
         },
+        "occurrence_id": {
+          "name": "occurrence_id",
+          "type": "text",
+          "primaryKey": false,
+          "notNull": false,
+          "autoincrement": false
+        },
         "task_id": {
           "name": "task_id",
           "type": "text",
@@ -1316,9 +1337,37 @@
             "task_id"
           ],
           "isUnique": false
+        },
+        "time_entries_end_start_idx": {
+          "name": "time_entries_end_start_idx",
+          "columns": [
+            "end_time",
+            "start_time"
+          ],
+          "isUnique": false
+        },
+        "time_entries_occurrence_idx": {
+          "name": "time_entries_occurrence_idx",
+          "columns": [
+            "occurrence_id"
+          ],
+          "isUnique": false
         }
       },
       "foreignKeys": {
+        "time_entries_occurrence_id_task_occurrences_id_fk": {
+          "name": "time_entries_occurrence_id_task_occurrences_id_fk",
+          "tableFrom": "time_entries",
+          "tableTo": "task_occurrences",
+          "columnsFrom": [
+            "occurrence_id"
+          ],
+          "columnsTo": [
+            "id"
+          ],
+          "onDelete": "set null",
+          "onUpdate": "no action"
+        },
         "time_entries_task_id_tasks_id_fk": {
           "name": "time_entries_task_id_tasks_id_fk",
           "tableFrom": "time_entries",
@@ -1565,6 +1614,425 @@
           "name": "junction_time_entries_attachedToId_refId_pk"
         }
       },
+      "uniqueConstraints": {},
+      "checkConstraints": {}
+    },
+    "scheduler_settings": {
+      "name": "scheduler_settings",
+      "columns": {
+        "id": {
+          "name": "id",
+          "type": "text",
+          "primaryKey": true,
+          "notNull": true,
+          "autoincrement": false
+        },
+        "settings": {
+          "name": "settings",
+          "type": "text",
+          "primaryKey": false,
+          "notNull": true,
+          "autoincrement": false
+        }
+      },
+      "indexes": {},
+      "foreignKeys": {},
+      "compositePrimaryKeys": {},
+      "uniqueConstraints": {},
+      "checkConstraints": {}
+    },
+    "scheduling_overrides": {
+      "name": "scheduling_overrides",
+      "columns": {
+        "id": {
+          "name": "id",
+          "type": "text",
+          "primaryKey": true,
+          "notNull": true,
+          "autoincrement": false
+        },
+        "available_date": {
+          "name": "available_date",
+          "type": "text",
+          "primaryKey": false,
+          "notNull": true,
+          "autoincrement": false
+        }
+      },
+      "indexes": {
+        "scheduling_overrides_date_idx": {
+          "name": "scheduling_overrides_date_idx",
+          "columns": [
+            "available_date"
+          ],
+          "isUnique": false
+        }
+      },
+      "foreignKeys": {
+        "scheduling_overrides_id_tasks_id_fk": {
+          "name": "scheduling_overrides_id_tasks_id_fk",
+          "tableFrom": "scheduling_overrides",
+          "tableTo": "tasks",
+          "columnsFrom": [
+            "id"
+          ],
+          "columnsTo": [
+            "id"
+          ],
+          "onDelete": "cascade",
+          "onUpdate": "no action"
+        }
+      },
+      "compositePrimaryKeys": {},
+      "uniqueConstraints": {},
+      "checkConstraints": {}
+    },
+    "day_plans": {
+      "name": "day_plans",
+      "columns": {
+        "id": {
+          "name": "id",
+          "type": "text",
+          "primaryKey": true,
+          "notNull": true,
+          "autoincrement": false
+        },
+        "date": {
+          "name": "date",
+          "type": "text",
+          "primaryKey": false,
+          "notNull": true,
+          "autoincrement": false
+        },
+        "timezone": {
+          "name": "timezone",
+          "type": "text",
+          "primaryKey": false,
+          "notNull": true,
+          "autoincrement": false
+        },
+        "revision": {
+          "name": "revision",
+          "type": "integer",
+          "primaryKey": false,
+          "notNull": true,
+          "autoincrement": false,
+          "default": 1
+        },
+        "stale": {
+          "name": "stale",
+          "type": "integer",
+          "primaryKey": false,
+          "notNull": true,
+          "autoincrement": false,
+          "default": false
+        },
+        "conflicts": {
+          "name": "conflicts",
+          "type": "text",
+          "primaryKey": false,
+          "notNull": true,
+          "autoincrement": false
+        }
+      },
+      "indexes": {
+        "day_plans_date_idx": {
+          "name": "day_plans_date_idx",
+          "columns": [
+            "date"
+          ],
+          "isUnique": false
+        },
+        "day_plans_timezone_date_idx": {
+          "name": "day_plans_timezone_date_idx",
+          "columns": [
+            "timezone",
+            "date"
+          ],
+          "isUnique": false
+        }
+      },
+      "foreignKeys": {},
+      "compositePrimaryKeys": {},
+      "uniqueConstraints": {},
+      "checkConstraints": {}
+    },
+    "task_occurrences": {
+      "name": "task_occurrences",
+      "columns": {
+        "id": {
+          "name": "id",
+          "type": "text",
+          "primaryKey": true,
+          "notNull": true,
+          "autoincrement": false
+        },
+        "task_id": {
+          "name": "task_id",
+          "type": "text",
+          "primaryKey": false,
+          "notNull": true,
+          "autoincrement": false
+        },
+        "task_ref_id": {
+          "name": "task_ref_id",
+          "type": "text",
+          "primaryKey": false,
+          "notNull": false,
+          "autoincrement": false
+        },
+        "date": {
+          "name": "date",
+          "type": "text",
+          "primaryKey": false,
+          "notNull": true,
+          "autoincrement": false
+        },
+        "slot": {
+          "name": "slot",
+          "type": "integer",
+          "primaryKey": false,
+          "notNull": true,
+          "autoincrement": false,
+          "default": 0
+        },
+        "status": {
+          "name": "status",
+          "type": "text",
+          "primaryKey": false,
+          "notNull": true,
+          "autoincrement": false,
+          "default": "'planned'"
+        },
+        "spent_minutes": {
+          "name": "spent_minutes",
+          "type": "integer",
+          "primaryKey": false,
+          "notNull": true,
+          "autoincrement": false,
+          "default": 0
+        }
+      },
+      "indexes": {
+        "occurrence_task_date_slot": {
+          "name": "occurrence_task_date_slot",
+          "columns": [
+            "task_id",
+            "date",
+            "slot"
+          ],
+          "isUnique": true
+        },
+        "occurrence_date_status_idx": {
+          "name": "occurrence_date_status_idx",
+          "columns": [
+            "date",
+            "status"
+          ],
+          "isUnique": false
+        },
+        "occurrence_status_date_idx": {
+          "name": "occurrence_status_date_idx",
+          "columns": [
+            "status",
+            "date"
+          ],
+          "isUnique": false
+        },
+        "occurrence_task_ref_idx": {
+          "name": "occurrence_task_ref_idx",
+          "columns": [
+            "task_ref_id"
+          ],
+          "isUnique": false
+        },
+        "occurrence_source_status_date_idx": {
+          "name": "occurrence_source_status_date_idx",
+          "columns": [
+            "task_id",
+            "status",
+            "date"
+          ],
+          "isUnique": false
+        }
+      },
+      "foreignKeys": {
+        "task_occurrences_task_ref_id_tasks_id_fk": {
+          "name": "task_occurrences_task_ref_id_tasks_id_fk",
+          "tableFrom": "task_occurrences",
+          "tableTo": "tasks",
+          "columnsFrom": [
+            "task_ref_id"
+          ],
+          "columnsTo": [
+            "id"
+          ],
+          "onDelete": "set null",
+          "onUpdate": "no action"
+        }
+      },
+      "compositePrimaryKeys": {},
+      "uniqueConstraints": {},
+      "checkConstraints": {}
+    },
+    "plan_items": {
+      "name": "plan_items",
+      "columns": {
+        "id": {
+          "name": "id",
+          "type": "text",
+          "primaryKey": true,
+          "notNull": true,
+          "autoincrement": false
+        },
+        "plan_id": {
+          "name": "plan_id",
+          "type": "text",
+          "primaryKey": false,
+          "notNull": true,
+          "autoincrement": false
+        },
+        "item_id": {
+          "name": "item_id",
+          "type": "text",
+          "primaryKey": false,
+          "notNull": true,
+          "autoincrement": false
+        },
+        "source_task_id": {
+          "name": "source_task_id",
+          "type": "text",
+          "primaryKey": false,
+          "notNull": true,
+          "autoincrement": false
+        },
+        "task_id": {
+          "name": "task_id",
+          "type": "text",
+          "primaryKey": false,
+          "notNull": false,
+          "autoincrement": false
+        },
+        "occurrence_id": {
+          "name": "occurrence_id",
+          "type": "text",
+          "primaryKey": false,
+          "notNull": false,
+          "autoincrement": false
+        },
+        "position": {
+          "name": "position",
+          "type": "integer",
+          "primaryKey": false,
+          "notNull": true,
+          "autoincrement": false
+        },
+        "status": {
+          "name": "status",
+          "type": "text",
+          "primaryKey": false,
+          "notNull": true,
+          "autoincrement": false
+        },
+        "pinned": {
+          "name": "pinned",
+          "type": "integer",
+          "primaryKey": false,
+          "notNull": true,
+          "autoincrement": false,
+          "default": false
+        },
+        "reason": {
+          "name": "reason",
+          "type": "text",
+          "primaryKey": false,
+          "notNull": false,
+          "autoincrement": false
+        }
+      },
+      "indexes": {
+        "plan_items_plan_item_idx": {
+          "name": "plan_items_plan_item_idx",
+          "columns": [
+            "plan_id",
+            "item_id"
+          ],
+          "isUnique": true
+        },
+        "plan_items_plan_position_idx": {
+          "name": "plan_items_plan_position_idx",
+          "columns": [
+            "plan_id",
+            "position"
+          ],
+          "isUnique": false
+        },
+        "plan_items_source_status_idx": {
+          "name": "plan_items_source_status_idx",
+          "columns": [
+            "source_task_id",
+            "status",
+            "plan_id"
+          ],
+          "isUnique": false
+        },
+        "plan_items_task_idx": {
+          "name": "plan_items_task_idx",
+          "columns": [
+            "task_id"
+          ],
+          "isUnique": false
+        },
+        "plan_items_occurrence_idx": {
+          "name": "plan_items_occurrence_idx",
+          "columns": [
+            "occurrence_id"
+          ],
+          "isUnique": false
+        }
+      },
+      "foreignKeys": {
+        "plan_items_plan_id_day_plans_id_fk": {
+          "name": "plan_items_plan_id_day_plans_id_fk",
+          "tableFrom": "plan_items",
+          "tableTo": "day_plans",
+          "columnsFrom": [
+            "plan_id"
+          ],
+          "columnsTo": [
+            "id"
+          ],
+          "onDelete": "cascade",
+          "onUpdate": "no action"
+        },
+        "plan_items_task_id_tasks_id_fk": {
+          "name": "plan_items_task_id_tasks_id_fk",
+          "tableFrom": "plan_items",
+          "tableTo": "tasks",
+          "columnsFrom": [
+            "task_id"
+          ],
+          "columnsTo": [
+            "id"
+          ],
+          "onDelete": "set null",
+          "onUpdate": "no action"
+        },
+        "plan_items_occurrence_id_task_occurrences_id_fk": {
+          "name": "plan_items_occurrence_id_task_occurrences_id_fk",
+          "tableFrom": "plan_items",
+          "tableTo": "task_occurrences",
+          "columnsFrom": [
+            "occurrence_id"
+          ],
+          "columnsTo": [
+            "id"
+          ],
+          "onDelete": "set null",
+          "onUpdate": "no action"
+        }
+      },
+      "compositePrimaryKeys": {},
       "uniqueConstraints": {},
       "checkConstraints": {}
     }

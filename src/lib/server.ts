@@ -21,7 +21,15 @@ export const makeJSONRequest = async <T>({
   const res = await fetch(url, reqInit)
 
   if (!res.ok) {
-    throw new Error(`HTTP error! status: ${res.status}`)
+    // Prefer the server's explanation (e.g. a scheduling conflict) when it sends one.
+    const error = (await res.json().catch(() => null)) as {
+      message?: unknown
+    } | null
+    throw new Error(
+      typeof error?.message === 'string'
+        ? error.message
+        : `HTTP error! status: ${res.status}`,
+    )
   }
 
   return (await res.json()) as T

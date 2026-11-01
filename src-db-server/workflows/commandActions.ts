@@ -1,4 +1,11 @@
-import { eq, isNotNull } from 'drizzle-orm'
+import {
+  markPlansStale,
+  validateTaskAnchors,
+} from '@d/database/repositories/scheduler'
+import { validateRecurrence } from '@c/scheduler/validation'
+import { validateTaskSchedule } from '@c/taskSchedule'
+import { getNowMillis } from '@c/datetimeUtils'
+import { eq, isNotNull, sql } from 'drizzle-orm'
 import type { SQLiteColumn } from 'drizzle-orm/sqlite-core'
 import { Logger } from '@c/Logger'
 import {
@@ -28,6 +35,11 @@ import {
   recomputeCollectionCounts,
   recomputeSupporterCounts,
 } from '@d/workflows/counts'
+import { trackInterval } from '@d/workflows/tracking'
+import {
+  affectsSchedules,
+  syncPlanMembership,
+} from '@d/workflows/scheduleMaintenance'
 
 const entityTables: { [K in EntryKind]: TableWithId } = {
   tasks: tables.tasks,
@@ -102,6 +114,13 @@ function toRowValues(kind: EntryKind, changes: Record<string, unknown>) {
     ...values
   } = changes
 
+  // Status transitions are tracked here, so their time totals are backend-owned.
+  if (kind === 'tasks' && 'status' in values) {
+    delete values.spent_minutes
+    delete values.started_at
+    delete values.completed_at
+  }
+
   if (kind === 'urls' && typeof values.url === 'string') {
     values.parts = toUrlParts(values.url)
   }
@@ -113,7 +132,9 @@ function toRowValues(kind: EntryKind, changes: Record<string, unknown>) {
   return values
 }
 
-export function createCommandActions<Context extends { logger: Logger }>() {
+export function createCommandActions<
+  Context extends { logger: Logger; now?: () => number },
+>() {
   const actions: {
     [K in CommandAction]?: CommandActionHandler<Context>
   } = {
@@ -145,6 +166,55 @@ export function createCommandActions<Context extends { logger: Logger }>() {
         const row = repository(entityTables[kind]).update(id, values)
         if (!row) throw new Error('NOT_FOUND')
         return row as EntryRecord
+      }
+    },
+
+    // Runs after the write, so it validates the row as stored.
+    validateTask: (_name, { kind, id }) => {
+      return ({ tx }) => {
+        if (kind !== 'tasks' || !id) return
+        const task = tx
+          .select()
+          .from(tables.tasks)
+          .where(eq(tables.tasks.id, id))
+          .get()
+        if (!task) return
+        validateRecurrence(task)
+        const error = validateTaskSchedule(task)
+        if (error) throw new Error(error)
+        validateTaskAnchors(tx, task)
+      }
+    },
+
+    // Status transitions open/close tracking intervals and stamp lifecycle times.
+    trackTaskInterval: (_name, { kind, id, changes }, { now = getNowMillis }) => {
+      const status = changes?.status
+      return ({ tx }) => {
+        if (kind !== 'tasks' || !id || typeof status !== 'string') return
+        const at = now()
+        trackInterval(tx, id, null, status, at)
+        if (status === 'in_progress')
+          tx.update(tables.tasks)
+            .set({ started_at: sql`coalesce(${tables.tasks.started_at}, ${at})` })
+            .where(eq(tables.tasks.id, id))
+            .run()
+        if (status === 'completed')
+          tx.update(tables.tasks)
+            .set({ completed_at: at })
+            .where(eq(tables.tasks.id, id))
+            .run()
+      }
+    },
+
+    markPlansStale: (_name, input, { now = getNowMillis }) => {
+      return ({ tx }) => {
+        if (affectsSchedules(input)) markPlansStale(tx, now())
+      }
+    },
+
+    syncPlanMembership: (_name, input) => {
+      return ({ tx }) => {
+        syncPlanMembership(tx, input)
       }
     },
 

@@ -407,6 +407,7 @@ describe('Transactional command handlers', () => {
       'deleteRow',
       'deleteJunctions',
       'updateSupporterCounts',
+      'markPlansStale',
     ])
     expect(actions.every((span) => span.parentId === command.spanId)).toBe(true)
     expect(

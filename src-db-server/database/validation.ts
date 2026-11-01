@@ -8,9 +8,19 @@ import {
   resources,
   urls,
   timeEntries,
+  dayPlans,
+  planItems,
+  schedulerSettings,
+  schedulingOverrides,
+  taskOccurrences,
 } from '@d/database/schemas/index'
 import { t } from 'elysia'
-import { ProgressStatus, Priority } from '@c/types/index'
+import { AnchorType, ProgressStatus, Priority } from '@c/types/index'
+import {
+  adjustActions,
+  planRuleNames,
+  scheduleCues,
+} from '@c/scheduler/contracts'
 import { Type } from '@sinclair/typebox'
 
 // Tags
@@ -149,4 +159,144 @@ export const selectTagItemsSchema = Type.Object({
   projects: Type.Array(selectProjectSchema),
   areas: Type.Array(selectAreaSchema),
   goals: Type.Array(selectGoalSchema),
+})
+
+// Scheduler
+const calendarDate = t.String({ pattern: '^\\d{4}-\\d{2}-\\d{2}$' })
+const nullablePriority = t.Union([t.Enum(Priority), t.Null()])
+const schedulerWindow = { wake: t.String(), sleep: t.String() }
+const planRules = t.Array(t.UnionEnum(planRuleNames))
+
+// drizzle-typebox sees the settings column as untyped JSON, so its shape is given here.
+export const schedulerSettingsSchema = createSelectSchema(schedulerSettings, {
+  settings: t.Object({
+    ...schedulerWindow,
+    workTags: t.Array(t.String({ minLength: 1 })),
+    workMinutes: t.Number(),
+    defaultMinutes: t.Number(),
+    quickMinutes: t.Number(),
+    starterMinutes: t.Number(),
+    longMinutes: t.Number(),
+    overrides: t.Record(
+      t.String(),
+      t.Object({ ...schedulerWindow, workMinutes: t.Optional(t.Number()) }),
+    ),
+    rules: t.Optional(
+      t.Partial(
+        t.Object({
+          fresh: planRules,
+          break: planRules,
+          wrap: planRules,
+          more: planRules,
+        }),
+      ),
+    ),
+  }),
+}).properties.settings
+
+export const selectDayPlanBaseSchema = createSelectSchema(dayPlans, {
+  date: calendarDate,
+  revision: t.Integer({ minimum: 0 }),
+  conflicts: t.Array(t.String()),
+})
+export const selectPlanItemSchema = createSelectSchema(planItems)
+export const selectOccurrenceSchema = createSelectSchema(taskOccurrences)
+const insertOverrideSchema = createInsertSchema(schedulingOverrides, {
+  availableDate: calendarDate,
+})
+
+// Day reads and plan commands address a plan by its date and timezone.
+const { date, timezone, revision } = selectDayPlanBaseSchema.properties
+export const schedulerDayParamsSchema = t.Object({ date })
+export const schedulerDayQuerySchema = t.Object({ timezone })
+export const generatePlanSchema = t.Object({
+  date,
+  timezone,
+  revision: t.Optional(revision),
+})
+export const replanSchema = t.Object({
+  ...generatePlanSchema.properties,
+  cue: t.Optional(t.UnionEnum(scheduleCues)),
+})
+export const adjustPlanSchema = t.Object({
+  ...generatePlanSchema.properties,
+  itemId: selectPlanItemSchema.properties.itemId,
+  action: t.UnionEnum(adjustActions),
+  until: t.Optional(insertOverrideSchema.properties.availableDate),
+  position: t.Optional(selectPlanItemSchema.properties.position),
+})
+export const transitionOccurrenceSchema = t.Object({
+  id: selectOccurrenceSchema.properties.id,
+  status: t.Enum(ProgressStatus),
+})
+
+// Plan entries combine a task (or occurrence) with its saved plan item.
+const task = createSelectSchema(tasks, {
+  priority: nullablePriority,
+  anchor_type: t.Union([t.Enum(AnchorType), t.Null()]),
+}).properties
+const collectionPriority = {
+  project: createSelectSchema(projects, { priority: nullablePriority })
+    .properties.priority,
+  goal: createSelectSchema(goals, { priority: nullablePriority }).properties
+    .priority,
+  area: createSelectSchema(areas, { priority: nullablePriority }).properties
+    .priority,
+}
+const item = selectPlanItemSchema.properties
+const occurrence = selectOccurrenceSchema.properties
+const instant = Type.Union([Type.Number(), Type.Null()])
+
+export const selectPlanEntrySchema = Type.Object({
+  id: item.itemId,
+  taskId: task.id,
+  taskData: task.custom_data,
+  occurrenceId: item.occurrenceId,
+  title: task.title,
+  status: item.status,
+  /** Estimated minutes still remaining. */
+  minutes: Type.Number(),
+  spentMinutes: occurrence.spentMinutes,
+  isWork: Type.Boolean(),
+  isFun: task.is_fun,
+  isChore: task.is_chore,
+  isQuick: task.is_quick,
+  fixedStart: task.scheduled_start,
+  fixedEnd: task.scheduled_end,
+  windowStart: instant,
+  windowEnd: instant,
+  due: task.due_date,
+  anchorId: task.anchor_id,
+  anchorType: task.anchor_type,
+  anchorSlot: task.anchor_slot,
+  anchorSatisfied: Type.Optional(Type.Boolean()),
+  priorities: Type.Tuple([
+    task.priority,
+    collectionPriority.project,
+    collectionPriority.goal,
+    collectionPriority.area,
+  ]),
+  createdAt: task.created_at,
+  pinned: item.pinned,
+  reason: Type.String(),
+  startedAt: Type.Optional(selectTimeEntriesSchema.properties.start_time),
+})
+
+// A plan is addressed by its date and timezone, so its row id isn't sent.
+const { id: _planId, ...dayPlan } = selectDayPlanBaseSchema.properties
+export const selectDayPlanSchema = Type.Object({
+  ...dayPlan,
+  entries: Type.Array(selectPlanEntrySchema),
+  saved: Type.Boolean(),
+  workUsed: Type.Number(),
+  workPlanned: Type.Number(),
+  capacityMinutes: Type.Number(),
+  backlogCount: Type.Number(),
+  settings: schedulerSettingsSchema,
+})
+
+export const selectNextTaskSchema = Type.Object({
+  item: Type.Union([selectPlanEntrySchema, Type.Null()]),
+  upcoming: Type.Union([selectPlanEntrySchema, Type.Null()]),
+  plan: selectDayPlanSchema,
 })

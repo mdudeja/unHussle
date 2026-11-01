@@ -18,6 +18,19 @@ import { commandHandlerRegistry } from '@d/workflows/commandHandlers'
 import { createCommandActions } from '@d/workflows/commandActions'
 import { backendTelemetry } from '@d/workflows/telemetry'
 import type { Telemetry } from '@c/workflows/telemetry'
+import type { SpanScope } from '@c/workflows/telemetry'
+import {
+  schedulerCommandEvents,
+  schedulerCommandNames,
+  type SchedulerCommands,
+} from '@c/scheduler/contracts'
+import { getNowMillis } from '@c/datetimeUtils'
+import { readSettings } from '@d/workflows/scheduler'
+import {
+  schedulerActions,
+  type SchedulerState,
+} from '@d/workflows/schedulerActions'
+import { schedulerHandlerRegistry } from '@d/workflows/schedulerHandlers'
 
 const supporterKinds: MutationInput['kind'][] = ['tags', 'urls', 'time_entries']
 
@@ -79,23 +92,77 @@ function carryForward(input: MutationInput, result: MutationResult) {
 
 export function createBackendRuntime(
   database: UnHussleDB,
-  { telemetry = backendTelemetry }: { telemetry?: Telemetry } = {},
+  {
+    telemetry = backendTelemetry,
+    now = getNowMillis,
+  }: { telemetry?: Telemetry; now?: () => number } = {},
 ) {
   const context = {
+    now,
     unitOfWork: createUnitOfWork(database),
     logger: Logger.getInstance(),
   }
-  const runtime = createRuntime<MutationCommands, AppEvents, typeof context>(
-    context,
-    { telemetry },
-  )
+  const runtime = createRuntime<
+    MutationCommands & SchedulerCommands,
+    AppEvents,
+    typeof context
+  >(context, { telemetry })
   const availableActions = createCommandActions<typeof context>()
+
+  /** Runs work units in one transaction; a failure rolls the command back. */
+  const commit = async <T>(
+    work: TransactionWorkUnit<T>[],
+    trace?: SpanScope,
+  ) => {
+    try {
+      return await context.unitOfWork.transaction(work)
+    } catch (error) {
+      trace?.setAttrs({ rolledBack: true })
+      throw error
+    }
+  }
+
+  /** Actions run inside the synchronous SQLite transaction, so their spans are too. */
+  const spanAction = <T>(
+    trace: SpanScope | undefined,
+    name: string,
+    attrs: Record<string, string>,
+    run: (span?: SpanScope) => T,
+  ) =>
+    trace
+      ? telemetry.span('action', name, run, {
+          traceId: trace.traceId,
+          parentId: trace.spanId,
+          attrs,
+        })
+      : run()
+
+  /** Publishes after commit; a failing listener never fails the command. */
+  const publishAll = async (
+    events: Parameters<Announce>[],
+    operationId: string,
+    meta: { traceId?: string; parentId?: string },
+  ) => {
+    const outcomes = (
+      await Promise.all(
+        events.map(([name, payload]) =>
+          runtime.events.publish(name, payload, meta),
+        ),
+      )
+    ).flat()
+    for (const outcome of outcomes)
+      if (outcome.status === 'rejected')
+        context.logger.error(`Post-commit listener failed (${operationId})`, {
+          error: outcome.reason,
+          traceId: meta.traceId,
+        })
+  }
 
   for (const commandName in commandHandlerRegistry) {
     runtime.commands.handle(
       commandName as keyof MutationCommands,
       async (handlerName, input, context, trace) => {
-        const { unitOfWork, logger } = context
+        const { logger } = context
         // Payloads hold user data, so they are only logged at debug level.
         logger.debug(
           `Executing command: ${handlerName} for input: ${JSON.stringify(input)}`,
@@ -133,45 +200,28 @@ export function createBackendRuntime(
                 return
               }
 
-              const run = () => {
-                const unit = action(actionName, currentInput, actionContext)
-                if (unit instanceof Promise)
-                  throw new Error(
-                    `Action ${actionName} must return its work unit synchronously`,
-                  )
-
-                const result = unit(transaction)
-                currentInput = carryForward(currentInput, result)
-                return result
-              }
-              if (!trace) return run()
-
-              // Runs inside the synchronous SQLite transaction, so the span is too.
-              return telemetry.span(
-                'action',
+              return spanAction(
+                trace,
                 actionName,
+                { kind: input.kind, verb },
                 (span) => {
-                  const result = run()
+                  const unit = action(actionName, currentInput, actionContext)
+                  if (unit instanceof Promise)
+                    throw new Error(
+                      `Action ${actionName} must return its work unit synchronously`,
+                    )
+
+                  const result = unit(transaction)
+                  currentInput = carryForward(currentInput, result)
                   if (Array.isArray(result))
-                    span.setAttrs({ rows: result.length })
+                    span?.setAttrs({ rows: result.length })
                   return result
-                },
-                {
-                  traceId: trace.traceId,
-                  parentId: trace.spanId,
-                  attrs: { kind: input.kind, verb },
                 },
               )
             },
         )
 
-        let result: MutationResult
-        try {
-          result = await unitOfWork.transaction(work)
-        } catch (error) {
-          trace?.setAttrs({ rolledBack: true })
-          throw error
-        }
+        const result = await commit(work, trace)
 
         // Publish under the command (`entity.add`) and its kind (`tasks.add`)
         // so listeners can subscribe to a whole family or a single kind.
@@ -187,28 +237,66 @@ export function createBackendRuntime(
           ),
         })
 
-        const outcomes = (
-          await Promise.all([
-            ...[...eventNames].map((name) =>
-              runtime.events.publish(name as keyof AppEvents, event, meta),
+        await publishAll(
+          [
+            ...[...eventNames].map(
+              (name) => [name as keyof AppEvents, event] as Parameters<Announce>,
             ),
-            ...announcements.map(([name, payload]) =>
-              runtime.events.publish(name, payload, meta),
-            ),
-          ])
-        ).flat()
-        for (const outcome of outcomes)
-          if (outcome.status === 'rejected') {
-            logger.error(`Post-commit listener failed (${operationId})`, {
-              error: outcome.reason,
-              traceId: trace?.traceId,
-            })
-          }
+            ...announcements,
+          ],
+          operationId,
+          meta,
+        )
 
         return result
       },
     )
   }
+
+  // Scheduler commands run their registered actions over one carried state.
+  for (const command of schedulerCommandNames)
+    runtime.commands.handle(command, async (_name, input, context, trace) => {
+      const operationId =
+        input.operationId ?? trace?.traceId ?? crypto.randomUUID()
+      const result = await commit(
+        [
+          (transaction) => {
+            const state = {
+              command,
+              input,
+              now: now(),
+              settings: readSettings(transaction.tx),
+            } as SchedulerState
+            for (const actionName of schedulerHandlerRegistry[command]) {
+              if (state.done) break
+              const action = schedulerActions[actionName]
+              if (!action) {
+                context.logger.warn(
+                  `Scheduler action not found: ${actionName}. Skipping...`,
+                )
+                continue
+              }
+              spanAction(trace, actionName, { command }, () =>
+                action(actionName, state, transaction),
+              )
+            }
+            return state.result
+          },
+        ],
+        trace,
+      )
+      await publishAll(
+        [
+          [
+            schedulerCommandEvents[command],
+            { operationId, ...('date' in input ? { date: input.date } : {}) },
+          ],
+        ],
+        operationId,
+        { traceId: trace?.traceId, parentId: trace?.spanId },
+      )
+      return result as SchedulerCommands[typeof command]['result']
+    })
 
   return {
     ...runtime,

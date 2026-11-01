@@ -1,6 +1,8 @@
 import { createStore } from 'zustand/vanilla'
 import type { EntryKind } from '@c/workflows/contracts'
 import type { Telemetry } from '@c/workflows/telemetry'
+export type QueryDependency =
+  EntryKind | 'schedule' | 'occurrences' | 'schedulerSettings'
 
 export type QueryState<T = unknown> = {
   data: T | null
@@ -16,7 +18,7 @@ export const emptyQuery: QueryState = {
 }
 export type QueryDefinition<T> = {
   key: string
-  dependencies: EntryKind[]
+  dependencies: QueryDependency[]
   load: () => Promise<T>
   onData?: (data: T) => void
 }
@@ -130,7 +132,10 @@ export function createQueryCoordinator({
     patch(key, { stale: true })
   }
 
-  const invalidate = async (kinds: EntryKind[], extraKeys: string[] = []) => {
+  const invalidate = async (
+    kinds: QueryDependency[],
+    extraKeys: string[] = [],
+  ) => {
     const affected: string[] = []
     for (const [key, registration] of registrations) {
       if (

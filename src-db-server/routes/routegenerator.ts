@@ -1,5 +1,5 @@
 import { backendRuntime } from '@d/workflows/runtime'
-import { traceOf } from '@d/routes/telemetry'
+import { operationIdHeader, traceOf } from '@d/routes/telemetry'
 import { commandHeadForKind, type EntryKind } from '@c/workflows/contracts'
 import {
   areas,
@@ -93,9 +93,6 @@ export type RouteGeneratorSchemas =
       update: typeof updateTimeEntriesSchema
       base: typeof timeEntries
     }
-
-/** Lets clients correlate a mutation with the events it publishes. */
-export const operationIdHeader = 'x-operation-id'
 
 // Initialize DB Access
 const uDB = UnHussleDB.getInstance()

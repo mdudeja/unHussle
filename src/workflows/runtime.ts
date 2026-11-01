@@ -11,7 +11,12 @@ import { ProgressStatus } from '@c/types'
 import { getNowMillis } from '@c/datetimeUtils'
 import { Logger } from '@c/Logger'
 import type { StoreState } from '@/store'
-import { createQueryCoordinator } from './queries'
+import { createQueryCoordinator, type QueryDependency } from './queries'
+import {
+  schedulerCommandEvents,
+  schedulerCommandNames,
+} from '@c/scheduler/contracts'
+import { schedulerService, type SchedulerTransport } from '@/services/scheduler'
 import { entityServices, fetchLimits } from './services'
 import {
   createTracking,
@@ -26,7 +31,7 @@ import type {
 } from './contracts'
 import { createSseTransport, type EventTransport } from './eventStream'
 import { createOperationTracker, settlesWithin } from './operations'
-import { createReactions } from './reactions'
+import { createReactions, schedulerEventDependencies } from './reactions'
 import { reactionRegistry } from './reactionRegistry'
 import { frontendTelemetry } from './telemetry'
 import {
@@ -71,6 +76,7 @@ export function createFrontendRuntime(
     /** How long a command waits for the event stream to connect. */
     readyTimeoutMs?: number
     telemetry?: Telemetry
+    scheduler?: SchedulerTransport
   } = {},
 ) {
   let disposed = false
@@ -78,6 +84,7 @@ export function createFrontendRuntime(
   const telemetry = options.telemetry ?? frontendTelemetry
   const queries = createQueryCoordinator({ telemetry })
   const operations = createOperationTracker()
+  const scheduler = options.scheduler ?? schedulerService
   const transport = options.transport ?? createSseTransport({ telemetry })
   // Local operations in flight, so their events join the command's trace.
   const traces = new Map<string, TraceMeta>()
@@ -161,7 +168,7 @@ export function createFrontendRuntime(
 
   const invalidate = async (
     operationId: string,
-    kinds: EntryKind[],
+    kinds: QueryDependency[],
     extraKeys: string[] = [],
   ) => {
     const outcomes = await queries.invalidate(kinds, extraKeys)
@@ -259,7 +266,7 @@ export function createFrontendRuntime(
       )
       await invalidate(
         'resync',
-        allKinds,
+        [...allKinds, 'schedule', 'occurrences', 'schedulerSettings'],
         loaded.map((kind) => defineList(kind)),
       )
     },
@@ -352,6 +359,56 @@ export function createFrontendRuntime(
     return result
   }
 
+  for (const command of schedulerCommandNames)
+    runtime.commands.handle(command, (_name, input, _context, trace) =>
+      serialize(async () => {
+        const operationId = crypto.randomUUID()
+        const traceId = trace?.traceId ?? operationId
+        const event = schedulerCommandEvents[command]
+        const operation = operations.begin(operationId, [event])
+        traces.set(operationId, { traceId, parentId: trace?.spanId })
+        try {
+          // Ordinary task tracking remains serialized with occurrence transitions.
+          if (
+            command === 'occurrence.transition' &&
+            'status' in input &&
+            input.status === ProgressStatus.IN_PROGRESS
+          ) {
+            const session = tracking.getActiveTracking()
+            if (session)
+              await transitionTask(
+                { id: session.taskId, status: ProgressStatus.PAUSED },
+                trace,
+              )
+          }
+          await settlesWithin(transport.ready(), readyTimeoutMs)
+          const result = await telemetry.span(
+            'http',
+            command,
+            (span) =>
+              scheduler.execute(command, input, {
+                operationId,
+                traceId,
+                parentSpanId: span.spanId,
+              }),
+            { traceId, parentId: trace?.spanId },
+          )
+          if (!(await settlesWithin(operation.settled, eventTimeoutMs))) {
+            telemetry.signal(
+              'events.timeout',
+              { command, timeoutMs: eventTimeoutMs },
+              { traceId },
+            )
+            await invalidate(operationId, schedulerEventDependencies[event])
+          }
+          return result
+        } finally {
+          operation.cancel()
+          traces.delete(operationId)
+        }
+      }),
+    )
+
   const transitionTask = async (
     { id, status, changes = {} }: Transition,
     trace?: SpanScope,
@@ -368,21 +425,10 @@ export function createFrontendRuntime(
       )
       session = null
     }
-    const task = await services.tasks.fetchById(id)
+    // The backend stamps lifecycle times and owns tracked minutes.
     const values: Record<string, unknown> = { ...changes, status }
-
-    if (status === ProgressStatus.IN_PROGRESS)
-      values.started_at = task.started_at ?? context.now()
-    if (status === ProgressStatus.COMPLETED) values.completed_at = context.now()
-
     const stopsTracking =
       status !== ProgressStatus.IN_PROGRESS && session?.taskId === id
-
-    if (stopsTracking && session) {
-      values.spent_minutes =
-        Number(task.spent_minutes ?? 0) +
-        Math.ceil(Math.max(0, context.now() - session.startTime) / 60000)
-    }
 
     const result = (await sendNested(
       'entity.change',
@@ -524,6 +570,7 @@ export function createFrontendRuntime(
     ui,
     tracking,
     services,
+    scheduler,
     defineList,
     ensureList,
     dismissWarning,

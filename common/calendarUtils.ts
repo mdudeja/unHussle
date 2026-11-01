@@ -1,3 +1,24 @@
+import { Temporal } from 'temporal-polyfill'
+
+/** Parses and validates a calendar date without applying a timezone. */
+export const parseCalendarDate = (
+  date: Parameters<typeof Temporal.PlainDate.from>[0],
+) => Temporal.PlainDate.from(date)
+
+/** Adds calendar days, preserving date arithmetic across month/year boundaries. */
+export const addDaysToDate = (
+  date: Parameters<typeof parseCalendarDate>[0],
+  days: number,
+) => parseCalendarDate(date).add({ days }).toString()
+
+/** Returns the Monday starting the calendar week containing this date. */
+export const getWeekStartDate = (
+  date: Parameters<typeof parseCalendarDate>[0],
+) => {
+  const day = parseCalendarDate(date)
+  return day.subtract({ days: day.dayOfWeek - 1 }).toString()
+}
+
 export const weekdays: Record<
   string,
   { variations: string[]; dayOfWeek: number }

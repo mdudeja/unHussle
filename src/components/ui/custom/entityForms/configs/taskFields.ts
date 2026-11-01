@@ -18,7 +18,14 @@ import {
   Hash,
   Link,
 } from 'lucide-react'
-import { Area, Goal, Project, Task, WithSupporters } from '@c/types/index'
+import {
+  AnchorType,
+  Area,
+  Goal,
+  Project,
+  Task,
+  WithSupporters,
+} from '@c/types/index'
 import { validateTaskSchedule } from '@c/taskSchedule'
 import type { FieldConfig, FieldOption } from '../types'
 import { priorityOptions, statusOptions } from '../utils'
@@ -51,6 +58,37 @@ export const createTaskFields = ({
   }))
 
   return [
+    {
+      name: 'anchor_id',
+      label: 'Anchor task',
+      type: 'taskAnchor',
+      description: 'Place this task relative to another task.',
+    },
+    {
+      name: 'anchor_type',
+      label: 'Anchor relationship',
+      type: 'select',
+      options: Object.values(AnchorType).map((value) => ({
+        value,
+        label:
+          value === AnchorType.before
+            ? 'Immediately before'
+            : value === AnchorType.after
+              ? 'Immediately after'
+              : value === AnchorType.any_before
+                ? 'Anywhere before'
+                : 'Anywhere after',
+      })),
+    },
+    {
+      name: 'anchor_slot',
+      label: 'Anchor slot (1 = first)',
+      type: 'number',
+      min: 1,
+      step: 1,
+      description:
+        'Only needed when the anchor repeats several times that day.',
+    },
     {
       name: 'title',
       label: 'Name',

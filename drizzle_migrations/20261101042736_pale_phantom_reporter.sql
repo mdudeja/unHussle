@@ -57,6 +57,7 @@ CREATE TABLE `tasks` (
 	`priority` text DEFAULT 'medium',
 	`anchor_id` text,
 	`anchor_type` text DEFAULT 'any_after',
+	`anchor_slot` integer,
 	`estimated_minutes` integer,
 	`spent_minutes` integer DEFAULT 0 NOT NULL,
 	`due_date` integer,
@@ -80,6 +81,7 @@ CREATE INDEX `tasks_project_idx` ON `tasks` (`project_id`);--> statement-breakpo
 CREATE INDEX `tasks_area_idx` ON `tasks` (`area_id`);--> statement-breakpoint
 CREATE INDEX `tasks_goal_idx` ON `tasks` (`goal_id`);--> statement-breakpoint
 CREATE INDEX `tasks_status_idx` ON `tasks` (`status`);--> statement-breakpoint
+CREATE INDEX `tasks_anchor_idx` ON `tasks` (`anchor_id`);--> statement-breakpoint
 CREATE INDEX `tasks_due_date_idx` ON `tasks` (`due_date`);--> statement-breakpoint
 CREATE INDEX `tasks_scheduled_start_idx` ON `tasks` (`scheduled_start`);--> statement-breakpoint
 CREATE INDEX `tasks_scheduled_end_idx` ON `tasks` (`scheduled_end`);--> statement-breakpoint
@@ -177,14 +179,18 @@ CREATE TABLE `time_entries` (
 	`created_at` integer NOT NULL,
 	`updated_at` integer NOT NULL,
 	`title` text DEFAULT '',
+	`occurrence_id` text,
 	`task_id` text NOT NULL,
 	`start_time` integer NOT NULL,
 	`end_time` integer,
 	`duration` integer DEFAULT 0,
+	FOREIGN KEY (`occurrence_id`) REFERENCES `task_occurrences`(`id`) ON UPDATE no action ON DELETE set null,
 	FOREIGN KEY (`task_id`) REFERENCES `tasks`(`id`) ON UPDATE no action ON DELETE cascade
 );
 --> statement-breakpoint
 CREATE INDEX `time_entries_task_idx` ON `time_entries` (`task_id`);--> statement-breakpoint
+CREATE INDEX `time_entries_end_start_idx` ON `time_entries` (`end_time`,`start_time`);--> statement-breakpoint
+CREATE INDEX `time_entries_occurrence_idx` ON `time_entries` (`occurrence_id`);--> statement-breakpoint
 CREATE TABLE `junction_tags` (
 	`attachedToId` text NOT NULL,
 	`refId` text NOT NULL,
@@ -217,4 +223,64 @@ CREATE TABLE `junction_time_entries` (
 );
 --> statement-breakpoint
 CREATE INDEX `junction_time_entries_attachedToId_refId_idx` ON `junction_time_entries` (`attachedToId`,`refId`);--> statement-breakpoint
-CREATE UNIQUE INDEX `junction_time_entries_attachedToId_refId_unique` ON `junction_time_entries` (`attachedToId`,`refId`);
+CREATE UNIQUE INDEX `junction_time_entries_attachedToId_refId_unique` ON `junction_time_entries` (`attachedToId`,`refId`);--> statement-breakpoint
+CREATE TABLE `scheduler_settings` (
+	`id` text PRIMARY KEY NOT NULL,
+	`settings` text NOT NULL
+);
+--> statement-breakpoint
+CREATE TABLE `scheduling_overrides` (
+	`id` text PRIMARY KEY NOT NULL,
+	`available_date` text NOT NULL,
+	FOREIGN KEY (`id`) REFERENCES `tasks`(`id`) ON UPDATE no action ON DELETE cascade
+);
+--> statement-breakpoint
+CREATE INDEX `scheduling_overrides_date_idx` ON `scheduling_overrides` (`available_date`);--> statement-breakpoint
+CREATE TABLE `day_plans` (
+	`id` text PRIMARY KEY NOT NULL,
+	`date` text NOT NULL,
+	`timezone` text NOT NULL,
+	`revision` integer DEFAULT 1 NOT NULL,
+	`stale` integer DEFAULT false NOT NULL,
+	`conflicts` text NOT NULL
+);
+--> statement-breakpoint
+CREATE INDEX `day_plans_date_idx` ON `day_plans` (`date`);--> statement-breakpoint
+CREATE INDEX `day_plans_timezone_date_idx` ON `day_plans` (`timezone`,`date`);--> statement-breakpoint
+CREATE TABLE `task_occurrences` (
+	`id` text PRIMARY KEY NOT NULL,
+	`task_id` text NOT NULL,
+	`task_ref_id` text,
+	`date` text NOT NULL,
+	`slot` integer DEFAULT 0 NOT NULL,
+	`status` text DEFAULT 'planned' NOT NULL,
+	`spent_minutes` integer DEFAULT 0 NOT NULL,
+	FOREIGN KEY (`task_ref_id`) REFERENCES `tasks`(`id`) ON UPDATE no action ON DELETE set null
+);
+--> statement-breakpoint
+CREATE UNIQUE INDEX `occurrence_task_date_slot` ON `task_occurrences` (`task_id`,`date`,`slot`);--> statement-breakpoint
+CREATE INDEX `occurrence_date_status_idx` ON `task_occurrences` (`date`,`status`);--> statement-breakpoint
+CREATE INDEX `occurrence_status_date_idx` ON `task_occurrences` (`status`,`date`);--> statement-breakpoint
+CREATE INDEX `occurrence_task_ref_idx` ON `task_occurrences` (`task_ref_id`);--> statement-breakpoint
+CREATE INDEX `occurrence_source_status_date_idx` ON `task_occurrences` (`task_id`,`status`,`date`);--> statement-breakpoint
+CREATE TABLE `plan_items` (
+	`id` text PRIMARY KEY NOT NULL,
+	`plan_id` text NOT NULL,
+	`item_id` text NOT NULL,
+	`source_task_id` text NOT NULL,
+	`task_id` text,
+	`occurrence_id` text,
+	`position` integer NOT NULL,
+	`status` text NOT NULL,
+	`pinned` integer DEFAULT false NOT NULL,
+	`reason` text,
+	FOREIGN KEY (`plan_id`) REFERENCES `day_plans`(`id`) ON UPDATE no action ON DELETE cascade,
+	FOREIGN KEY (`task_id`) REFERENCES `tasks`(`id`) ON UPDATE no action ON DELETE set null,
+	FOREIGN KEY (`occurrence_id`) REFERENCES `task_occurrences`(`id`) ON UPDATE no action ON DELETE set null
+);
+--> statement-breakpoint
+CREATE UNIQUE INDEX `plan_items_plan_item_idx` ON `plan_items` (`plan_id`,`item_id`);--> statement-breakpoint
+CREATE INDEX `plan_items_plan_position_idx` ON `plan_items` (`plan_id`,`position`);--> statement-breakpoint
+CREATE INDEX `plan_items_source_status_idx` ON `plan_items` (`source_task_id`,`status`,`plan_id`);--> statement-breakpoint
+CREATE INDEX `plan_items_task_idx` ON `plan_items` (`task_id`);--> statement-breakpoint
+CREATE INDEX `plan_items_occurrence_idx` ON `plan_items` (`occurrence_id`);

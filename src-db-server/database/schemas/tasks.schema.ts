@@ -18,6 +18,9 @@ import {
   junctionUrls,
   RecurranceRule,
   anchorTypeSchema,
+  taskOccurrences,
+  planItems,
+  schedulingOverrides,
 } from '@d/database/schemas/index'
 import { Entity, InferTableTypes } from '@c/types/index'
 
@@ -41,6 +44,7 @@ export const tasks = sqliteTable(
       onDelete: 'set null',
     }),
     ...anchorTypeSchema,
+    anchor_slot: integer({ mode: 'number' }),
     estimated_minutes: integer({ mode: 'number' }),
     spent_minutes: integer({ mode: 'number' }).notNull().default(0),
     due_date: integer({ mode: 'number' }),
@@ -60,6 +64,7 @@ export const tasks = sqliteTable(
     index('tasks_area_idx').on(table.area_id),
     index('tasks_goal_idx').on(table.goal_id),
     index('tasks_status_idx').on(table.status),
+    index('tasks_anchor_idx').on(table.anchor_id),
     index('tasks_due_date_idx').on(table.due_date),
     index('tasks_scheduled_start_idx').on(table.scheduled_start),
     index('tasks_scheduled_end_idx').on(table.scheduled_end),
@@ -86,6 +91,9 @@ export const tasksRelations = relations(tasks, ({ one, many }) => ({
     fields: [tasks.anchor_id],
     references: [tasks.id],
   }),
+  occurrences: many(taskOccurrences),
+  scheduleItems: many(planItems),
+  schedulingOverride: one(schedulingOverrides),
   tags: many(junctionTags),
   urls: many(junctionUrls),
   timeEntries: many(junctionTimeEntries),

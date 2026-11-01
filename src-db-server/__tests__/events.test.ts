@@ -30,7 +30,7 @@ describe('Backend event stream', () => {
     const runtime = createBackendRuntime(database)
     const seen: [string, unknown][] = []
     runtime.events.onAny((name, payload) => {
-      seen.push([name, (payload as { operationId: string }).operationId])
+      seen.push([name, payload.operationId])
     })
     await addTask(runtime, 'Any listener', 'op-any')
     expect(seen).toEqual([

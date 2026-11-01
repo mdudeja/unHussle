@@ -12,7 +12,7 @@ export type MutationOptions = {
   parentSpanId?: string
 }
 
-const mutationHeaders = ({
+export const mutationHeaders = ({
   operationId,
   traceId,
   parentSpanId,

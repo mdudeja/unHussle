@@ -209,6 +209,25 @@ export const AppSidebarComponent = () => {
         </Link>
       </SidebarHeader>
       <SidebarContent>
+        <SidebarGroup>
+          <SidebarGroupLabel>Your pace</SidebarGroupLabel>
+          <SidebarMenu>
+            {[
+              ['/', 'Next task'],
+              ['/day', 'Day'],
+              ['/week', 'Week'],
+              ['/scheduler/settings', 'Preferences'],
+            ].map(([path, label]) => (
+              <SidebarMenuItem key={path}>
+                <SidebarMenuButton isActive={pathname === path}>
+                  <Link to={path} className="px-2 py-1 w-full">
+                    {label}
+                  </Link>
+                </SidebarMenuButton>
+              </SidebarMenuItem>
+            ))}
+          </SidebarMenu>
+        </SidebarGroup>
         {groups.map((group) => (
           <SidebarRecentGroup
             key={group.label}

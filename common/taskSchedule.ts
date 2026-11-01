@@ -1,4 +1,4 @@
-const MINUTE_MS = 60_000
+import { MINUTE_MS } from '@c/datetimeUtils'
 
 export type TaskSchedule = {
   scheduled_start?: number | null

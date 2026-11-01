@@ -15,6 +15,7 @@ import { httpTracing, telemetryRoutes } from './routes/telemetry'
 import { runSeed } from './database/seed/run-seed'
 import { Logger } from '@c/Logger'
 import { VERSION } from '@c/version'
+import { schedulerRoutes } from './routes/scheduler'
 
 const logger = Logger.getInstance()
 
@@ -104,6 +105,7 @@ const app = new Elysia()
   .use(tagRoutes)
   .use(urlRoutes)
   .use(timeEntriesRoutes)
+  .use(schedulerRoutes)
 
   // backend events, streamed to the frontend
   .use(eventRoutes)

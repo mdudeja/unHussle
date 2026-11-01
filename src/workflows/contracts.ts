@@ -5,6 +5,7 @@ import type {
 } from '@c/workflows/contracts'
 import type { ProgressStatus, Task, UrlInput, WithSupporters } from '@c/types'
 import type { MutationOptions } from '@/services/database/DbService'
+import type { SchedulerCommands } from '@c/scheduler/contracts'
 
 /** Backend events (received over SSE) plus frontend-only events. */
 export type FrontendEvents = AppEvents & {
@@ -21,13 +22,14 @@ export type Transition = {
 export type FrontendCommands = Pick<
   MutationCommands,
   Exclude<keyof MutationCommands, `entry.${string}`>
-> & {
-  'task.transition': { input: Transition; result: EntryRecord }
-  'brainDump.submit': {
-    input: { task?: WithSupporters<Task['Write']>; urls?: UrlInput[] }
-    result: { failedUrls: UrlInput[] }
+> &
+  SchedulerCommands & {
+    'task.transition': { input: Transition; result: EntryRecord }
+    'brainDump.submit': {
+      input: { task?: WithSupporters<Task['Write']>; urls?: UrlInput[] }
+      result: { failedUrls: UrlInput[] }
+    }
   }
-}
 
 export type EntryTransport = {
   create(
@@ -53,6 +55,7 @@ export type EntryTransport = {
 }
 
 export type ReactionName =
+  | 'refreshSchedule'
   | 'upsertRows'
   | 'removeRows'
   | 'clearRows'

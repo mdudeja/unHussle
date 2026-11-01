@@ -1,170 +1,378 @@
-import React, { useMemo } from 'react'
+import { useState } from 'react'
+import { Link } from 'react-router'
+import { Play, Coffee, Check, Pause, RefreshCw } from 'lucide-react'
 import { Card, CardContent, CardHeader, CardTitle } from '@/components/ui/card'
 import { Button } from '@/components/ui/button'
-import { useStore } from '@/store'
-import { ProgressStatus, Priority } from '@c/types/index'
-import { Play, Coffee } from 'lucide-react'
-import { TaskTimerComponent } from '@/components/app/TaskTimer'
 import { Badge } from '@/components/ui/badge'
-import { cn } from '@/lib/utils'
-import { startTask } from '@/workflows/taskCommands'
-import { Logger } from '@c/Logger'
-import { useEntryList } from '@/workflows/hooks'
+import { Input } from '@/components/ui/input'
+import { Label } from '@/components/ui/label'
+import { nextTask } from '@c/scheduler/engine'
+import { ProgressStatus } from '@c/types'
+import { formatTimeDuration } from '@c/datetimeUtils'
+import {
+  useTodayPlan,
+  useSchedulerAction,
+  useSchedulerClock,
+} from '@/workflows/schedulerHooks'
+import type { PlanEntry } from '@c/scheduler/contracts'
+import { useWorkflowRuntime } from '@/workflows/hooks'
+import { startTask, pauseTask, completeTask } from '@/workflows/taskCommands'
+import { TaskTimerComponent } from './TaskTimer'
+import { useStore } from '@/store'
 
-export const NextTaskCardComponent = ({ ref }: React.ComponentProps<'div'>) => {
-  const { tasks, projects, areas } = useStore()
-  const taskQuery = useEntryList('tasks')
-  const isLoading = tasks.isLoading || taskQuery.isLoading
-
-  const nextTask = useMemo(() => {
-    if (isLoading || !tasks.data) return null
-
-    // 1. Check for Active (In Progress) task
-    const activeTask = tasks.data.find(
-      (t) => t.status === ProgressStatus.IN_PROGRESS,
-    )
-    if (activeTask) return activeTask
-
-    // 2. Find highest priority Planned task
-    // Sort by Priority (High > Medium > Low) then Created At
-    const plannedTasks = tasks.data.filter(
-      (t) => t.status === ProgressStatus.PLANNED,
-    )
-
-    // Map priority to numeric value for sorting
-    const getPriorityVal = (p: Priority | null) => {
-      if (p === Priority.HIGH) return 3
-      if (p === Priority.MEDIUM) return 2
-      return 1
-    }
-
-    if (plannedTasks.length === 0) return null
-
-    return plannedTasks.sort((a, b) => {
-      const pA = getPriorityVal(a.priority)
-      const pB = getPriorityVal(b.priority)
-      if (pA !== pB) return pB - pA
-      return a.created_at - b.created_at // Oldest first
-    })[0]
-  }, [tasks.data, isLoading])
-
-  const contextName = useMemo(() => {
-    if (!nextTask) return null
-    if (nextTask.project_id) {
-      return projects.data.find((p) => p.id === nextTask.project_id)?.title
-    }
-    if (nextTask.area_id) {
-      return areas.data.find((a) => a.id === nextTask.area_id)?.title
-    }
-    return null
-  }, [nextTask, projects.data, areas.data])
-
-  if (isLoading) {
-    return (
-      <Card className="w-full max-w-2xl mx-auto border-dashed animate-pulse bg-surface/20">
-        <CardHeader>
-          <div className="h-6 w-32 bg-muted rounded"></div>
-        </CardHeader>
-        <CardContent className="h-24"></CardContent>
-      </Card>
-    )
-  }
-
-  if (!nextTask) {
-    return (
-      <Card className="w-full max-w-2xl mx-auto border-primary/30 shadow-accent">
-        <CardContent className="flex flex-col items-center justify-center p-8 text-primary gap-4">
-          <div className="p-4 rounded-full border border-primary/30 shadow-md">
-            <Coffee className="size-8 text-primary" />
-          </div>
-          <div className="text-center">
-            <h3 className="text-lg font-medium text-text">All caught up!</h3>
-            <p className="text-sm">
-              Enjoy your free time, or capture something new.
-            </p>
-          </div>
-        </CardContent>
-      </Card>
-    )
-  }
-
-  const isHighPriority = nextTask.priority === Priority.HIGH
-
+/** Ticks every second on its own, so the card itself re-renders per minute. */
+const OccurrenceTimer = ({
+  spentMinutes,
+  startedAt,
+}: Pick<PlanEntry, 'spentMinutes' | 'startedAt'>) => {
+  const { now } = useSchedulerClock(1000)
   return (
-    <Card
-      ref={ref}
-      className={cn(
-        'w-full max-w-2xl mx-auto border-primary/30 shadow-accent',
-        isHighPriority
-          ? 'border-l-8 border-l-primary'
-          : 'border-l-8 border-l-accent',
+    <span className="self-center text-sm tabular-nums">
+      {formatTimeDuration(
+        Math.floor(
+          spentMinutes * 60 +
+            (startedAt ? Math.max(0, now - startedAt) / 1000 : 0),
+        ),
       )}
-    >
-      <CardHeader className="pb-2">
-        <div className="flex items-center justify-between">
-          <span className="text-sm uppercase tracking-wider font-semibold text-primary animate-bounce-short">
-            {nextTask.status === ProgressStatus.IN_PROGRESS
-              ? 'Current Focus'
-              : 'Next Up'}
+    </span>
+  )
+}
+
+export const NextTaskCardComponent = () => {
+  const {
+    data: plan,
+    isLoading,
+    error: loadError,
+    now,
+    date,
+    timezone,
+    tomorrow,
+    generationError,
+    refresh,
+  } = useTodayPlan()
+  const runtime = useWorkflowRuntime()
+  const { run, busy, error } = useSchedulerAction()
+  const [bypass, setBypass] = useState<string>()
+  const [showDeferral, setShowDeferral] = useState(false)
+  const [until, setUntil] = useState('')
+  const selection = plan?.saved ? nextTask(plan, now, bypass) : null
+  const item = selection?.item
+  const active = item?.status === 'in_progress'
+  const replan = (cue: 'fresh' | 'break' | 'wrap' | 'more') =>
+    run(async () => {
+      await runtime.commands.execute('scheduler.replan', {
+        date,
+        timezone,
+        revision: plan?.revision,
+        cue,
+      })
+      setBypass(undefined)
+    })
+  const transition = (status: ProgressStatus) =>
+    run(async () => {
+      if (!item) return
+      if (item.occurrenceId)
+        await runtime.commands.execute('occurrence.transition', {
+          id: item.occurrenceId,
+          status,
+        })
+      else
+        await (status === ProgressStatus.IN_PROGRESS
+          ? startTask(item.taskId)
+          : status === ProgressStatus.PAUSED
+            ? pauseTask(item.taskId)
+            : completeTask(item.taskId))
+      setBypass(undefined)
+    })
+  const adjust = (action: 'later' | 'defer') =>
+    run(async () => {
+      if (!item) return
+      await runtime.commands.execute('scheduler.adjust', {
+        date,
+        timezone,
+        revision: plan?.revision,
+        itemId: item.id,
+        action,
+        ...(action === 'defer' ? { until: until || tomorrow } : {}),
+      })
+      setShowDeferral(false)
+      setBypass(undefined)
+    })
+  return (
+    <Card className="w-full max-w-2xl mx-auto border-primary/30">
+      <CardHeader>
+        <div className="flex justify-between items-center gap-4">
+          <span className="text-sm text-muted-foreground">
+            {active ? 'Current focus' : 'Next up'}
           </span>
-          {contextName && (
-            <Badge variant="outline" className="font-normal">
-              {contextName}
-            </Badge>
-          )}
+          <Button
+            variant="ghost"
+            size="sm"
+            disabled={busy}
+            onClick={() => replan('fresh')}
+          >
+            <RefreshCw className="size-4 mr-2" />
+            Reschedule
+          </Button>
         </div>
-        <CardTitle className="text-2xl font-bold leading-tight mt-1">
-          {nextTask.title}
+        <CardTitle className="text-2xl">
+          {item?.title ??
+            (isLoading || !plan?.saved
+              ? 'Preparing your stack…'
+              : 'A little breathing room')}
         </CardTitle>
       </CardHeader>
-      <CardContent className="pt-4 flex items-center justify-between">
-        <div className="flex gap-2">
-          {nextTask.is_quick && (
-            <Badge variant="secondary" className="text-xs">
-              Quick
-            </Badge>
-          )}
-          {nextTask.is_fun && (
-            <Badge
-              variant="secondary"
-              className="text-xs bg-sage/20 text-sage hover:bg-sage/20 border-sage/20"
-            >
-              Fun
-            </Badge>
-          )}
-          {nextTask.is_chore && (
-            <Badge variant="outline" className="text-xs">
-              Chore
-            </Badge>
-          )}
-        </div>
-
-        <div className="flex items-center gap-4">
-          {nextTask.status === ProgressStatus.IN_PROGRESS ? (
-            <div className="flex items-center gap-3 bg-accent/20 px-4 py-2 rounded-lg border border-border/50">
-              <TaskTimerComponent
-                key={nextTask.id}
-                taskId={nextTask.id}
-                initialSpentMinutes={nextTask.spent_minutes}
-              />
-            </div>
-          ) : (
+      <CardContent className="space-y-5">
+        {(error || loadError || generationError) && (
+          <div role="alert" className="space-y-2">
+            <p>{error || loadError || generationError}</p>
             <Button
-              size="lg"
-              className={cn(
-                'gap-2 shadow-sm font-semibold transition-all',
-                isHighPriority ? 'bg-danger hover:bg-danger/90 text-white' : '',
-              )}
+              variant="outline"
+              disabled={busy}
               onClick={() =>
-                startTask(nextTask.id).catch((error) =>
-                  Logger.getInstance().error(`Failed to start task: ${error}`),
-                )
+                run(async () => {
+                  await runtime.commands.execute('scheduler.generate', {
+                    date,
+                    timezone,
+                  })
+                  await refresh()
+                })
               }
             >
-              <Play className="size-4 fill-current" />
-              Start
+              Try again
             </Button>
-          )}
+          </div>
+        )}
+        {selection?.upcoming && (
+          <p className="text-sm text-muted-foreground">
+            Upcoming: {selection.upcoming.title} at{' '}
+            {new Date(selection.upcoming.fixedStart ?? now).toLocaleTimeString([], {
+              hour: '2-digit',
+              minute: '2-digit',
+            })}
+          </p>
+        )}
+        {item ? (
+          <>
+            <div className="flex gap-2 flex-wrap">
+              {item.isQuick && <Badge variant="secondary">Quick</Badge>}
+              {item.isFun && <Badge variant="secondary">Fun</Badge>}
+              {item.isChore && <Badge variant="outline">Chore</Badge>}
+              {item.occurrenceId && <Badge variant="outline">Recurring</Badge>}
+            </div>
+            <div className="flex gap-2 flex-wrap">
+              <Button
+                disabled={busy}
+                onClick={() =>
+                  transition(
+                    active ? ProgressStatus.PAUSED : ProgressStatus.IN_PROGRESS,
+                  )
+                }
+              >
+                {active ? (
+                  <Pause className="size-4 mr-2" />
+                ) : (
+                  <Play className="size-4 mr-2" />
+                )}
+                {active ? 'Pause' : 'Start'}
+              </Button>
+              <Button
+                disabled={busy}
+                variant="secondary"
+                onClick={() => transition(ProgressStatus.COMPLETED)}
+              >
+                <Check className="size-4 mr-2" />
+                Done
+              </Button>
+              <Button
+                variant="ghost"
+                onClick={() =>
+                  useStore.getState().openEditor('tasks', item.taskId)
+                }
+              >
+                Details
+              </Button>
+              {active && !item.occurrenceId && (
+                <TaskTimerComponent
+                  taskId={item.taskId}
+                  initialSpentMinutes={item.spentMinutes}
+                />
+              )}
+              {active && item.occurrenceId && (
+                <OccurrenceTimer
+                  spentMinutes={item.spentMinutes}
+                  startedAt={item.startedAt}
+                />
+              )}
+            </div>
+            {!active && (
+              <div className="flex gap-2 flex-wrap">
+                <Button
+                  variant="ghost"
+                  size="sm"
+                  disabled={busy}
+                  onClick={() => setBypass(item.id)}
+                >
+                  Do something else
+                </Button>
+                <Button
+                  variant="ghost"
+                  size="sm"
+                  disabled={busy || item.fixedStart !== null}
+                  onClick={() => adjust('later')}
+                >
+                  Later today
+                </Button>
+                <Button
+                  variant="ghost"
+                  size="sm"
+                  disabled={busy || item.fixedStart !== null}
+                  onClick={() => setShowDeferral(!showDeferral)}
+                >
+                  {item.occurrenceId ? 'Skip this occurrence' : 'Another day'}
+                </Button>
+              </div>
+            )}
+            {showDeferral && (
+              <div className="flex items-end gap-2 flex-wrap">
+                <div>
+                  <Label htmlFor="defer-until">
+                    {item.occurrenceId
+                      ? 'Future occurrences will stay in place'
+                      : 'Available again on'}
+                  </Label>
+                  {!item.occurrenceId && (
+                    <Input
+                      id="defer-until"
+                      type="date"
+                      min={tomorrow}
+                      value={until || tomorrow}
+                      onChange={(e) => setUntil(e.target.value)}
+                    />
+                  )}
+                </div>
+                <Button
+                  variant="outline"
+                  disabled={busy}
+                  onClick={() => adjust('defer')}
+                >
+                  Confirm
+                </Button>
+              </div>
+            )}
+            <details className="text-sm text-muted-foreground">
+              <summary className="cursor-pointer">Why this task?</summary>
+              <p className="mt-2">{item.reason}</p>
+            </details>
+          </>
+        ) : (
+          plan?.saved && (
+            <div className="space-y-3">
+              <Coffee className="size-8 text-primary" />
+              <p className="text-sm text-muted-foreground">
+                {selection?.upcoming
+                  ? 'There is no suitable task before your next appointment.'
+                  : bypass
+                    ? 'No other task is ready right now.'
+                    : plan.entries.some((i) =>
+                          ['planned', 'paused'].includes(i.status),
+                        )
+                      ? 'Your remaining tasks will be available later.'
+                      : plan.backlogCount > 0
+                        ? 'Other tasks remain, but none fit this stack’s capacity or constraints.'
+                        : plan.entries.length === 0
+                          ? 'No tasks are ready yet. Capture something below whenever you like.'
+                          : 'You’ve reached the end of this stack.'}
+              </p>
+              {bypass && (
+                <Button variant="outline" onClick={() => setBypass(undefined)}>
+                  Show suggestion again
+                </Button>
+              )}
+              <Button
+                variant="outline"
+                disabled={busy}
+                onClick={() => replan('more')}
+              >
+                Add more
+              </Button>
+            </div>
+          )
+        )}
+        <div className="flex gap-2 flex-wrap border-t pt-4">
+          <Button
+            variant="ghost"
+            size="sm"
+            disabled={busy || active}
+            onClick={() => replan('break')}
+          >
+            Taking a break
+          </Button>
+          <Button
+            variant="ghost"
+            size="sm"
+            disabled={busy || active}
+            onClick={() => replan('wrap')}
+          >
+            Wrapping up
+          </Button>
+        </div>
+        {plan?.entries.some(
+          (i) =>
+            i.fixedEnd !== null &&
+            i.fixedEnd < now &&
+            ['planned', 'paused'].includes(i.status),
+        ) && (
+          <details className="text-sm">
+            <summary className="cursor-pointer">
+              An earlier appointment needs a decision
+            </summary>
+            <div className="mt-2 space-y-2">
+              {plan.entries
+                .filter(
+                  (i) =>
+                    i.fixedEnd !== null &&
+                    i.fixedEnd < now &&
+                    ['planned', 'paused'].includes(i.status),
+                )
+                .map((i) => (
+                  <Button
+                    key={i.id}
+                    variant="link"
+                    className="h-auto px-0"
+                    onClick={() =>
+                      useStore.getState().openEditor('tasks', i.taskId)
+                    }
+                  >
+                    {i.title}
+                  </Button>
+                ))}
+            </div>
+          </details>
+        )}
+        {plan?.stale && (
+          <p className="text-xs text-muted-foreground">
+            Task details have changed. Reschedule whenever you want a fresh
+            stack.
+          </p>
+        )}
+        {!!plan?.conflicts.length && (
+          <details className="text-sm">
+            <summary>
+              {plan.conflicts.length} planning consideration
+              {plan.conflicts.length === 1 ? '' : 's'}
+            </summary>
+            <ul className="mt-2 list-disc pl-5">
+              {plan.conflicts.map((c) => (
+                <li key={c}>{c}</li>
+              ))}
+            </ul>
+          </details>
+        )}
+        <div className="flex gap-4 text-sm text-muted-foreground">
+          <Link to="/day">Day view</Link>
+          <Link to="/week">Week view</Link>
+          <Link to="/scheduler/settings">Preferences</Link>
         </div>
       </CardContent>
     </Card>

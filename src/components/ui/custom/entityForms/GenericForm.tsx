@@ -23,6 +23,7 @@ import { RecurranceRuleInput } from '@/components/ui/custom/RecurranceRuleInput'
 import { TagsInput } from '@/components/ui/custom/TagsInput'
 import { UrlsInput } from '@/components/ui/custom/UrlsInput'
 import { DateTimePicker } from '@/components/ui/custom/DateTimePicker'
+import { TaskAnchorInput } from '@/components/ui/custom/TaskAnchorInput'
 import { RecurranceRule } from '@d/database/schemas'
 import type { TagInput, UrlInput } from '@c/types/index'
 import { CalendarIcon, Loader2 } from 'lucide-react'
@@ -209,6 +210,14 @@ function FormField<T extends object>({
 
   const renderControl = () => {
     switch (field.type) {
+      case 'taskAnchor':
+        return (
+          <TaskAnchorInput
+            value={typeof value === 'string' ? value : null}
+            disabled={disabled}
+            onChange={onChange}
+          />
+        )
       case 'textarea':
         return (
           <Textarea

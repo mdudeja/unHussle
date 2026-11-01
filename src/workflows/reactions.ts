@@ -7,7 +7,8 @@ import type {
 import type { Handler } from '@c/workflows/runtime'
 import type { Logger } from '@c/Logger'
 import type { StoreState } from '@/store'
-import type { QueryCoordinator } from './queries'
+import type { QueryCoordinator, QueryDependency } from './queries'
+import type { SchedulerEvents } from '@c/scheduler/contracts'
 import type { createTracking } from './tracking'
 import type { EntryTransport, ReactionName } from './contracts'
 
@@ -25,6 +26,16 @@ export type ReactionContext = {
 }
 
 export type Reaction<Context> = Handler<MutationEvent, void, Context>
+
+/** Reads each scheduler event can change. Only occurrence tracking touches task rows. */
+export const schedulerEventDependencies: Record<
+  keyof SchedulerEvents,
+  QueryDependency[]
+> = {
+  'scheduler.changed': ['schedule'],
+  'scheduler.settings.changed': ['schedule', 'schedulerSettings'],
+  'occurrence.changed': ['schedule', 'occurrences', 'tasks', 'time_entries'],
+}
 
 const setRows = (
   { store, isDisposed }: ReactionContext,
@@ -78,6 +89,15 @@ const stopTracking = async ({ tracking, publishTracking }: ReactionContext) => {
 
 export function createReactions<Context extends ReactionContext>() {
   const reactions: { [K in ReactionName]?: Reaction<Context> } = {
+    refreshSchedule: async (name, event, context) => {
+      const outcomes = await context.queries.invalidate(
+        schedulerEventDependencies[name as keyof SchedulerEvents] ?? [
+          'schedule',
+        ],
+      )
+      for (const { key, error } of outcomes)
+        if (error) context.warnRefresh(event.operationId, key, error)
+    },
     upsertRows: async (_name, event, context) => {
       await loadAndUpsert(context, event.kind, resultIds(event))
     },

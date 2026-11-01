@@ -290,7 +290,7 @@ describe('Frontend workflows', () => {
     runtime.dispose()
   })
 
-  test('failed lifecycle writes retain the session and retry saves time and status together', async () => {
+  test('failed lifecycle writes retain the session; the retry sends status, not tracked time', async () => {
     const { runtime, services, rows, saved } = fixture()
     rows.get('tasks')!.set('one', { id: 'one', title: 'One', spent_minutes: 3 })
     runtime.tracking.start('one', 1000)
@@ -311,8 +311,9 @@ describe('Frontend workflows', () => {
       id: 'one',
       status: ProgressStatus.PAUSED,
     })
+    // Tracked minutes are added by the backend when it closes the interval.
     expect(rows.get('tasks')!.get('one')).toMatchObject({
-      spent_minutes: 5,
+      spent_minutes: 3,
       status: ProgressStatus.PAUSED,
     })
     expect(services.tasks.update).toHaveBeenCalledTimes(1)

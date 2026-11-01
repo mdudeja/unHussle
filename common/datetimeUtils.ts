@@ -1,4 +1,60 @@
 import { Temporal } from 'temporal-polyfill'
+import { addDaysToDate, parseCalendarDate } from '@c/calendarUtils'
+
+export const MINUTE_MS = 60_000
+export const getTimeZoneId = () => Temporal.Now.timeZoneId()
+
+/** ISO calendar date of an instant in the requested timezone. */
+export const getLocalDateString = (
+  millis: number,
+  timezone = getTimeZoneId(),
+) =>
+  Temporal.Instant.fromEpochMilliseconds(millis)
+    .toZonedDateTimeISO(timezone)
+    .toPlainDate()
+    .toString()
+
+/** Resolves a calendar date and wall-clock time to an instant in a timezone. */
+export const getDateTimeMillis = (
+  date: Parameters<typeof parseCalendarDate>[0],
+  time: Parameters<typeof Temporal.PlainTime.from>[0],
+  timezone = getTimeZoneId(),
+) =>
+  parseCalendarDate(date)
+    .toPlainDateTime(Temporal.PlainTime.from(time))
+    .toZonedDateTime(timezone).epochMilliseconds
+
+/** Wall-clock minute of a day; 1440 means the following local midnight. */
+export const getDateMinuteMillis = (
+  date: Parameters<typeof parseCalendarDate>[0],
+  minute: number,
+  timezone = getTimeZoneId(),
+) => {
+  if (!Number.isInteger(minute) || minute < 0 || minute > 1440)
+    throw new RangeError('Minute of day must be between 0 and 1440')
+  return minute === 1440
+    ? getDateTimeMillis(addDaysToDate(date, 1), '00:00', timezone)
+    : getDateTimeMillis(
+        date,
+        { hour: Math.floor(minute / 60), minute: minute % 60 },
+        timezone,
+      )
+}
+
+/** Parses both times before comparing them; invalid values throw. */
+export const compareTimes = (
+  first: Parameters<typeof Temporal.PlainTime.from>[0],
+  second: Parameters<typeof Temporal.PlainTime.from>[0],
+) => Temporal.PlainTime.compare(first, second)
+
+/** Half-open [start, next-day start) bounds, accounting for timezone/DST changes. */
+export const getDayBoundsMillis = (
+  date: Parameters<typeof parseCalendarDate>[0],
+  timezone = getTimeZoneId(),
+): [number, number] => [
+  getStartOfDayMillis(date, timezone),
+  getStartOfDayMillis(addDaysToDate(date, 1), timezone),
+]
 
 const getNow = (): Temporal.Instant => {
   return Temporal.Now.instant()
@@ -8,28 +64,15 @@ const getNowMillis = (): number => {
   return Temporal.Now.instant().epochMilliseconds
 }
 
-const getStartOfDayMillis = (date: Temporal.PlainDateLike): number => {
-  const plainDate = Temporal.PlainDate.from(date)
-  const startOfDay = plainDate.toPlainDateTime({
-    hour: 0,
-    minute: 0,
-    second: 0,
-  })
-  const zonedDateTime = startOfDay.toZonedDateTime(Temporal.Now.timeZoneId())
-  return zonedDateTime.toInstant().epochMilliseconds
-}
+const getStartOfDayMillis = (
+  date: Parameters<typeof parseCalendarDate>[0],
+  timezone = getTimeZoneId(),
+): number => getDateTimeMillis(date, '00:00', timezone)
 
-const getEndOfDayMillis = (date: Temporal.PlainDateLike): number => {
-  const plainDate = Temporal.PlainDate.from(date)
-  const endOfDay = plainDate.toPlainDateTime({
-    hour: 23,
-    minute: 59,
-    second: 59,
-    millisecond: 999,
-  })
-  const zonedDateTime = endOfDay.toZonedDateTime(Temporal.Now.timeZoneId())
-  return zonedDateTime.toInstant().epochMilliseconds
-}
+const getEndOfDayMillis = (
+  date: Parameters<typeof parseCalendarDate>[0],
+  timezone = getTimeZoneId(),
+): number => getDateTimeMillis(date, '23:59:59.999', timezone)
 
 const formatTimeDuration = (durationSeconds: number): string => {
   const hours = Math.floor(durationSeconds / 3600)
@@ -94,15 +137,14 @@ const formatMillisAsDdMmYyyyHhMm = (millis: number): string => {
 /** Combines the day of a JS Date (local time) with an HH:MM time into epoch millis. */
 const dateAndTimeToMillis = (date: Date, time: string): number => {
   const [hour = 0, minute = 0] = time.split(':').map(Number)
-  return Temporal.PlainDateTime.from({
-    year: date.getFullYear(),
-    month: date.getMonth() + 1,
-    day: date.getDate(),
-    hour,
-    minute,
-  })
-    .toZonedDateTime(Temporal.Now.timeZoneId())
-    .toInstant().epochMilliseconds
+  return getDateTimeMillis(
+    {
+      year: date.getFullYear(),
+      month: date.getMonth() + 1,
+      day: date.getDate(),
+    },
+    { hour, minute },
+  )
 }
 
 export {

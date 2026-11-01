@@ -11,9 +11,8 @@ import {
 import { getNowMillis } from '@c/datetimeUtils'
 import { backendTelemetry } from '@d/workflows/telemetry'
 
-// Mirrors `operationIdHeader` in the route generator, without importing the
-// route module (and with it the database) here.
-const operationIdHeader = 'x-operation-id'
+/** Lets clients correlate a mutation with the events it publishes. */
+export const operationIdHeader = 'x-operation-id'
 
 type RequestSpan = {
   traceId: string
