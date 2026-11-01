@@ -9,6 +9,7 @@ import {
   withMembers,
   withTags,
   withUrls,
+  withResources,
 } from './helpers'
 
 import type { HydratedProject } from '@c/types/Hydrated'
@@ -22,7 +23,7 @@ export class ProjectsRepository
     area: true,
     goal: true,
     tasks: true,
-    resources: true,
+    resources: withResources,
     tags: withTags,
     urls: withUrls,
   } as const

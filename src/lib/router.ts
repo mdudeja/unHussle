@@ -6,6 +6,7 @@ import {
   AreasPage,
   GoalsPage,
   ProjectsPage,
+  ResourcesPage,
   TagsPage,
   TasksPage,
   UrlsPage,
@@ -29,6 +30,14 @@ const router = createBrowserRouter([
       { path: entityRoutes.tasks, Component: TasksPage },
       { path: entityRoutes.urls, Component: UrlsPage },
       { path: entityRoutes.tags, Component: TagsPage },
+      { path: entityRoutes.resources, Component: ResourcesPage },
+      // The editor is loaded on demand, so MDXEditor stays out of the main bundle.
+      {
+        path: `${entityRoutes.resources}/:id`,
+        lazy: async () => ({
+          Component: (await import('@/pages/ResourceEditorPage')).default,
+        }),
+      },
     ],
   },
 ])

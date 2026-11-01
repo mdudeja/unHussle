@@ -2,11 +2,7 @@
   "compilerOptions": {
     "target": "ES2020",
     "useDefineForClassFields": true,
-    "lib": [
-      "ES2020",
-      "DOM",
-      "DOM.Iterable"
-    ],
+    "lib": ["ES2020", "DOM", "DOM.Iterable"],
     "module": "ESNext",
     "skipLibCheck": true,
     /* Bundler mode */
@@ -19,15 +15,9 @@
     /* Path Aliases */
     "baseUrl": ".",
     "paths": {
-      "@/*": [
-        "src/*"
-      ],
-      "@d/*": [
-        "src-db-server/*"
-      ],
-      "@c/*": [
-        "common/*"
-      ]
+      "@/*": ["src/*"],
+      "@d/*": ["src-db-server/*"],
+      "@c/*": ["common/*"]
     },
     /* Linting */
     "strict": true,
@@ -36,11 +26,7 @@
     "noFallthroughCasesInSwitch": true,
     "noErrorTruncation": true
   },
-  "include": [
-    "src",
-    "src-db-server",
-    "common"
-  ],
+  "include": ["src", "src-db-server", "common"],
   "references": [
     {
       "path": "./tsconfig.node.json"

@@ -16,14 +16,16 @@ export const createUrlFields = (): FieldConfig<EntityUrl['Write']>[] => [
   {
     name: 'url',
     label: 'URL',
-    type: 'text',
+    type: 'url',
     required: true,
     noSpacesAllowed: true,
     colSpan: 2,
-    placeholder: 'https://example.com',
+    placeholder: 'https://example.com or pick a file',
     icon: Link,
     validate: (value) =>
-      isValidUrl(value) ? undefined : 'Enter a full URL, including https://',
+      isValidUrl(value)
+        ? undefined
+        : 'Enter a full URL, including https:// or file://',
   },
   {
     name: 'title',

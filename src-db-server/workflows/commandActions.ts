@@ -27,7 +27,24 @@ import {
   supporterCapabilities,
   syncSupporters,
 } from '@d/workflows/supporters'
-import { TagInput, TimeEntryInput, UrlInput } from '@c/types'
+import {
+  ResourceLinkInput,
+  ResourceRef,
+  TagInput,
+  TimeEntryInput,
+  UrlInput,
+} from '@c/types'
+import {
+  ownersOfResources,
+  resourcesOfOwners,
+  syncOwnerResources,
+  syncResourceLinks,
+} from '@d/workflows/resourceLinks'
+import {
+  syncResourceFile,
+  trashResourceFiles,
+} from '@d/workflows/resourceFiles'
+import type { Vault } from '@d/vault/vault'
 import { toUrlParts } from '@d/database/repositories/helpers'
 import * as tables from '@d/database/schemas'
 import { TableWithId } from '@d/database/repositories/BaseRepository'
@@ -60,29 +77,14 @@ const entityTables: { [K in EntryKind]: TableWithId } = {
 const collectionMembers = {
   projects: [
     { kind: 'tasks', id: tables.tasks.id, fk: tables.tasks.project_id },
-    {
-      kind: 'resources',
-      id: tables.resources.id,
-      fk: tables.resources.project_id,
-    },
   ],
   areas: [
     { kind: 'tasks', id: tables.tasks.id, fk: tables.tasks.area_id },
-    {
-      kind: 'resources',
-      id: tables.resources.id,
-      fk: tables.resources.area_id,
-    },
     { kind: 'projects', id: tables.projects.id, fk: tables.projects.area_id },
     { kind: 'goals', id: tables.goals.id, fk: tables.goals.area_id },
   ],
   goals: [
     { kind: 'tasks', id: tables.tasks.id, fk: tables.tasks.goal_id },
-    {
-      kind: 'resources',
-      id: tables.resources.id,
-      fk: tables.resources.goal_id,
-    },
     { kind: 'projects', id: tables.projects.id, fk: tables.projects.goal_id },
   ],
 } as const satisfies {
@@ -100,17 +102,23 @@ export type CommandActionHandler<Context> = Handler<
 >
 
 /**
- * Strips supporter keys and derived count columns, and applies per-kind
- * normalization to row values.
+ * Strips supporter and link keys, derived count columns and vault-owned
+ * resource columns, and applies per-kind normalization to row values.
  */
 function toRowValues(kind: EntryKind, changes: Record<string, unknown>) {
   const {
     tags: _tags,
     urls: _urls,
     time_entries: _time_entries,
+    resources: _resources,
+    links: _links,
     count_tasks: _count_tasks,
     count_resources: _count_resources,
     count_pga: _count_pga,
+    missing: _missing,
+    content: _content,
+    file_path: _file_path,
+    content_hash: _content_hash,
     ...values
   } = changes
 
@@ -133,7 +141,7 @@ function toRowValues(kind: EntryKind, changes: Record<string, unknown>) {
 }
 
 export function createCommandActions<
-  Context extends { logger: Logger; now?: () => number },
+  Context extends { logger: Logger; now?: () => number; vault: Vault },
 >() {
   const actions: {
     [K in CommandAction]?: CommandActionHandler<Context>
@@ -187,7 +195,11 @@ export function createCommandActions<
     },
 
     // Status transitions open/close tracking intervals and stamp lifecycle times.
-    trackTaskInterval: (_name, { kind, id, changes }, { now = getNowMillis }) => {
+    trackTaskInterval: (
+      _name,
+      { kind, id, changes },
+      { now = getNowMillis },
+    ) => {
       const status = changes?.status
       return ({ tx }) => {
         if (kind !== 'tasks' || !id || typeof status !== 'string') return
@@ -195,7 +207,9 @@ export function createCommandActions<
         trackInterval(tx, id, null, status, at)
         if (status === 'in_progress')
           tx.update(tables.tasks)
-            .set({ started_at: sql`coalesce(${tables.tasks.started_at}, ${at})` })
+            .set({
+              started_at: sql`coalesce(${tables.tasks.started_at}, ${at})`,
+            })
             .where(eq(tables.tasks.id, id))
             .run()
         if (status === 'completed')
@@ -332,6 +346,109 @@ export function createCommandActions<
 
       return ({ tx }) => {
         recomputeCollectionCounts(tx)
+      }
+    },
+
+    // Links resources from either side: owners send `resources`, a resource sends `links`.
+    updateResourceLinks: (_name, input, { operationId, announce }) => {
+      const { kind, id, changes = {} } = input
+      const { resources: refs, links } = changes
+      if (refs !== undefined && !supporterCapabilities[kind]?.resources) {
+        throw new Error(`Provided Supporters are not supported for ${kind}`)
+      }
+      if (links !== undefined && kind !== 'resources') {
+        throw new Error(`Links are only supported for resources, got ${kind}`)
+      }
+
+      return ({ tx }) => {
+        if (!id) return
+        if (refs !== undefined) {
+          const changed = syncOwnerResources(tx, id, refs as ResourceRef[])
+          if (changed.length)
+            announce('resources.change', {
+              kind: 'resources',
+              action: 'update',
+              attachedIds: changed,
+              operationId,
+              result: undefined,
+            })
+        }
+        if (links !== undefined) {
+          const owners = syncResourceLinks(tx, id, links as ResourceLinkInput[])
+          for (const [ownerKind, attachedIds] of owners)
+            announce(`${ownerKind}.change`, {
+              kind: ownerKind,
+              action: 'update',
+              attachedIds,
+              operationId,
+              result: undefined,
+            })
+        }
+      }
+    },
+
+    // Runs after the row write, so a rename sees the stored title.
+    syncResourceFile: (
+      _name,
+      input,
+      { vault, now = getNowMillis, compensate },
+    ) => {
+      return ({ tx }) => {
+        syncResourceFile(tx, input, { vault, now, compensate })
+      }
+    },
+
+    // Before the row delete, so the stored paths can still be read.
+    trashResourceFiles: (
+      _name,
+      input,
+      { vault, now = getNowMillis, compensate },
+    ) => {
+      return ({ tx }) => {
+        trashResourceFiles(tx, input, { vault, now, compensate })
+      }
+    },
+
+    // Before the delete: links cascade (resources) or are removed with the
+    // owner's junctions, after which the other side can't be found.
+    announceResourceLinks: (_name, input, { operationId, announce }) => {
+      const { kind, action, id } = input
+      if (action !== 'deleteAll' && !id) {
+        throw new Error(
+          'An entity id is required for announceResourceLinks action',
+        )
+      }
+      const ids = action === 'deleteAll' ? undefined : [id as string]
+
+      return ({ tx }) => {
+        if (kind === 'resources') {
+          for (const [ownerKind, attachedIds] of ownersOfResources(tx, ids))
+            announce(`${ownerKind}.change`, {
+              kind: ownerKind,
+              action: 'update',
+              attachedIds,
+              operationId,
+              result: undefined,
+            })
+          return
+        }
+        if (!supporterCapabilities[kind]?.resources) return
+        const ownerIds =
+          ids ??
+          tx
+            .select({ id: entityTables[kind].id })
+            .from(entityTables[kind])
+            .all()
+            .map((row) => row.id as string)
+        const attachedIds = resourcesOfOwners(tx, ownerIds)
+        if (attachedIds.length)
+          announce('resources.change', {
+            kind: 'resources',
+            action: 'update',
+            attachedIds,
+            operationId,
+            result: undefined,
+          })
       }
     },
 

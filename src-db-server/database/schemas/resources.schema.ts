@@ -2,53 +2,41 @@ import { sqliteTable, text, index, unique } from 'drizzle-orm/sqlite-core'
 import { relations } from 'drizzle-orm'
 import { entitySchema } from './common.schema'
 import { Entity, InferTableTypes } from '@c/types/index'
-import { projects } from './projects.schema'
-import { areas } from './areas.schema'
-import { goals } from './goals.schema'
 import { junctionTags } from './junction.tags.schema'
 import { junctionUrls } from './junction.urls.schema'
+import { junctionResources } from './junction.resources.schema'
+
+// Resources link to tasks and collections through `junction_resources`, so
+// they don't carry the entity foreign keys.
+const {
+  project_id: _project_id,
+  area_id: _area_id,
+  goal_id: _goal_id,
+  ...resourceColumns
+} = entitySchema
 
 export const resources = sqliteTable(
   'resources',
   {
-    ...entitySchema,
-    // Override to add references
-    project_id: text('project_id').references(() => projects.id, {
-      onDelete: 'set null',
-    }),
-    area_id: text('area_id').references(() => areas.id, {
-      onDelete: 'set null',
-    }),
-    goal_id: text('goal_id').references(() => goals.id, {
-      onDelete: 'set null',
-    }),
+    ...resourceColumns,
+    /** Path of the markdown file, relative to the vault root. */
+    file_path: text('file_path'),
+    /** sha256 of the file content as last written or read by the app. */
+    content_hash: text('content_hash'),
   },
   (table) => [
-    index('resources_project_idx').on(table.project_id),
-    index('resources_area_idx').on(table.area_id),
-    index('resources_goal_idx').on(table.goal_id),
     index('resources_title_idx').on(table.title),
     index('resources_created_at_idx').on(table.created_at),
     index('resources_updated_at_idx').on(table.updated_at),
     unique('resources_title_unique').on(table.title),
+    unique('resources_file_path_unique').on(table.file_path),
   ],
 )
 
-export const resourcesRelations = relations(resources, ({ one, many }) => ({
-  project: one(projects, {
-    fields: [resources.project_id],
-    references: [projects.id],
-  }),
-  area: one(areas, {
-    fields: [resources.area_id],
-    references: [areas.id],
-  }),
-  goal: one(goals, {
-    fields: [resources.goal_id],
-    references: [goals.id],
-  }),
+export const resourcesRelations = relations(resources, ({ many }) => ({
   tags: many(junctionTags),
   urls: many(junctionUrls),
+  links: many(junctionResources),
 }))
 
 export type Resource = InferTableTypes<Entity, typeof resources>

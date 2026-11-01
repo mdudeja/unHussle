@@ -13,7 +13,10 @@ export type FieldType =
   | 'icon'
   | 'recurrance'
   | 'tags'
+  | 'url'
   | 'urls'
+  | 'resources'
+  | 'resourceLinks'
 
 export interface FieldOption {
   label: string

@@ -43,6 +43,10 @@ import { Type } from '@sinclair/typebox'
 import { Value } from '@sinclair/typebox/value'
 import { Logger } from '@c/Logger'
 import { IRepository } from '@d/database/repositories/IRepository.interface'
+import { VaultConflict, VaultError } from '@d/vault/vault'
+
+const messageOf = (error: unknown) =>
+  error instanceof Error ? error.message : ''
 
 export type RouteGeneratorSchemas =
   | {
@@ -127,8 +131,25 @@ export const routeGenerator = <
     .onError(({ code, status, error, logger }) => {
       logger.error(`Error in ${config.name} route (${code})`, { error })
 
-      if (code === 'NOT_FOUND') {
+      if (code === 'NOT_FOUND' || messageOf(error) === 'NOT_FOUND') {
         return status(404, `${config.name} not found`)
+      }
+
+      // Title collisions: unique updates throw, inserts are skipped on conflict.
+      const message = messageOf(error)
+      if (
+        message.includes('UNIQUE constraint failed') ||
+        message.startsWith('Failed to insert')
+      ) {
+        return status(409, {
+          message: 'An item with this title already exists',
+        })
+      }
+      if (error instanceof VaultConflict) {
+        return status(409, { message })
+      }
+      if (error instanceof VaultError) {
+        return status(400, { message })
       }
 
       return status(500, 'Internal Server Error')

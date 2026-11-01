@@ -2,14 +2,15 @@ import {
   Activity,
   AlignLeft,
   Calendar,
-  FolderKanban,
+  FileText,
   Flag,
+  FolderKanban,
+  Hash,
   Layers,
+  Link,
   Palette,
   Sparkles,
   Target,
-  Hash,
-  Link,
 } from 'lucide-react'
 import { Area, Goal, Project, WithSupporters } from '@c/types/index'
 import type { FieldConfig, FieldOption } from '../types'
@@ -119,6 +120,13 @@ export const createProjectFields = ({
       type: 'urls',
       colSpan: 2,
       icon: Link,
+    },
+    {
+      name: 'resources',
+      label: 'Resources',
+      type: 'resources',
+      colSpan: 2,
+      icon: FileText,
     },
   ]
 }

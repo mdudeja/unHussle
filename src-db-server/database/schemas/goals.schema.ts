@@ -10,7 +10,7 @@ import { relations } from 'drizzle-orm'
 import { entityCollectionSchema, statusSchema } from './common.schema'
 import { EntityCollection, InferTableTypes } from '@c/types/index'
 import { tasks } from './tasks.schema'
-import { resources } from './resources.schema'
+import { junctionResources } from './junction.resources.schema'
 import { projects } from './projects.schema'
 import { junctionTags } from './junction.tags.schema'
 import { junctionUrls } from './junction.urls.schema'
@@ -42,7 +42,7 @@ export const goalsRelations = relations(goals, ({ one, many }) => ({
     references: [areas.id],
   }),
   tasks: many(tasks),
-  resources: many(resources),
+  resources: many(junctionResources),
   projects: many(projects),
   tags: many(junctionTags),
   urls: many(junctionUrls),

@@ -7,6 +7,7 @@ import type {
 import {
   areas,
   goals,
+  junctionResources,
   junctionTags,
   junctionTimeEntries,
   junctionUrls,
@@ -67,7 +68,10 @@ export function recomputeSupporterCounts(
   }
 }
 
-/** Recomputes `count_tasks` / `count_resources` for collections from entity foreign keys. */
+/**
+ * Recomputes `count_tasks` (from task foreign keys) and `count_resources`
+ * (from resource links) for collections.
+ */
 export function recomputeCollectionCounts(
   tx: SyncTx,
   kinds: EntityCollectionKind[] = ['projects', 'areas', 'goals'],
@@ -80,7 +84,7 @@ export function recomputeCollectionCounts(
       FROM (
         SELECT s.id AS id,
           (SELECT count(*) FROM ${tasks} WHERE ${tasks[column]} = s.id) AS tasks,
-          (SELECT count(*) FROM ${resources} WHERE ${resources[column]} = s.id) AS resources
+          (SELECT count(*) FROM ${junctionResources} WHERE ${junctionResources.attachedToId} = s.id) AS resources
         FROM ${table} AS s
       ) AS c
       WHERE ${table.id} = c.id

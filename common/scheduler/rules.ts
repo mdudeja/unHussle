@@ -94,7 +94,10 @@ export const planRules: { [K in PlanRuleName]?: PlanRule } = {
   keepActive: (_name, { remaining, pick }) => {
     pick(
       remaining.filter(
-        (entry) => entry.status === 'in_progress' || entry.pinned,
+        (entry) =>
+          entry.status === 'in_progress' ||
+          entry.status === 'paused' ||
+          entry.pinned,
       ),
       { required: true },
     )

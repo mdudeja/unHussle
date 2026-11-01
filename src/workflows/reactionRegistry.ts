@@ -12,6 +12,8 @@ export const reactionRegistry: ReactionRegistry = {
   'scheduler.settings.changed': ['refreshSchedule'],
   'occurrence.changed': ['refreshSchedule'],
   'tracking.stopped': ['refreshSchedule'],
+  'resource.content.changed': ['refreshVault'],
+  'vault.changed': ['refreshVault'],
   'entity.add': [...upserted],
   'entity.change': [...upserted],
   'entity.delete': [...deleted],
@@ -32,5 +34,6 @@ export const reactionRegistry: ReactionRegistry = {
   'tasks.change': ['refreshAnnounced'],
   'resources.change': ['refreshAnnounced'],
   'projects.change': ['refreshAnnounced'],
+  'areas.change': ['refreshAnnounced'],
   'goals.change': ['refreshAnnounced'],
 }

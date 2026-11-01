@@ -3,6 +3,7 @@ import {
   junctionTags,
   junctionUrls,
   junctionTimeEntries,
+  junctionResources,
   tags,
   timeEntries,
   urls,
@@ -23,10 +24,11 @@ export const normalizeTagTitle = (title: string) =>
 export const supporterCapabilities: Partial<
   Record<EntryKind, { [K in keyof SupportersInput]: boolean }>
 > = {
-  tasks: { tags: true, urls: true, time_entries: true },
-  projects: { tags: true, urls: true, time_entries: false },
-  areas: { tags: true, urls: true, time_entries: false },
-  goals: { tags: true, urls: true, time_entries: false },
+  tasks: { tags: true, urls: true, time_entries: true, resources: true },
+  projects: { tags: true, urls: true, time_entries: false, resources: true },
+  areas: { tags: true, urls: true, time_entries: false, resources: true },
+  goals: { tags: true, urls: true, time_entries: false, resources: true },
+  resources: { tags: true, urls: false, time_entries: false, resources: false },
 }
 
 export function removeEntityOwnedSupporterJunctions(tx: SyncTx, ids: string[]) {
@@ -35,6 +37,9 @@ export function removeEntityOwnedSupporterJunctions(tx: SyncTx, ids: string[]) {
   tx.delete(junctionUrls).where(inArray(junctionUrls.attachedToId, ids)).run()
   tx.delete(junctionTimeEntries)
     .where(inArray(junctionTimeEntries.attachedToId, ids))
+    .run()
+  tx.delete(junctionResources)
+    .where(inArray(junctionResources.attachedToId, ids))
     .run()
 }
 

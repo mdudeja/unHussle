@@ -9,6 +9,7 @@ import {
   withMembers,
   withTags,
   withUrls,
+  withResources,
 } from './helpers'
 
 import type { HydratedArea } from '@c/types/Hydrated'
@@ -21,7 +22,7 @@ export class AreasRepository
   private readonly relations = {
     tasks: true,
     goals: true,
-    resources: true,
+    resources: withResources,
     projects: true,
     tags: withTags,
     urls: withUrls,

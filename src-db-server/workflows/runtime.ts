@@ -31,6 +31,14 @@ import {
   type SchedulerState,
 } from '@d/workflows/schedulerActions'
 import { schedulerHandlerRegistry } from '@d/workflows/schedulerHandlers'
+import {
+  vaultCommandEvents,
+  vaultCommandNames,
+  type VaultCommands,
+} from '@c/vault/contracts'
+import { createVault, defaultVaultRoot } from '@d/vault/vault'
+import { vaultActions, type VaultState } from '@d/workflows/vaultActions'
+import { vaultHandlerRegistry } from '@d/workflows/vaultHandlers'
 
 const supporterKinds: MutationInput['kind'][] = ['tags', 'urls', 'time_entries']
 
@@ -95,31 +103,76 @@ export function createBackendRuntime(
   {
     telemetry = backendTelemetry,
     now = getNowMillis,
-  }: { telemetry?: Telemetry; now?: () => number } = {},
+    vaultDir,
+  }: { telemetry?: Telemetry; now?: () => number; vaultDir?: string } = {},
 ) {
   const context = {
     now,
     unitOfWork: createUnitOfWork(database),
     logger: Logger.getInstance(),
+    vault: createVault(vaultDir ?? defaultVaultRoot(database.filePath)),
   }
   const runtime = createRuntime<
-    MutationCommands & SchedulerCommands,
+    MutationCommands & SchedulerCommands & VaultCommands,
     AppEvents,
     typeof context
   >(context, { telemetry })
   const availableActions = createCommandActions<typeof context>()
 
-  /** Runs work units in one transaction; a failure rolls the command back. */
+  /** Side effects outside the database that a command registers as it goes. */
+  const sideEffects = () => {
+    const undos: (() => void)[] = []
+    const afterCommits: (() => void)[] = []
+    return {
+      undos,
+      afterCommits,
+      compensate: (undo: () => void) => {
+        undos.push(undo)
+      },
+      afterCommit: (run: () => void) => {
+        afterCommits.push(run)
+      },
+    }
+  }
+
+  /**
+   * Runs work units in one transaction; a failure rolls the command back and
+   * undoes its file changes, newest first. After a commit, the after-commit
+   * cleanup runs; its failures are only logged.
+   */
   const commit = async <T>(
     work: TransactionWorkUnit<T>[],
     trace?: SpanScope,
+    effects?: ReturnType<typeof sideEffects>,
   ) => {
+    let result: T | undefined
     try {
-      return await context.unitOfWork.transaction(work)
+      result = await context.unitOfWork.transaction(work)
     } catch (error) {
+      for (const undo of [...(effects?.undos ?? [])].reverse()) {
+        try {
+          undo()
+        } catch (undoError) {
+          context.logger.error('Undoing a vault change failed', {
+            error: undoError,
+            traceId: trace?.traceId,
+          })
+        }
+      }
       trace?.setAttrs({ rolledBack: true })
       throw error
     }
+    for (const run of effects?.afterCommits ?? []) {
+      try {
+        run()
+      } catch (error) {
+        context.logger.error('Post-commit cleanup failed', {
+          error,
+          traceId: trace?.traceId,
+        })
+      }
+    }
+    return result
   }
 
   /** Actions run inside the synchronous SQLite transaction, so their spans are too. */
@@ -182,12 +235,15 @@ export function createBackendRuntime(
 
         // Announcements are held until commit and dropped on rollback.
         const announcements: Parameters<Announce>[] = []
+        const effects = sideEffects()
         const actionContext: ActionContext<typeof context> = {
           ...context,
           operationId,
           announce: (name, payload) => {
             announcements.push([name, payload])
           },
+          compensate: effects.compensate,
+          afterCommit: effects.afterCommit,
         }
 
         // Units are built lazily so each action sees the previous action's output.
@@ -221,7 +277,7 @@ export function createBackendRuntime(
             },
         )
 
-        const result = await commit(work, trace)
+        const result = await commit(work, trace, effects)
 
         // Publish under the command (`entity.add`) and its kind (`tasks.add`)
         // so listeners can subscribe to a whole family or a single kind.
@@ -240,7 +296,8 @@ export function createBackendRuntime(
         await publishAll(
           [
             ...[...eventNames].map(
-              (name) => [name as keyof AppEvents, event] as Parameters<Announce>,
+              (name) =>
+                [name as keyof AppEvents, event] as Parameters<Announce>,
             ),
             ...announcements,
           ],
@@ -298,8 +355,62 @@ export function createBackendRuntime(
       return result as SchedulerCommands[typeof command]['result']
     })
 
+  // Vault commands carry resource content: never log their input, and their
+  // events and spans only hold ids.
+  for (const command of vaultCommandNames)
+    runtime.commands.handle(command, async (_name, input, context, trace) => {
+      const operationId =
+        input.operationId ?? trace?.traceId ?? crypto.randomUUID()
+      const effects = sideEffects()
+      const result = await commit(
+        [
+          (transaction) => {
+            const state = {
+              command,
+              input,
+              now: now(),
+              vault: context.vault,
+              root: context.vault.root(transaction.tx),
+              compensate: effects.compensate,
+              afterCommit: effects.afterCommit,
+            } as VaultState
+            for (const actionName of vaultHandlerRegistry[command]) {
+              if (state.done) break
+              const action = vaultActions[actionName]
+              if (!action) {
+                context.logger.warn(
+                  `Vault action not found: ${actionName}. Skipping...`,
+                )
+                continue
+              }
+              spanAction(trace, actionName, { command }, () =>
+                action(actionName, state, transaction),
+              )
+            }
+            return state.result
+          },
+        ],
+        trace,
+        effects,
+      )
+      await publishAll(
+        [
+          command === 'resource.content.save'
+            ? [
+                'resource.content.changed',
+                { operationId, id: (input as { id: string }).id },
+              ]
+            : [vaultCommandEvents[command], { operationId }],
+        ],
+        operationId,
+        { traceId: trace?.traceId, parentId: trace?.spanId },
+      )
+      return result as VaultCommands[typeof command]['result']
+    })
+
   return {
     ...runtime,
+    vault: context.vault,
     async hydrate<T>(
       result: MutationResult,
       read: (id: string) => Promise<T | null>,

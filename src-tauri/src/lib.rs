@@ -25,19 +25,29 @@ fn start_db_server(app: &AppHandle) -> Result<CommandChild, String> {
         .resolve("resources/drizzle_migrations", BaseDirectory::Resource)
         .map_err(|e| format!("Failed to get resource directory: {}", e))?;
 
+    // Resources are markdown files in the vault; the user can move it later.
+    let vault_path = app
+        .path()
+        .resolve("vault", BaseDirectory::AppData)
+        .map_err(|e| format!("Failed to get vault directory: {}", e))?;
+
     // Ensure app data directory exists
     std::fs::create_dir_all(db_path.parent().unwrap())
         .map_err(|e| format!("Failed to create app data directory: {}", e))?;
+    std::fs::create_dir_all(&vault_path)
+        .map_err(|e| format!("Failed to create vault directory: {}", e))?;
 
     println!("Database path: {:?}", db_path.to_str().unwrap());
     println!("Migrations path: {:?}", migrations_path.to_str().unwrap());
+    println!("Vault path: {:?}", vault_path.to_str().unwrap());
 
     let sidecar_command = app
         .shell()
         .sidecar("db-server")
         .unwrap()
         .env("DB_FILE_URL", db_path.to_str().unwrap())
-        .env("DB_MIGRATIONS_DIR", migrations_path.to_str().unwrap());
+        .env("DB_MIGRATIONS_DIR", migrations_path.to_str().unwrap())
+        .env("VAULT_DIR", vault_path.to_str().unwrap());
 
     let (mut rx, child) = sidecar_command
         .spawn()
@@ -120,6 +130,7 @@ fn shutdown_db_server(child: CommandChild) {
 #[cfg_attr(mobile, tauri::mobile_entry_point)]
 pub fn run() {
     tauri::Builder::default()
+        .plugin(tauri_plugin_dialog::init())
         .plugin(tauri_plugin_shell::init())
         .plugin(tauri_plugin_fs::init())
         .plugin(tauri_plugin_opener::init())

@@ -6,17 +6,18 @@ import {
   CalendarClock,
   CalendarSync,
   CheckSquare,
+  FileText,
   Flag,
   FolderKanban,
+  Hash,
   Hourglass,
   Layers,
+  Link,
   PartyPopper,
   Repeat,
   Target,
   WashingMachine,
   Zap,
-  Hash,
-  Link,
 } from 'lucide-react'
 import {
   AnchorType,
@@ -224,6 +225,13 @@ export const createTaskFields = ({
       type: 'urls',
       colSpan: 2,
       icon: Link,
+    },
+    {
+      name: 'resources',
+      label: 'Resources',
+      type: 'resources',
+      colSpan: 2,
+      icon: FileText,
     },
   ]
 }

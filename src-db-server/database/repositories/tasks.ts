@@ -8,6 +8,7 @@ import {
   withTags,
   withTimeEntries,
   withUrls,
+  withResources,
 } from './helpers'
 import { AnySQLiteColumn } from 'drizzle-orm/sqlite-core'
 
@@ -26,6 +27,7 @@ export class TasksRepository
     tags: withTags,
     urls: withUrls,
     timeEntries: withTimeEntries,
+    resources: withResources,
   } as const
 
   constructor(dbInstance: UnHussleDB) {

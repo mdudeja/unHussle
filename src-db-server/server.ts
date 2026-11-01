@@ -1,4 +1,4 @@
-import { Elysia } from 'elysia'
+import { Elysia, ElysiaCustomStatusResponse } from 'elysia'
 import { swagger } from '@elysiajs/swagger'
 import { cors } from '@elysiajs/cors'
 import { UnHussleDB } from '@d/database/UnHussleDB'
@@ -16,6 +16,7 @@ import { runSeed } from './database/seed/run-seed'
 import { Logger } from '@c/Logger'
 import { VERSION } from '@c/version'
 import { schedulerRoutes } from './routes/scheduler'
+import { vaultRoutes } from './routes/vault'
 
 const logger = Logger.getInstance()
 
@@ -38,16 +39,31 @@ const app = new Elysia()
 
   .mapResponse(({ responseValue, set, path }) => {
     // Skip compression for Swagger documentation routes and raw responses
-    // (e.g. the `/events` stream, which must not be buffered).
-    if (path?.startsWith('/api') || responseValue instanceof Response) {
+    // (e.g. the `/events` stream, which must not be buffered). Elysia also
+    // calls this after each error hook; an error hook that answers nothing
+    // must not end error handling before the route's own hook sets a status.
+    if (
+      path?.startsWith('/api') ||
+      responseValue instanceof Response ||
+      responseValue === undefined
+    ) {
       return
     }
 
-    const isJson = typeof responseValue === 'object'
+    // Error hooks answer with `status(code, body)`: send the body under its code.
+    let value: unknown = responseValue
+    let status = typeof set.status === 'number' ? set.status : 200
+    if (responseValue instanceof ElysiaCustomStatusResponse) {
+      const custom = responseValue as { code: number; response: unknown }
+      status = custom.code
+      value = custom.response
+    }
+
+    const isJson = typeof value === 'object' && value !== null
     const text = isJson
-      ? JSON.stringify(responseValue)
+      ? JSON.stringify(value)
       : // Non-objects are primitives (or undefined)
-        String((responseValue as string | number | boolean | undefined) ?? '')
+        String((value as string | number | boolean | undefined) ?? '')
 
     const compressedText = Bun.gzipSync(text)
 
@@ -57,7 +73,7 @@ const app = new Elysia()
       ? 'application/json; charset=utf-8'
       : 'text/plain; charset=utf-8'
 
-    return new Response(compressedText)
+    return new Response(compressedText, { status })
   })
 
   .use(
@@ -74,12 +90,13 @@ const app = new Elysia()
 
   .use(cors())
 
+  // Runs before the routes' own error hooks, so it only answers validation
+  // errors; returning anything else would hide their 404/409/400 statuses.
   .onError(({ error, code, path, logger }) => {
     logger.error(`Error on ${path}`, { error })
     if (code === 'VALIDATION') {
       return error.detail(error.message)
     }
-    return error
   })
 
   .get('/health', ({ set, logger }) => {
@@ -106,6 +123,7 @@ const app = new Elysia()
   .use(urlRoutes)
   .use(timeEntriesRoutes)
   .use(schedulerRoutes)
+  .use(vaultRoutes)
 
   // backend events, streamed to the frontend
   .use(eventRoutes)

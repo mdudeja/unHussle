@@ -5,6 +5,7 @@ export const entityRoutes = {
   tasks: '/tasks',
   urls: '/urls',
   tags: '/tags',
+  resources: '/resources',
 } as const
 
 export type EntityRouteKey = keyof typeof entityRoutes
@@ -18,5 +19,11 @@ export const entitySearchParams = {
   related: 'related',
 } as const
 
+// A resource opens in its editor; other items are selected on their list page.
 export const getEntityItemRoute = (entity: EntityRouteKey, id: string) =>
-  `${entityRoutes[entity]}?${new URLSearchParams({ [entitySearchParams.id]: id })}`
+  entity === 'resources'
+    ? getResourceRoute(id)
+    : `${entityRoutes[entity]}?${new URLSearchParams({ [entitySearchParams.id]: id })}`
+
+export const getResourceRoute = (id: string) =>
+  `${entityRoutes.resources}/${encodeURIComponent(id)}`

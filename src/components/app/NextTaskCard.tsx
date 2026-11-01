@@ -4,6 +4,7 @@ import { Play, Coffee, Check, Pause, RefreshCw } from 'lucide-react'
 import { Card, CardContent, CardHeader, CardTitle } from '@/components/ui/card'
 import { Button } from '@/components/ui/button'
 import { Badge } from '@/components/ui/badge'
+import { TaskContextSheet } from '@/components/app/TaskContextSheet'
 import { Input } from '@/components/ui/input'
 import { Label } from '@/components/ui/label'
 import { nextTask } from '@c/scheduler/engine'
@@ -251,6 +252,7 @@ export const NextTaskCardComponent = () => {
               {item.isFun && <Badge variant="secondary">Fun</Badge>}
               {item.isChore && <Badge variant="outline">Chore</Badge>}
               {item.occurrenceId && <Badge variant="outline">Recurring</Badge>}
+              <TaskContextSheet taskId={item.taskId} />
             </div>
             {askOvernight && overnight?.startedAt !== undefined && plan && (
               <OvernightCheck

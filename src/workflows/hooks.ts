@@ -6,12 +6,15 @@ import { Logger } from '@c/Logger'
 import { getFrontendRuntime, dependencies } from './runtime'
 import { fetchLimits } from './services'
 import type { QueryDefinition } from './queries'
+import { fetchTaskContext } from '@/services/taskContext'
 
 export const useWorkflowRuntime = () => getFrontendRuntime(useStore)
 
 export function useWorkflowQuery<T>(
   definition: QueryDefinition<T>,
   enabled = true,
+  /** Reload on every mount instead of reusing cached data. */
+  { refetchOnMount = false }: { refetchOnMount?: boolean } = {},
 ) {
   const { queries } = useWorkflowRuntime()
   const isDBReady = useStore((state) => state.isDBReady)
@@ -30,13 +33,14 @@ export function useWorkflowQuery<T>(
   useEffect(() => {
     if (!enabled) return
     const deactivate = queries.activate(key)
+    if (refetchOnMount) queries.markStale(key)
     queries
       .ensure(key)
       .catch((error) =>
         Logger.getInstance().error(`Failed to load ${key}`, { error }),
       )
     return deactivate
-  }, [queries, key, enabled, isDBReady])
+  }, [queries, key, enabled, isDBReady, refetchOnMount])
 
   return {
     ...state,
@@ -100,6 +104,41 @@ export function useEntrySearch<T extends { id: string }>(
     ...query,
     data: query.data ?? (previous?.kind === kind ? previous.data : null),
   }
+}
+
+/** A resource's markdown, read from the vault each time it is opened. */
+export function useResourceContent(id: string) {
+  const runtime = useWorkflowRuntime()
+  return useWorkflowQuery(
+    {
+      key: `content:resources:${id}`,
+      dependencies: ['resourceContent'],
+      load: () => runtime.vault.content(id),
+    },
+    Boolean(id),
+    { refetchOnMount: true },
+  )
+}
+
+/** What a task brings along: its own and its ancestors' resources, links and tags. */
+export function useTaskContext(taskId: string, enabled = true) {
+  return useWorkflowQuery(
+    {
+      key: `context:tasks:${taskId}`,
+      dependencies: dependencies('tasks'),
+      load: () => fetchTaskContext(taskId),
+    },
+    enabled && Boolean(taskId),
+  )
+}
+
+export function useVaultInfo() {
+  const runtime = useWorkflowRuntime()
+  return useWorkflowQuery({
+    key: 'vault:info',
+    dependencies: ['vault', 'resources'],
+    load: () => runtime.vault.info(),
+  })
 }
 
 export function useTrackingSession() {

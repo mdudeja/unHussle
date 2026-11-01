@@ -2,25 +2,55 @@ import { Resource, resources } from '../schemas'
 import { UnHussleDB } from '../UnHussleDB'
 import { IRepository } from './IRepository.interface'
 import { BaseRepository } from './BaseRepository'
-import { taggedIds, unwrapJunctions, withTags, withUrls } from './helpers'
+import {
+  taggedIds,
+  toResourceLinks,
+  unwrapJunctions,
+  withResourceLinks,
+  withTags,
+  withUrls,
+} from './helpers'
 
+import { fileExists } from '@d/vault/vault'
 import type { HydratedResource } from '@c/types/Hydrated'
 export type { HydratedResource } from '@c/types/Hydrated'
+
+type ResourceRow = Parameters<typeof unwrapJunctions>[0] & {
+  links?: Parameters<typeof toResourceLinks>[0]
+}
 
 export class ResourcesRepository
   extends BaseRepository<typeof resources>
   implements IRepository<Resource>
 {
   private readonly relations = {
-    project: true,
-    area: true,
-    goal: true,
     tags: withTags,
     urls: withUrls,
+    links: withResourceLinks,
   } as const
 
-  constructor(dbInstance: UnHussleDB) {
+  /**
+   * `vaultRoot` gives the vault folder, so rows can say whether their file is
+   * `missing`. Without it, `missing` is left out.
+   */
+  constructor(
+    dbInstance: UnHussleDB,
+    private readonly vaultRoot?: () => string,
+  ) {
     super(dbInstance, resources)
+  }
+
+  private hydrateAll = <T extends ResourceRow & { file_path: string | null }>(
+    rows: T[],
+  ): HydratedResource[] => {
+    const root = this.vaultRoot?.()
+    return rows.map((row) => {
+      const resource = unwrapJunctions(row) as unknown as HydratedResource
+      resource.links = toResourceLinks(row.links)
+      if (root !== undefined)
+        resource.missing = !fileExists(root, row.file_path)
+      return resource
+    })
   }
 
   async getAll(): Promise<HydratedResource[]> {
@@ -30,7 +60,7 @@ export class ResourcesRepository
     const resources = await db.query.resources.findMany({
       with: this.relations,
     })
-    return resources.map(unwrapJunctions)
+    return this.hydrateAll(resources)
   }
 
   async getPaginated(
@@ -45,7 +75,7 @@ export class ResourcesRepository
       limit: pageSize,
       offset: page * pageSize,
     })
-    return resources.map(unwrapJunctions)
+    return this.hydrateAll(resources)
   }
 
   async getById(id: string): Promise<HydratedResource | null> {
@@ -56,7 +86,18 @@ export class ResourcesRepository
       where: (resources, { eq }) => eq(resources.id, id),
       with: this.relations,
     })
-    return resource ? unwrapJunctions(resource) : null
+    return resource ? this.hydrateAll([resource])[0] : null
+  }
+
+  async getByIds(ids: string[]): Promise<HydratedResource[]> {
+    const db = await this.getDb()
+    if (!db || ids.length === 0) return []
+
+    const resources = await db.query.resources.findMany({
+      where: (resources, { inArray }) => inArray(resources.id, ids),
+      with: this.relations,
+    })
+    return this.hydrateAll(resources)
   }
 
   async search(query: string, limit: number): Promise<HydratedResource[]> {
@@ -73,6 +114,6 @@ export class ResourcesRepository
       limit,
       with: this.relations,
     })
-    return resources.map(unwrapJunctions)
+    return this.hydrateAll(resources)
   }
 }

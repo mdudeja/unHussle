@@ -58,7 +58,9 @@ export function affectsSchedules({ kind, action, changes }: MutationInput) {
  */
 export function syncPlanMembership(tx: ScheduleTx, input: MutationInput) {
   if (input.kind !== 'tasks' || input.action === 'create') return
-  const ids = [...new Set([...(input.attachedIds ?? []), ...(input.id ? [input.id] : [])])]
+  const ids = [
+    ...new Set([...(input.attachedIds ?? []), ...(input.id ? [input.id] : [])]),
+  ]
   if (!ids.length) return
   const byId = new Map(
     tx
@@ -120,7 +122,12 @@ export function syncPlanMembership(tx: ScheduleTx, input: MutationInput) {
     else if (
       // Untouched occurrences follow recurrence edits; started ones are history.
       occurrence.status === 'planned' &&
-      !occursOn(task, occurrence.date, occurrence.timezone ?? 'UTC', occurrence.slot)
+      !occursOn(
+        task,
+        occurrence.date,
+        occurrence.timezone ?? 'UTC',
+        occurrence.slot,
+      )
     )
       removed.add(occurrence.id)
   }

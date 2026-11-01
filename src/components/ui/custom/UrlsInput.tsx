@@ -4,6 +4,8 @@ import { Input } from '@/components/ui/input'
 import { Button } from '@/components/ui/button'
 import { Badge } from '@/components/ui/badge'
 import { normalizeUrl } from '@/lib/inputParsers/parseUrl'
+import { fileUrlName, isFileUrl } from '@/lib/fileUrls'
+import { PickPathButtons } from '@/components/ui/custom/PickPathButtons'
 import type { UrlInput } from '@c/types/index'
 
 export interface UrlsInputProps {
@@ -40,6 +42,11 @@ export function UrlsInput({
 
   const selected = value ?? []
 
+  const add = (url: string) => {
+    if (selected.some((item) => item.url === url)) return
+    onChange([...selected, { url }])
+  }
+
   const commit = () => {
     if (!draft.trim()) return
     const url = toValidUrl(draft)
@@ -49,8 +56,7 @@ export function UrlsInput({
     }
     setDraft('')
     setError(undefined)
-    if (selected.some((item) => item.url === url)) return
-    onChange([...selected, { url }])
+    add(url)
   }
 
   const handleKeyDown = (event: React.KeyboardEvent<HTMLInputElement>) => {
@@ -87,6 +93,7 @@ export function UrlsInput({
         >
           <Plus className="size-4" />
         </Button>
+        <PickPathButtons disabled={disabled} onPick={add} />
       </div>
       {error && <p className="text-xs text-destructive">{error}</p>}
       {selected.length > 0 && (
@@ -99,7 +106,10 @@ export function UrlsInput({
               title={item.url}
             >
               <Link className="size-3" />
-              <span className="truncate">{item.title || item.url}</span>
+              <span className="truncate">
+                {item.title ||
+                  (isFileUrl(item.url) ? fileUrlName(item.url) : item.url)}
+              </span>
               {!disabled && (
                 <button
                   type="button"

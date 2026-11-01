@@ -10,6 +10,8 @@ export const commandHandlerRegistry: CommandHandlers = {
     'validateTask',
     'trackTaskInterval',
     'updateSupporters',
+    'updateResourceLinks',
+    'syncResourceFile',
     'updateSupporterCounts',
     'updateCollectionCounts',
     'markPlansStale',
@@ -19,12 +21,18 @@ export const commandHandlerRegistry: CommandHandlers = {
     'validateTask',
     'trackTaskInterval',
     'updateSupporters',
+    'updateResourceLinks',
+    'syncResourceFile',
     'updateSupporterCounts',
     'updateCollectionCounts',
     'markPlansStale',
     'syncPlanMembership',
   ],
   'entity.delete': [
+    // Before the delete: the other side of a resource link is gone afterwards,
+    // and so are the stored file paths.
+    'announceResourceLinks',
+    'trashResourceFiles',
     'handler:entry.delete',
     'deleteJunctions',
     'updateSupporterCounts',
@@ -33,6 +41,8 @@ export const commandHandlerRegistry: CommandHandlers = {
     'syncPlanMembership',
   ],
   'entity.deleteAll': [
+    'announceResourceLinks',
+    'trashResourceFiles',
     'handler:entry.deleteAll',
     'deleteJunctions',
     'updateSupporterCounts',
@@ -43,18 +53,23 @@ export const commandHandlerRegistry: CommandHandlers = {
   'entityCollection.add': [
     'handler:entry.add',
     'updateSupporters',
+    'updateResourceLinks',
     'updateSupporterCounts',
+    'updateCollectionCounts',
   ],
   'entityCollection.change': [
     'handler:entry.change',
     'updateSupporters',
+    'updateResourceLinks',
     'updateSupporterCounts',
+    'updateCollectionCounts',
     'announceAffectedEntities',
     'markPlansStale',
   ],
   'entityCollection.delete': [
     // Before the delete: member foreign keys are nulled once the row is gone.
     'announceAffectedEntities',
+    'announceResourceLinks',
     'handler:entry.delete',
     'deleteJunctions',
     'updateSupporterCounts',
@@ -63,6 +78,8 @@ export const commandHandlerRegistry: CommandHandlers = {
   'entityCollection.deleteAll': [
     // Before the delete: member foreign keys are nulled once the row is gone.
     'announceAffectedEntities',
+    'announceResourceLinks',
+    'trashResourceFiles',
     'handler:entry.deleteAll',
     'deleteJunctions',
     'updateSupporterCounts',

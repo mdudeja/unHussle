@@ -11,7 +11,7 @@ import { goals } from './goals.schema'
 import { areas } from './areas.schema'
 import { EntityCollection, InferTableTypes } from '@c/types/index'
 import { tasks } from './tasks.schema'
-import { resources } from './resources.schema'
+import { junctionResources } from './junction.resources.schema'
 import { junctionTags } from './junction.tags.schema'
 import { junctionUrls } from './junction.urls.schema'
 
@@ -47,7 +47,7 @@ export const projectsRelations = relations(projects, ({ one, many }) => ({
     references: [goals.id],
   }),
   tasks: many(tasks),
-  resources: many(resources),
+  resources: many(junctionResources),
   tags: many(junctionTags),
   urls: many(junctionUrls),
 }))

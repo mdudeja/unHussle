@@ -1,4 +1,5 @@
 import {
+  FileText,
   FolderKanban,
   GitGraph,
   Goal as GoalIcon,
@@ -11,7 +12,7 @@ import {
   EntityListPageConfig,
 } from '@/components/pages/EntityListPage'
 import { RelatedEntityTable } from '@/components/app'
-import { useTaskActions } from '@/lib/entityActions'
+import { useResourceActions, useTaskActions } from '@/lib/entityActions'
 import { useRelatedTasks, useTaggedItems } from '@/lib/hooks/useRelatedItems'
 import {
   dateColumn,
@@ -36,6 +37,7 @@ import {
   HydratedArea,
   HydratedGoal,
   HydratedProject,
+  HydratedResource,
   HydratedTask,
 } from '@c/types/Hydrated'
 
@@ -155,6 +157,27 @@ const urlsConfig: EntityListPageConfig<Url['Read']> = {
   hiddenColumns: ['updated_at'],
 }
 
+const resourcesConfig: EntityListPageConfig<HydratedResource> = {
+  kind: 'resources',
+  title: 'Resources',
+  description: 'Markdown notes in your vault, linked to tasks and collections.',
+  selectSlice: (state) => state.resources,
+  useActions: useResourceActions,
+  columns: [
+    titleColumn(FileText),
+    textColumn('links', 'Linked to', (row) =>
+      row.links?.map((link) => link.title).join(', '),
+    ),
+    hashtagColumn((row) => row.tags),
+    textColumn('missing', 'File', (row) =>
+      row.missing ? 'Missing from vault' : '',
+    ),
+    textColumn('description', 'Description', (row) => row.description),
+    updatedAtColumn(),
+  ],
+  hiddenColumns: ['description'],
+}
+
 const tagsConfig: EntityListPageConfig<Tag['Read']> = {
   kind: 'tags',
   title: 'Tags',
@@ -256,3 +279,4 @@ export const GoalsPage = () => <EntityListPage config={goalsConfig} />
 export const TasksPage = () => <EntityListPage config={tasksConfig} />
 export const UrlsPage = () => <EntityListPage config={urlsConfig} />
 export const TagsPage = () => <EntityListPage config={tagsConfig} />
+export const ResourcesPage = () => <EntityListPage config={resourcesConfig} />

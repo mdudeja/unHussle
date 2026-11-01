@@ -17,6 +17,7 @@ type TaskRelations = {
   tags?: Tag['Read'][]
   urls?: Url['Read'][]
   timeEntries?: TimeEntry['Read'][]
+  resources?: Resource['Read'][]
 }
 
 export type HydratedTask = Task['Read'] & TaskRelations
@@ -54,12 +55,37 @@ type GoalRelations = {
 
 export type HydratedGoal = Goal['Read'] & GoalRelations
 
+/** Kinds a resource can be linked to through `junction_resources`. */
+export type ResourceLinkKind = 'tasks' | 'projects' | 'areas' | 'goals'
+
+/** A task or collection a resource is linked to. */
+export type ResourceLink = { kind: ResourceLinkKind; id: string; title: string }
+
 type ResourceRelations = {
-  project?: Project['Read'] | null
-  area?: Area['Read'] | null
-  goal?: Goal['Read'] | null
   tags?: Tag['Read'][]
   urls?: Url['Read'][]
+  links?: ResourceLink[]
+  /** The resource's file is not in the vault. */
+  missing?: boolean
 }
 
 export type HydratedResource = Resource['Read'] & ResourceRelations
+
+/** Resources, links and tags attached to one owner. */
+export type ContextItems = {
+  resources: Resource['Read'][]
+  urls: Url['Read'][]
+  tags: Tag['Read'][]
+}
+
+/** Items a task inherits from one ancestor collection. */
+export type ContextGroup = ContextItems & {
+  source: { kind: 'projects' | 'areas' | 'goals'; id: string; title: string }
+}
+
+/** A task's own items, plus those it inherits from its ancestors. */
+export type TaskContext = {
+  taskId: string
+  own: ContextItems
+  inherited: ContextGroup[]
+}

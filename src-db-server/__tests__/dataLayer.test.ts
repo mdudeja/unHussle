@@ -147,12 +147,13 @@ describe('Data Layer Tests', () => {
       .values({
         title: 'Test Resource',
         description: 'A useful resource',
-        project_id: projectId,
       })
       .returning()
+    await db
+      .insert(schema.junctionResources)
+      .values({ attachedToId: projectId, refId: resource.id })
 
     expect(resource.title).toBe('Test Resource')
-    expect(resource.project_id).toBe(projectId)
     expect(resource.id).toBeTruthy()
     resourceId = resource.id
   })
@@ -307,7 +308,7 @@ describe('Data Layer Tests', () => {
             url: true,
           },
         },
-        resources: true,
+        resources: { with: { resource: true } },
       },
     })
 
@@ -315,7 +316,7 @@ describe('Data Layer Tests', () => {
     expect(project?.urls).toHaveLength(1)
     expect(project?.urls[0]?.url?.url).toBe('https://example.com/test')
     expect(project?.resources).toHaveLength(1)
-    expect(project?.resources[0]?.title).toBe('Test Resource')
+    expect(project?.resources[0]?.resource?.title).toBe('Test Resource')
   })
 
   test('Query Resource with Tag', async () => {
@@ -327,14 +328,14 @@ describe('Data Layer Tests', () => {
             tag: true,
           },
         },
-        project: true,
+        links: { with: { project: true } },
       },
     })
 
     expect(resource).toBeTruthy()
     expect(resource?.tags).toHaveLength(1)
     expect(resource?.tags[0]?.tag?.title).toBe('Test Tag')
-    expect(resource?.project?.title).toBe('Test Project')
+    expect(resource?.links[0]?.project?.title).toBe('Test Project')
   })
 
   test('Update Task', async () => {
@@ -645,8 +646,11 @@ describe('Data Layer Tests', () => {
         )[0].id
       const [goalProjectResource] = await db
         .insert(schema.resources)
-        .values({ title: 'Goal Project Resource', project_id: goalProject.id })
+        .values({ title: 'Goal Project Resource' })
         .returning()
+      await db
+        .insert(schema.junctionResources)
+        .values({ attachedToId: goalProject.id, refId: goalProjectResource.id })
 
       Object.assign(ids, {
         area: area.id,
@@ -670,16 +674,10 @@ describe('Data Layer Tests', () => {
       ).getById(ids.area)
 
       expect(taskIds(area)).toEqual(
-        sorted(
-          ids.areaTask,
-          ids.sharedTask,
-          ids.goalTask,
-          ids.goalProjectTask,
-        ),
+        sorted(ids.areaTask, ids.sharedTask, ids.goalTask, ids.goalProjectTask),
       )
-      expect(area?.resources?.map((resource) => resource.id)).toEqual([
-        ids.goalProjectResource,
-      ])
+      // Resources stay direct-only: forms are filled from this row
+      expect(area?.resources).toEqual([])
       // Only directly linked projects are listed, and nested rows keep their base shape
       expect(area?.projects?.map((project) => project.id)).toEqual([
         ids.areaProject,
@@ -695,18 +693,15 @@ describe('Data Layer Tests', () => {
       ).getById(ids.goal)
 
       expect(taskIds(goal)).toEqual(
-        sorted(
-          ids.goalTask,
-          ids.goalProjectTask,
-          ids.areaTask,
-          ids.sharedTask,
-        ),
+        sorted(ids.goalTask, ids.goalProjectTask, ids.areaTask, ids.sharedTask),
       )
       expect(goal?.area).not.toHaveProperty('tasks')
     })
 
     test('project reaches tasks through its goal and area, once each', async () => {
-      const projects = new ProjectsRepository(UnHussleDB.getInstance(testDbPath))
+      const projects = new ProjectsRepository(
+        UnHussleDB.getInstance(testDbPath),
+      )
 
       expect(taskIds(await projects.getById(ids.goalProject))).toEqual(
         sorted(ids.goalProjectTask, ids.goalTask),

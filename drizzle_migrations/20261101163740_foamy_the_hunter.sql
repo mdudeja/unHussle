@@ -1,3 +1,8 @@
+CREATE TABLE `app_settings` (
+	`id` text PRIMARY KEY NOT NULL,
+	`settings` text NOT NULL
+);
+--> statement-breakpoint
 CREATE TABLE `areas` (
 	`id` text PRIMARY KEY NOT NULL,
 	`title` text NOT NULL,
@@ -92,24 +97,18 @@ CREATE TABLE `resources` (
 	`id` text PRIMARY KEY NOT NULL,
 	`title` text NOT NULL,
 	`description` text,
-	`project_id` text,
-	`area_id` text,
-	`goal_id` text,
 	`custom_data` text,
 	`created_at` integer NOT NULL,
 	`updated_at` integer NOT NULL,
-	FOREIGN KEY (`project_id`) REFERENCES `projects`(`id`) ON UPDATE no action ON DELETE set null,
-	FOREIGN KEY (`area_id`) REFERENCES `areas`(`id`) ON UPDATE no action ON DELETE set null,
-	FOREIGN KEY (`goal_id`) REFERENCES `goals`(`id`) ON UPDATE no action ON DELETE set null
+	`file_path` text,
+	`content_hash` text
 );
 --> statement-breakpoint
-CREATE INDEX `resources_project_idx` ON `resources` (`project_id`);--> statement-breakpoint
-CREATE INDEX `resources_area_idx` ON `resources` (`area_id`);--> statement-breakpoint
-CREATE INDEX `resources_goal_idx` ON `resources` (`goal_id`);--> statement-breakpoint
 CREATE INDEX `resources_title_idx` ON `resources` (`title`);--> statement-breakpoint
 CREATE INDEX `resources_created_at_idx` ON `resources` (`created_at`);--> statement-breakpoint
 CREATE INDEX `resources_updated_at_idx` ON `resources` (`updated_at`);--> statement-breakpoint
 CREATE UNIQUE INDEX `resources_title_unique` ON `resources` (`title`);--> statement-breakpoint
+CREATE UNIQUE INDEX `resources_file_path_unique` ON `resources` (`file_path`);--> statement-breakpoint
 CREATE TABLE `projects` (
 	`id` text PRIMARY KEY NOT NULL,
 	`title` text NOT NULL,
@@ -224,6 +223,18 @@ CREATE TABLE `junction_time_entries` (
 --> statement-breakpoint
 CREATE INDEX `junction_time_entries_attachedToId_refId_idx` ON `junction_time_entries` (`attachedToId`,`refId`);--> statement-breakpoint
 CREATE UNIQUE INDEX `junction_time_entries_attachedToId_refId_unique` ON `junction_time_entries` (`attachedToId`,`refId`);--> statement-breakpoint
+CREATE TABLE `junction_resources` (
+	`attachedToId` text NOT NULL,
+	`refId` text NOT NULL,
+	`created_at` integer NOT NULL,
+	`updated_at` integer NOT NULL,
+	PRIMARY KEY(`attachedToId`, `refId`),
+	FOREIGN KEY (`refId`) REFERENCES `resources`(`id`) ON UPDATE no action ON DELETE cascade
+);
+--> statement-breakpoint
+CREATE INDEX `junction_resources_attachedToId_refId_idx` ON `junction_resources` (`attachedToId`,`refId`);--> statement-breakpoint
+CREATE INDEX `junction_resources_refId_idx` ON `junction_resources` (`refId`);--> statement-breakpoint
+CREATE UNIQUE INDEX `junction_resources_attachedToId_refId_unique` ON `junction_resources` (`attachedToId`,`refId`);--> statement-breakpoint
 CREATE TABLE `scheduler_settings` (
 	`id` text PRIMARY KEY NOT NULL,
 	`settings` text NOT NULL

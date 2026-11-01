@@ -1,109 +1,109 @@
 @font-face {
-  font-family: "Atkinson Hyperlegible";
+  font-family: 'Atkinson Hyperlegible';
   font-style: normal;
   font-weight: 400;
   font-display: swap;
-  src: url("../assets/fonts/atkinson-hyperlegible/AtkinsonHyperlegible-Regular.woff2")
-    format("woff2");
+  src: url('../assets/fonts/atkinson-hyperlegible/AtkinsonHyperlegible-Regular.woff2')
+    format('woff2');
 }
 
 @font-face {
-  font-family: "Atkinson Hyperlegible";
+  font-family: 'Atkinson Hyperlegible';
   font-style: normal;
   font-weight: 700;
   font-display: swap;
-  src: url("../assets/fonts/atkinson-hyperlegible/AtkinsonHyperlegible-Bold.woff2")
-    format("woff2");
+  src: url('../assets/fonts/atkinson-hyperlegible/AtkinsonHyperlegible-Bold.woff2')
+    format('woff2');
 }
 
 @font-face {
-  font-family: "Atkinson Hyperlegible";
+  font-family: 'Atkinson Hyperlegible';
   font-style: italic;
   font-weight: 400;
   font-display: swap;
-  src: url("../assets/fonts/atkinson-hyperlegible/AtkinsonHyperlegible-Italic.woff2")
-    format("woff2");
+  src: url('../assets/fonts/atkinson-hyperlegible/AtkinsonHyperlegible-Italic.woff2')
+    format('woff2');
 }
 
 @font-face {
-  font-family: "Atkinson Hyperlegible";
+  font-family: 'Atkinson Hyperlegible';
   font-style: italic;
   font-weight: 700;
   font-display: swap;
-  src: url("../assets/fonts/atkinson-hyperlegible/AtkinsonHyperlegible-BoldItalic.woff2")
-    format("woff2");
+  src: url('../assets/fonts/atkinson-hyperlegible/AtkinsonHyperlegible-BoldItalic.woff2')
+    format('woff2');
 }
 
 @font-face {
-  font-family: "Mukta";
+  font-family: 'Mukta';
   font-style: normal;
   font-weight: 200;
   font-display: swap;
-  src: url("../assets/fonts/mukta/Mukta-ExtraLight.woff2") format("woff2");
+  src: url('../assets/fonts/mukta/Mukta-ExtraLight.woff2') format('woff2');
 }
 
 @font-face {
-  font-family: "Mukta";
+  font-family: 'Mukta';
   font-style: normal;
   font-weight: 300;
   font-display: swap;
-  src: url("../assets/fonts/mukta/Mukta-Light.woff2") format("woff2");
+  src: url('../assets/fonts/mukta/Mukta-Light.woff2') format('woff2');
 }
 
 @font-face {
-  font-family: "Mukta";
+  font-family: 'Mukta';
   font-style: normal;
   font-weight: 500;
   font-display: swap;
-  src: url("../assets/fonts/mukta/Mukta-Medium.woff2") format("woff2");
+  src: url('../assets/fonts/mukta/Mukta-Medium.woff2') format('woff2');
 }
 
 @font-face {
-  font-family: "Mukta";
+  font-family: 'Mukta';
   font-style: normal;
   font-weight: 400;
   font-display: swap;
-  src: url("../assets/fonts/mukta/Mukta-Regular.woff2") format("woff2");
+  src: url('../assets/fonts/mukta/Mukta-Regular.woff2') format('woff2');
 }
 
 @font-face {
-  font-family: "Mukta";
+  font-family: 'Mukta';
   font-style: normal;
   font-weight: 600;
   font-display: swap;
-  src: url("../assets/fonts/mukta/Mukta-SemiBold.woff2") format("woff2");
+  src: url('../assets/fonts/mukta/Mukta-SemiBold.woff2') format('woff2');
 }
 
 @font-face {
-  font-family: "Mukta";
+  font-family: 'Mukta';
   font-style: normal;
   font-weight: 700;
   font-display: swap;
-  src: url("../assets/fonts/mukta/Mukta-Bold.woff2") format("woff2");
+  src: url('../assets/fonts/mukta/Mukta-Bold.woff2') format('woff2');
 }
 
 @font-face {
-  font-family: "Mukta";
+  font-family: 'Mukta';
   font-style: normal;
   font-weight: 800;
   font-display: swap;
-  src: url("../assets/fonts/mukta/Mukta-ExtraBold.woff2") format("woff2");
+  src: url('../assets/fonts/mukta/Mukta-ExtraBold.woff2') format('woff2');
 }
 
 @font-face {
-  font-family: "Inter";
+  font-family: 'Inter';
   font-style: normal;
   font-weight: 400;
   font-display: swap;
-  src: url("../assets/fonts/inter/Inter-VariableFont_opsz,wght.woff2")
-    format("woff2");
+  src: url('../assets/fonts/inter/Inter-VariableFont_opsz,wght.woff2')
+    format('woff2');
 }
 
 @font-face {
-  font-family: "Inter";
+  font-family: 'Inter';
   font-style: italic;
   font-weight: 400;
   font-display: swap;
-  src: url("../assets/fonts/inter/Inter-Italic-VariableFont_opsz,wght.woff2")
-    format("woff2");
+  src: url('../assets/fonts/inter/Inter-Italic-VariableFont_opsz,wght.woff2')
+    format('woff2');
 }

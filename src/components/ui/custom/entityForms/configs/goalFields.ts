@@ -2,12 +2,13 @@ import {
   Activity,
   AlignLeft,
   Calendar,
+  FileText,
   Flag,
+  Hash,
   Layers,
+  Link,
   Target,
   TrendingUp,
-  Hash,
-  Link,
 } from 'lucide-react'
 import { Area, Goal, WithSupporters } from '@c/types/index'
 import type { FieldConfig, FieldOption } from '../types'
@@ -94,6 +95,13 @@ export const createGoalFields = ({
       type: 'urls',
       colSpan: 2,
       icon: Link,
+    },
+    {
+      name: 'resources',
+      label: 'Resources',
+      type: 'resources',
+      colSpan: 2,
+      icon: FileText,
     },
   ]
 }

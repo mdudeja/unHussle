@@ -17,6 +17,8 @@ import {
   schedulerCommandNames,
 } from '@c/scheduler/contracts'
 import { schedulerService, type SchedulerTransport } from '@/services/scheduler'
+import { vaultCommandEvents, vaultCommandNames } from '@c/vault/contracts'
+import { vaultService, type VaultTransport } from '@/services/vault'
 import { entityServices, fetchLimits } from './services'
 import {
   createTracking,
@@ -31,7 +33,11 @@ import type {
 } from './contracts'
 import { createSseTransport, type EventTransport } from './eventStream'
 import { createOperationTracker, settlesWithin } from './operations'
-import { createReactions, schedulerEventDependencies } from './reactions'
+import {
+  createReactions,
+  schedulerEventDependencies,
+  vaultEventDependencies,
+} from './reactions'
 import { reactionRegistry } from './reactionRegistry'
 import { frontendTelemetry } from './telemetry'
 import {
@@ -77,6 +83,7 @@ export function createFrontendRuntime(
     readyTimeoutMs?: number
     telemetry?: Telemetry
     scheduler?: SchedulerTransport
+    vault?: VaultTransport
   } = {},
 ) {
   let disposed = false
@@ -85,6 +92,7 @@ export function createFrontendRuntime(
   const queries = createQueryCoordinator({ telemetry })
   const operations = createOperationTracker()
   const scheduler = options.scheduler ?? schedulerService
+  const vault = options.vault ?? vaultService
   const transport = options.transport ?? createSseTransport({ telemetry })
   // Local operations in flight, so their events join the command's trace.
   const traces = new Map<string, TraceMeta>()
@@ -266,7 +274,14 @@ export function createFrontendRuntime(
       )
       await invalidate(
         'resync',
-        [...allKinds, 'schedule', 'occurrences', 'schedulerSettings'],
+        [
+          ...allKinds,
+          'schedule',
+          'occurrences',
+          'schedulerSettings',
+          'resourceContent',
+          'vault',
+        ],
         loaded.map((kind) => defineList(kind)),
       )
     },
@@ -421,6 +436,65 @@ export function createFrontendRuntime(
           traces.delete(operationId)
         }
       }),
+    )
+
+  // Saves of one resource go out one at a time, so an older save can never
+  // land after a newer one. Other vault commands share one queue.
+  const vaultQueues = new Map<string, Promise<unknown>>()
+  const queueVault = <T>(key: string, work: () => Promise<T>) => {
+    const result = (vaultQueues.get(key) ?? Promise.resolve()).then(work)
+    const tail = result.catch(() => {})
+    vaultQueues.set(key, tail)
+    void tail.then(() => {
+      if (vaultQueues.get(key) === tail) vaultQueues.delete(key)
+    })
+    return result
+  }
+
+  for (const command of vaultCommandNames)
+    runtime.commands.handle(command, (_name, input, _context, trace) =>
+      queueVault(
+        command === 'resource.content.save'
+          ? `content:${(input as { id: string }).id}`
+          : 'vault',
+        async () => {
+          const operationId = crypto.randomUUID()
+          const traceId = trace?.traceId ?? operationId
+          const event = vaultCommandEvents[command]
+          const operation = operations.begin(operationId, [event])
+          traces.set(operationId, { traceId, parentId: trace?.spanId })
+          try {
+            await settlesWithin(transport.ready(), readyTimeoutMs)
+            const result = await telemetry.span(
+              'http',
+              command,
+              (span) =>
+                vault.execute(command, input, {
+                  operationId,
+                  traceId,
+                  parentSpanId: span.spanId,
+                }),
+              { traceId, parentId: trace?.spanId },
+            )
+            if (!(await settlesWithin(operation.settled, eventTimeoutMs))) {
+              telemetry.signal(
+                'events.timeout',
+                { command, timeoutMs: eventTimeoutMs },
+                { traceId },
+              )
+              await invalidate(
+                operationId,
+                vaultEventDependencies[event],
+                event === 'vault.changed' ? [defineList('resources')] : [],
+              )
+            }
+            return result
+          } finally {
+            operation.cancel()
+            traces.delete(operationId)
+          }
+        },
+      ),
     )
 
   const transitionTask = async (
@@ -585,6 +659,7 @@ export function createFrontendRuntime(
     tracking,
     services,
     scheduler,
+    vault,
     defineList,
     ensureList,
     dismissWarning,

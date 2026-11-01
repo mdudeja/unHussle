@@ -132,14 +132,38 @@ The sidebar's **Your pace** section has the planner views.
 
 ### Library pages
 
-The sidebar also lists your recent Projects, Areas, Goals, Tasks, URLs and
-Tags. Each heading opens its page: a searchable, filterable table with a create
+The sidebar also lists your recent Projects, Areas, Goals, Tasks, Resources,
+URLs and Tags. Each heading opens its page: a searchable, filterable table with a create
 button.
 
 When you select a row, an action bar appears with **Edit** and **Delete**. Tasks
 also have **Start**, **Pause**, **Complete** and **Cancel**. Projects, areas and
 goals can show their **related tasks**, including tasks that reach them through
 a project or goal. Tags show everything tagged with them.
+
+### Resources and links
+
+- **Resources** are markdown notes you write in the app. **New Resource** asks
+  for a title (and optionally tags and what it's linked to), then opens the
+  editor. It saves as you type. Link a resource to any number of tasks,
+  projects, areas and goals, from the resource's side panel or from the
+  **Resources** field when editing a task or collection.
+- **Inheritance.** A task gets the resources, links and tags of its project,
+  goal and area too (and of the project's goal and area, and the goals'
+  areas). On the home card, the **resources** chip opens them all, grouped by
+  where they come from.
+- **The vault.** Each resource is a plain `.md` file in the vault folder
+  (`<app data>/vault` by default), named after its title. You can edit the
+  files in another editor: the app reads the file each time you open it. If
+  the file changed while you had it open, the app asks before overwriting it.
+  Deleting a resource moves its file to the vault's `.trash` folder. Under
+  **Preferences → Resource vault**, **Rescan vault** adds `.md` files you put
+  in the folder yourself, and **Move to another folder…** moves the vault to an
+  empty folder.
+- **Links** can be web addresses or files and folders on your computer. When
+  adding a link, use the file or folder buttons to pick one. Clicking a file
+  link opens it in its default app, and the folder button next to it shows it
+  in your file manager.
 
 ### Planning concepts
 
@@ -166,7 +190,8 @@ a project or goal. Tags show everything tagged with them.
 ### Where your data lives
 
 The desktop app stores its database at `<app data>/db/ecn.unhussle.sqlite`
-(the Tauri app id is `tech.exitcodenone.unhussle`). The server also writes
+(the Tauri app id is `tech.exitcodenone.unhussle`), and resource files in
+`<app data>/vault` unless you move the vault. The server also writes
 diagnostic spans to `telemetry.jsonl` next to it. Those spans hold ids, counts
 and timings, never your text.
 

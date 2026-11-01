@@ -1,6 +1,7 @@
 import { useEntryList } from '@/workflows/hooks'
 import type { LucideIcon } from 'lucide-react'
 import {
+  FileText,
   FolderKanban,
   GitGraph,
   Goal,
@@ -115,6 +116,7 @@ export const AppSidebarComponent = () => {
   const tasks = useStore((state) => state.tasks)
   const urls = useStore((state) => state.urls)
   const tags = useStore((state) => state.tags)
+  const resources = useStore((state) => state.resources)
 
   const projectsQuery = useEntryList('projects')
   const areasQuery = useEntryList('areas')
@@ -122,6 +124,7 @@ export const AppSidebarComponent = () => {
   const tasksQuery = useEntryList('tasks')
   const urlsQuery = useEntryList('urls')
   const tagsQuery = useEntryList('tags')
+  const resourcesQuery = useEntryList('resources')
 
   const groups = [
     {
@@ -171,6 +174,16 @@ export const AppSidebarComponent = () => {
       })),
     },
     {
+      label: 'Resources',
+      route: 'resources' as const,
+      fallbackIcon: FileText,
+      isLoading: resources.isLoading || resourcesQuery.isLoading,
+      items: getRecent(resources.data).map((r) => ({
+        id: r.id,
+        label: r.title,
+      })),
+    },
+    {
       label: 'URLs',
       route: 'urls' as const,
       fallbackIcon: LinkIcon,
@@ -196,10 +209,15 @@ export const AppSidebarComponent = () => {
   // Highlight the item whose list page is open with its `?id=` selected.
   const { pathname } = useLocation()
   const [searchParams] = useSearchParams()
+  // Resources open in their editor (`/resources/:id`) instead.
   const getActiveId = (route: EntityRouteKey) =>
-    pathname === entityRoutes[route]
-      ? searchParams.get(entitySearchParams.id)
-      : null
+    route === 'resources'
+      ? pathname.startsWith(`${entityRoutes.resources}/`)
+        ? decodeURIComponent(pathname.slice(entityRoutes.resources.length + 1))
+        : null
+      : pathname === entityRoutes[route]
+        ? searchParams.get(entitySearchParams.id)
+        : null
 
   return (
     <Sidebar>

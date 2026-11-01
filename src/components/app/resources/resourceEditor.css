@@ -1,0 +1,64 @@
+/* Tailwind's reset flattens markdown; give the editor's content its shape back. */
+.resource-content {
+  line-height: 1.65;
+}
+.resource-content h1 {
+  font-size: 1.875rem;
+  font-weight: 700;
+  margin: 1.25rem 0 0.75rem;
+}
+.resource-content h2 {
+  font-size: 1.5rem;
+  font-weight: 600;
+  margin: 1.25rem 0 0.5rem;
+}
+.resource-content h3 {
+  font-size: 1.25rem;
+  font-weight: 600;
+  margin: 1rem 0 0.5rem;
+}
+.resource-content h4,
+.resource-content h5,
+.resource-content h6 {
+  font-weight: 600;
+  margin: 0.75rem 0 0.25rem;
+}
+.resource-content p {
+  margin: 0.5rem 0;
+}
+.resource-content ul {
+  list-style: disc;
+  padding-left: 1.5rem;
+}
+.resource-content ol {
+  list-style: decimal;
+  padding-left: 1.5rem;
+}
+.resource-content blockquote {
+  border-left: 3px solid var(--border);
+  padding-left: 1rem;
+  color: var(--muted-foreground);
+}
+.resource-content a {
+  color: var(--primary);
+  text-decoration: underline;
+}
+.resource-content code {
+  font-family: ui-monospace, monospace;
+  font-size: 0.875em;
+  background: var(--muted);
+  border-radius: 0.25rem;
+  padding: 0.1rem 0.3rem;
+}
+.resource-content hr {
+  border-color: var(--border);
+  margin: 1.5rem 0;
+}
+.resource-content table {
+  border-collapse: collapse;
+}
+.resource-content th,
+.resource-content td {
+  border: 1px solid var(--border);
+  padding: 0.25rem 0.5rem;
+}

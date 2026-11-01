@@ -201,7 +201,7 @@ export function buildDay(
     if (overWork && !required) return
     const before = free
     const fits = fit(group)
-    if (!fits && !required) {
+    if (!fits && !required && cue !== 'more') {
       free = before
       return
     }
@@ -265,7 +265,10 @@ export function buildDay(
   // Appointments and active work stay visible even when no rule picked them.
   context.pick(
     context.remaining.filter(
-      (entry) => entry.fixedStart !== null || entry.status === 'in_progress',
+      (entry) =>
+        entry.fixedStart !== null ||
+        entry.status === 'in_progress' ||
+        entry.status === 'paused',
     ),
     { required: true },
   )

@@ -2,6 +2,7 @@ import type { TableWithId } from '@d/database/repositories/BaseRepository'
 import type { SyncTx } from '@d/database/repositories/helpers'
 import type { transactionRepository } from '@d/workflows/unitOfWork'
 import type { SchedulerEvents } from '@c/scheduler/contracts'
+import type { VaultEvents } from '@c/vault/contracts'
 
 export type EntityKind = 'tasks' | 'resources'
 export type EntityCollectionKind = 'projects' | 'areas' | 'goals'
@@ -114,23 +115,24 @@ export type MutationCommands = {
   }
 }
 
-export type AppEvents = SchedulerEvents & {
-  [A in (typeof _commandHeads)[number] as `${A}.add`]: MutationEvent
-} & {
-  [C in (typeof _commandHeads)[number] as `${C}.change`]: MutationEvent
-} & {
-  [D in (typeof _commandHeads)[number] as `${D}.delete`]: MutationEvent
-} & {
-  [K in (typeof _commandHeads)[number] as `${K}.deleteAll`]: MutationEvent
-} & {
-  [T in (typeof _kindHeads)[number] as `${T}.add`]: MutationEvent
-} & {
-  [U in (typeof _kindHeads)[number] as `${U}.change`]: MutationEvent
-} & {
-  [V in (typeof _kindHeads)[number] as `${V}.delete`]: MutationEvent
-} & {
-  [W in (typeof _kindHeads)[number] as `${W}.deleteAll`]: MutationEvent
-}
+export type AppEvents = SchedulerEvents &
+  VaultEvents & {
+    [A in (typeof _commandHeads)[number] as `${A}.add`]: MutationEvent
+  } & {
+    [C in (typeof _commandHeads)[number] as `${C}.change`]: MutationEvent
+  } & {
+    [D in (typeof _commandHeads)[number] as `${D}.delete`]: MutationEvent
+  } & {
+    [K in (typeof _commandHeads)[number] as `${K}.deleteAll`]: MutationEvent
+  } & {
+    [T in (typeof _kindHeads)[number] as `${T}.add`]: MutationEvent
+  } & {
+    [U in (typeof _kindHeads)[number] as `${U}.change`]: MutationEvent
+  } & {
+    [V in (typeof _kindHeads)[number] as `${V}.delete`]: MutationEvent
+  } & {
+    [W in (typeof _kindHeads)[number] as `${W}.deleteAll`]: MutationEvent
+  }
 
 export type CommandAction =
   | 'createRow'
@@ -146,6 +148,10 @@ export type CommandAction =
   | 'updateCollectionCounts'
   | 'announceAffectedEntities'
   | 'deleteJunctions'
+  | 'updateResourceLinks'
+  | 'announceResourceLinks'
+  | 'syncResourceFile'
+  | 'trashResourceFiles'
   | `handler:${keyof MutationCommands}`
 
 export type CommandHandlers = {
@@ -162,10 +168,18 @@ export type Announce = <K extends keyof AppEvents>(
   payload: AppEvents[K],
 ) => void
 
-/** Per-command context handed to every action of that command. */
+/**
+ * Per-command context handed to every action of that command.
+ * `compensate` registers an undo for a side effect outside the database (a
+ * vault file); undos run in reverse order if the transaction rolls back.
+ * `afterCommit` runs cleanup that integrity doesn't depend on; failures are
+ * only logged.
+ */
 export type ActionContext<Context> = Context & {
   operationId: string
   announce: Announce
+  compensate: (undo: () => void) => void
+  afterCommit: (run: () => void) => void
 }
 
 export type TransactionWorkUnit<T> = (context: {

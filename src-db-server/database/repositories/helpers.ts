@@ -3,17 +3,24 @@ import { SQLiteTransaction } from 'drizzle-orm/sqlite-core'
 import * as schema from '../schemas'
 import { tags, junctionTags } from '../schemas'
 import { UnHussleDB } from '../UnHussleDB'
+import type { ResourceLink } from '@c/types/Hydrated'
 
 // Nested `with` configs for relations that go through a junction table
 export const withTags = { with: { tag: true } } as const
 export const withUrls = { with: { url: true } } as const
 export const withTimeEntries = { with: { timeEntry: true } } as const
+export const withResources = { with: { resource: true } } as const
+// A resource's links, with whichever owner each junction row points at
+export const withResourceLinks = {
+  with: { task: true, project: true, area: true, goal: true },
+} as const
 
 // Junction relation key -> property on the join row holding the referenced record
 const junctionRefs = {
   tags: 'tag',
   urls: 'url',
   timeEntries: 'timeEntry',
+  resources: 'resource',
 } as const
 type JunctionRefs = typeof junctionRefs
 
@@ -39,10 +46,12 @@ export const unwrapJunctions = <T extends object>(entity: T): Unwrapped<T> => {
   return result as Unwrapped<T>
 }
 
-// Nested `with` config that loads a linked collection's own members
-export const withMembers = { with: { tasks: true, resources: true } } as const
+// Nested `with` config that loads a linked collection's own tasks.
+// Resources stay direct-only: forms are filled from these rows, so merged
+// resources would be saved as direct links.
+export const withMembers = { with: { tasks: true } } as const
 
-type Members = { tasks?: { id: string }[]; resources?: { id: string }[] }
+type Members = { tasks?: { id: string }[] }
 type WithoutMembers<V> = V extends readonly (infer Row)[]
   ? Omit<Row, keyof Members>[]
   : V extends object
@@ -58,13 +67,13 @@ const byId = <T extends { id: string }>(rows: T[]) => [
 ]
 
 const withoutMembers = (row: Members) => {
-  const { tasks: _tasks, resources: _resources, ...rest } = row
+  const { tasks: _tasks, ...rest } = row
   return rest
 }
 
-// Folds the tasks and resources of linked collections (loaded with
-// `withMembers`) into the entity's own lists, de-duplicated by id, and strips
-// them from the collection rows so they keep their base shape.
+// Folds the tasks of linked collections (loaded with `withMembers`) into the
+// entity's own list, de-duplicated by id, and strips them from the collection
+// rows so they keep their base shape.
 export const mergeCollectionMembers = <
   T extends Members,
   K extends keyof T & string,
@@ -74,7 +83,6 @@ export const mergeCollectionMembers = <
 ): Merged<T, K> => {
   const result = { ...entity } as Record<string, unknown>
   const tasks = [...(entity.tasks ?? [])]
-  const resources = [...(entity.resources ?? [])]
 
   for (const key of collections) {
     const value = entity[key] as Members | Members[] | null | undefined
@@ -82,7 +90,6 @@ export const mergeCollectionMembers = <
     const rows = Array.isArray(value) ? value : [value]
     for (const row of rows) {
       tasks.push(...(row.tasks ?? []))
-      resources.push(...(row.resources ?? []))
     }
     result[key] = Array.isArray(value)
       ? value.map(withoutMembers)
@@ -90,9 +97,29 @@ export const mergeCollectionMembers = <
   }
 
   result.tasks = byId(tasks)
-  result.resources = byId(resources)
   return result as Merged<T, K>
 }
+
+type ResourceLinkRow = {
+  task?: { id: string; title: string } | null
+  project?: { id: string; title: string } | null
+  area?: { id: string; title: string } | null
+  goal?: { id: string; title: string } | null
+}
+
+// A resource's junction rows each point at one owner; keep the one that resolved.
+export const toResourceLinks = (rows: ResourceLinkRow[] = []): ResourceLink[] =>
+  rows.flatMap((row) => {
+    const owners = [
+      ['tasks', row.task],
+      ['projects', row.project],
+      ['areas', row.area],
+      ['goals', row.goal],
+    ] as const
+    return owners
+      .filter(([, owner]) => owner)
+      .map(([kind, owner]) => ({ kind, id: owner!.id, title: owner!.title }))
+  })
 
 // Subquery of ids of any entity attached to a tag whose title matches `pattern`.
 // Left un-awaited so it embeds as `IN (SELECT ...)` in the caller's query.

@@ -33,6 +33,11 @@ export class UnHussleDB {
     return this.dbReady
   }
 
+  /** The SQLite file, or `:memory:`. */
+  public get filePath() {
+    return this.dbFilePath
+  }
+
   private initDb() {
     if (!this.db) {
       throw new Error('Database not initialized')

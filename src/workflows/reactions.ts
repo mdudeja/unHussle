@@ -9,6 +9,7 @@ import type { Logger } from '@c/Logger'
 import type { StoreState } from '@/store'
 import type { QueryCoordinator, QueryDependency } from './queries'
 import type { SchedulerEvents } from '@c/scheduler/contracts'
+import type { VaultEvents } from '@c/vault/contracts'
 import type { createTracking } from './tracking'
 import type { EntryTransport, ReactionName } from './contracts'
 
@@ -43,6 +44,16 @@ export const schedulerEventDependencies: Record<
   'scheduler.settings.changed': ['schedule', 'schedulerSettings'],
   'occurrence.changed': ['schedule', 'occurrences', 'tasks', 'time_entries'],
   'tracking.stopped': ['schedule', 'occurrences', 'tasks', 'time_entries'],
+}
+
+/** Reads each vault event can change. */
+export const vaultEventDependencies: Record<
+  keyof VaultEvents,
+  QueryDependency[]
+> = {
+  'resource.content.changed': ['resourceContent'],
+  // A rescan imports rows and a folder move changes every path.
+  'vault.changed': ['resources', 'resourceContent', 'vault'],
 }
 
 const setRows = (
@@ -106,6 +117,23 @@ export function createReactions<Context extends ReactionContext>() {
       for (const { key, error } of outcomes)
         if (error) context.warnRefresh(event.operationId, key, error)
     },
+    // Content events only carry the resource id; its row (hash, updated_at)
+    // is reloaded if the store holds it.
+    refreshVault: async (name, event, context) => {
+      const { id } = event as unknown as { id?: string }
+      if (
+        id &&
+        context.store.getState().resources.data.some((row) => row.id === id)
+      )
+        await loadAndUpsert(context, 'resources', [id])
+      const outcomes = await context.queries.invalidate(
+        vaultEventDependencies[name as keyof VaultEvents] ?? ['vault'],
+        name === 'vault.changed' ? [context.defineList('resources')] : [],
+      )
+      for (const { key, error } of outcomes)
+        if (error) context.warnRefresh(event.operationId, key, error)
+    },
+
     upsertRows: async (_name, event, context) => {
       await loadAndUpsert(context, event.kind, resultIds(event))
     },
@@ -129,7 +157,7 @@ export function createReactions<Context extends ReactionContext>() {
     invalidateDependents: async (_name, event, context) => {
       const extra: string[] = []
       if (event.action === 'create' || event.action === 'update') {
-        for (const kind of ['tags', 'urls'] as const) {
+        for (const kind of ['tags', 'urls', 'resources'] as const) {
           if (event.changes?.[kind] !== undefined)
             extra.push(context.defineList(kind))
         }

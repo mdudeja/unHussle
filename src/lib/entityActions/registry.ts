@@ -7,6 +7,7 @@ import {
   createProjectFields,
   createTagFields,
   createTaskFields,
+  createResourceFields,
   createUrlFields,
   FieldConfig,
 } from '@/components/ui/custom/entityForms'
@@ -86,6 +87,11 @@ export const entityRegistry: Record<EntityKind, EntityRegistryEntry> = {
     label: 'URL',
     selectSlice: (state) => state.urls,
     createFields: () => createUrlFields(),
+  },
+  resources: {
+    label: 'resource',
+    selectSlice: (state) => state.resources,
+    createFields: () => createResourceFields(),
   },
 }
 

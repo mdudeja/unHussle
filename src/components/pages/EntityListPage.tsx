@@ -28,6 +28,7 @@ import {
   CreateTagButtonComponent,
   CreateTaskButtonComponent,
   CreateUrlButtonComponent,
+  CreateResourceButtonComponent,
   EntityActionBar,
 } from '../app'
 
@@ -69,6 +70,7 @@ const createButtons: Record<EntityKind, ReactNode> = {
   tasks: <CreateTaskButtonComponent />,
   urls: <CreateUrlButtonComponent />,
   tags: <CreateTagButtonComponent />,
+  resources: <CreateResourceButtonComponent />,
 }
 
 // Generic list page for an entity. Search (`q`), column filters (keyed by

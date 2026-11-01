@@ -22,6 +22,11 @@ import { IconPicker } from '@/components/ui/custom/IconPicker'
 import { RecurranceRuleInput } from '@/components/ui/custom/RecurranceRuleInput'
 import { TagsInput } from '@/components/ui/custom/TagsInput'
 import { UrlsInput } from '@/components/ui/custom/UrlsInput'
+import { PickPathButtons } from '@/components/ui/custom/PickPathButtons'
+import {
+  EntityRefsInput,
+  type EntityRef,
+} from '@/components/ui/custom/EntityRefsInput'
 import { DateTimePicker } from '@/components/ui/custom/DateTimePicker'
 import { TaskAnchorInput } from '@/components/ui/custom/TaskAnchorInput'
 import { RecurranceRule } from '@d/database/schemas'
@@ -366,6 +371,21 @@ function FormField<T extends object>({
             onChange={onChange}
           />
         )
+      case 'url':
+        return (
+          <div className="flex gap-2">
+            <Input
+              id={fieldId}
+              value={toInputValue(value)}
+              placeholder={field.placeholder}
+              disabled={disabled}
+              aria-invalid={Boolean(error)}
+              aria-describedby={error ? errorId : undefined}
+              onChange={(event) => onChange(event.target.value)}
+            />
+            <PickPathButtons disabled={disabled} onPick={onChange} />
+          </div>
+        )
       case 'urls':
         return (
           <UrlsInput
@@ -374,6 +394,28 @@ function FormField<T extends object>({
             disabled={disabled}
             placeholder={field.placeholder}
             hasError={Boolean(error)}
+            onChange={onChange}
+          />
+        )
+      case 'resources':
+        return (
+          <EntityRefsInput
+            id={fieldId}
+            kinds={['resources']}
+            value={value as EntityRef[] | null | undefined}
+            disabled={disabled}
+            placeholder={field.placeholder ?? 'Search resources…'}
+            onChange={onChange}
+          />
+        )
+      case 'resourceLinks':
+        return (
+          <EntityRefsInput
+            id={fieldId}
+            kinds={['tasks', 'projects', 'areas', 'goals']}
+            value={value as EntityRef[] | null | undefined}
+            disabled={disabled}
+            placeholder={field.placeholder ?? 'Search tasks and collections…'}
             onChange={onChange}
           />
         )

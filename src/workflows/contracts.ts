@@ -6,6 +6,7 @@ import type {
 import type { ProgressStatus, Task, UrlInput, WithSupporters } from '@c/types'
 import type { MutationOptions } from '@/services/database/DbService'
 import type { SchedulerCommands } from '@c/scheduler/contracts'
+import type { VaultCommands } from '@c/vault/contracts'
 
 /** Backend events (received over SSE) plus frontend-only events. */
 export type FrontendEvents = AppEvents & {
@@ -23,7 +24,8 @@ export type FrontendCommands = Pick<
   MutationCommands,
   Exclude<keyof MutationCommands, `entry.${string}`>
 > &
-  SchedulerCommands & {
+  SchedulerCommands &
+  VaultCommands & {
     'task.transition': { input: Transition; result: EntryRecord }
     'brainDump.submit': {
       input: { task?: WithSupporters<Task['Write']>; urls?: UrlInput[] }
@@ -56,6 +58,7 @@ export type EntryTransport = {
 
 export type ReactionName =
   | 'refreshSchedule'
+  | 'refreshVault'
   | 'upsertRows'
   | 'removeRows'
   | 'clearRows'

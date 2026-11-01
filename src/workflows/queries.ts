@@ -2,7 +2,12 @@ import { createStore } from 'zustand/vanilla'
 import type { EntryKind } from '@c/workflows/contracts'
 import type { Telemetry } from '@c/workflows/telemetry'
 export type QueryDependency =
-  EntryKind | 'schedule' | 'occurrences' | 'schedulerSettings'
+  | EntryKind
+  | 'schedule'
+  | 'occurrences'
+  | 'schedulerSettings'
+  | 'resourceContent'
+  | 'vault'
 
 export type QueryState<T = unknown> = {
   data: T | null

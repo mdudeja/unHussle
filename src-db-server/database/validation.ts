@@ -49,9 +49,12 @@ export const tagInputSchema = t.Object({
 export const urlInputSchema = t.Object({
   ...insertUrlsSchema.properties,
 })
+// Resources are linked by id; unknown ids are rejected by the junction's foreign key.
+export const resourceRefSchema = t.Object({ id: t.String() })
 const attachmentsSchema = {
   tags: t.Optional(t.Array(tagInputSchema)),
   urls: t.Optional(t.Array(urlInputSchema)),
+  resources: t.Optional(t.Array(resourceRefSchema)),
 }
 
 // Tasks
@@ -66,11 +69,63 @@ export const insertTaskSchema = Type.Object({
 export const updateTaskSchema = t.Partial(insertTaskSchema)
 export const selectTaskBaseSchema = createSelectSchema(tasks)
 
-// Resources
-export const insertResourceSchema = createInsertSchema(resources)
+// Resources: the file path and hash are owned by the vault, never the client.
+export const resourceLinkKinds = [
+  'tasks',
+  'projects',
+  'areas',
+  'goals',
+] as const
+export const resourceLinkInputSchema = t.Object({
+  kind: t.UnionEnum(resourceLinkKinds),
+  id: t.String(),
+})
+const {
+  file_path: _filePath,
+  content_hash: _contentHash,
+  ...resourceInsertProperties
+} = createInsertSchema(resources).properties
+export const insertResourceSchema = Type.Object({
+  ...resourceInsertProperties,
+  tags: t.Optional(t.Array(tagInputSchema)),
+  links: t.Optional(t.Array(resourceLinkInputSchema)),
+})
 
 export const updateResourceSchema = t.Partial(insertResourceSchema)
 export const selectResourceBaseSchema = createSelectSchema(resources)
+
+// Resource content travels only through these routes, never in entity rows.
+export const resourceContentSchema = t.Object({
+  id: t.String(),
+  content: t.Union([t.String(), t.Null()]),
+  content_hash: t.Union([t.String(), t.Null()]),
+  missing: t.Boolean(),
+  path: t.Union([t.String(), t.Null()]),
+})
+export const saveResourceContentSchema = t.Object({
+  content: t.String(),
+  baseHash: t.Optional(t.Union([t.String(), t.Null()])),
+  force: t.Optional(t.Boolean()),
+})
+export const savedResourceContentSchema = t.Object({
+  id: t.String(),
+  content_hash: t.String(),
+  updated_at: t.Number(),
+})
+
+// Vault
+export const vaultInfoSchema = t.Object({
+  path: t.String(),
+  source: t.UnionEnum(['custom', 'default']),
+  resources: t.Number(),
+  missing: t.Number(),
+})
+export const changeVaultSchema = t.Object({ path: t.String({ minLength: 1 }) })
+export const rescanResultSchema = t.Object({
+  imported: t.Number(),
+  repaired: t.Number(),
+  missing: t.Array(t.String()),
+})
 
 // Areas
 export const insertAreaSchema = Type.Object({
@@ -114,15 +169,21 @@ export const selectTaskSchema = Type.Object({
   tags: Type.Optional(Type.Array(selectTagsSchema)),
   urls: Type.Optional(Type.Array(selectUrlsSchema)),
   timeEntries: Type.Optional(Type.Array(selectTimeEntriesSchema)),
+  resources: Type.Optional(Type.Array(selectResourceBaseSchema)),
+})
+
+export const selectResourceLinkSchema = Type.Object({
+  kind: t.UnionEnum(resourceLinkKinds),
+  id: Type.String(),
+  title: Type.String(),
 })
 
 export const selectResourceSchema = Type.Object({
   ...selectResourceBaseSchema.properties,
-  project: Type.Optional(Type.Union([selectProjectBaseSchema, Type.Null()])),
-  area: Type.Optional(Type.Union([selectAreaBaseSchema, Type.Null()])),
-  goal: Type.Optional(Type.Union([selectGoalBaseSchema, Type.Null()])),
   tags: Type.Optional(Type.Array(selectTagsSchema)),
   urls: Type.Optional(Type.Array(selectUrlsSchema)),
+  links: Type.Optional(Type.Array(selectResourceLinkSchema)),
+  missing: Type.Optional(Type.Boolean()),
 })
 
 export const selectAreaSchema = Type.Object({
@@ -153,6 +214,27 @@ export const selectProjectSchema = Type.Object({
   resources: Type.Optional(Type.Array(selectResourceBaseSchema)),
   tags: Type.Optional(Type.Array(selectTagsSchema)),
   urls: Type.Optional(Type.Array(selectUrlsSchema)),
+})
+
+// A task's own and inherited resources, links and tags
+const contextItemsSchema = Type.Object({
+  resources: Type.Array(selectResourceBaseSchema),
+  urls: Type.Array(selectUrlsSchema),
+  tags: Type.Array(selectTagsSchema),
+})
+export const selectTaskContextSchema = Type.Object({
+  taskId: Type.String(),
+  own: contextItemsSchema,
+  inherited: Type.Array(
+    Type.Object({
+      ...contextItemsSchema.properties,
+      source: Type.Object({
+        kind: t.UnionEnum(['projects', 'areas', 'goals']),
+        id: Type.String(),
+        title: Type.String(),
+      }),
+    }),
+  ),
 })
 
 // Items linked to a tag, grouped by entity type

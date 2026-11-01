@@ -3,7 +3,7 @@ import { relations } from 'drizzle-orm'
 import { entityCollectionSchema } from './common.schema'
 import { EntityCollection, InferTableTypes } from '@c/types/index'
 import { tasks } from './tasks.schema'
-import { resources } from './resources.schema'
+import { junctionResources } from './junction.resources.schema'
 import { projects } from './projects.schema'
 import { junctionTags } from './junction.tags.schema'
 import { junctionUrls } from './junction.urls.schema'
@@ -25,7 +25,7 @@ export const areas = sqliteTable(
 
 export const areasRelations = relations(areas, ({ many }) => ({
   tasks: many(tasks),
-  resources: many(resources),
+  resources: many(junctionResources),
   goals: many(goals),
   projects: many(projects),
   tags: many(junctionTags),

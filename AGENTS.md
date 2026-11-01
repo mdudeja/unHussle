@@ -85,12 +85,19 @@ Both frontend and sidecar share these aliases.
 ## Architecture Notes
 
 - Tauri (`src-tauri/src/lib.rs`) spawns `binaries/db-server-<triple>` with
-  `DB_FILE_URL` (`<AppData>/db/ecn.unhussle.sqlite`) and `DB_MIGRATIONS_DIR`
-  (`resources/drizzle_migrations`). On exit it sends SIGTERM, then kills.
+  `DB_FILE_URL` (`<AppData>/db/ecn.unhussle.sqlite`), `DB_MIGRATIONS_DIR`
+  (`resources/drizzle_migrations`) and `VAULT_DIR` (`<AppData>/vault`). On exit
+  it sends SIGTERM, then kills. Plugins: shell, fs, opener (with an
+  `opener:allow-open-path` scope for `$HOME` and mount points, used by
+  `openPath`) and dialog (file/folder pickers; added with `bun tauri add dialog`).
 - Frontend talks to `http://localhost:${VITE_DB_SERVER_PORT}` (default 3456).
-- `server.ts`: `httpTracing`, a gzip `mapResponse` (skips `/api` and raw
-  `Response`s), Swagger at `/api`, CORS, `/health`, entity routes, `/scheduler`,
-  `/events`, `/telemetry`. The seed runs on start when `areas` and `goals` are
+- `server.ts`: `httpTracing`, a gzip `mapResponse` (skips `/api`, raw
+  `Response`s and `undefined`), Swagger at `/api`, CORS, `/health`, entity
+  routes, `/scheduler`, `/vault`, `/events`, `/telemetry`. Elysia calls
+  `mapResponse` after every error hook: it must skip `undefined` (or the first
+  hook that answers nothing ends error handling) and send a `status(code, body)`
+  under its code. The app-level `onError` only answers validation errors, so
+  the routes' own hooks set 404 / 409 / 400. The seed runs on start when `areas` and `goals` are
   both empty.
 - `UnHussleDB` is a singleton. `getDb()` opens SQLite (foreign keys, WAL),
   runs migrations, and marks the DB ready. There are no prepared statements.
@@ -99,12 +106,15 @@ Both frontend and sidecar share these aliases.
   `search`, plus `getByIds` / `getByQuery` where needed) return hydrated rows:
   relations, tags, URLs and time entries are unwrapped from the junctions.
   A collection's `getById` includes tasks that reach it through goals and
-  projects. Nested lists stay direct-only.
+  projects. Nested lists, and `resources` everywhere, stay direct-only: edit
+  forms are filled from these rows, so merged items would be saved as links.
 - `routeGenerator` (`src-db-server/routes/routegenerator.ts`) provides
   `GET /`, `GET /paginated/:page/:pageSize`, `GET /:id`, `GET /search/:term`
   (leading `#` stripped, limit `VITE_SEARCH_RESULTS_COUNT`), `POST /`,
   `PATCH /:id`, `DELETE /:id` and `DELETE /all` (`{ deleted: n }`). Extra routes
-  are chained onto the generated plugin (e.g. `GET /tags/:id/items` in `tags.ts`).
+  are chained onto the generated plugin (e.g. `GET /tags/:id/items` in `tags.ts`,
+  `GET|PUT /resources/:id/content`, `GET /tasks/:id/context`). Errors: `NOT_FOUND`
+  → 404, unique-title conflicts → 409, `VaultConflict` → 409, `VaultError` → 400.
 - Mutating routes do not write directly: they execute backend commands
   (`${commandHeadForKind[kind]}.add|change|delete|deleteAll`) on `backendRuntime`,
   then return the row re-read through the repository (`backendRuntime.hydrate`).
@@ -123,16 +133,42 @@ Both frontend and sidecar share these aliases.
   localStorage for the UI timer, and clears it after a one-off `tracking.stop`.
 - Paused one-off tasks stay eligible on later days. Past-day appointments
   that weren't done stop being candidates (by design: missed is missed).
+- **Vault** (`src-db-server/vault/vault.ts`). Each resource is a markdown file;
+  the DB row is its index (`file_path`, relative to the vault, and
+  `content_hash`). The root is `app_settings.vaultDir` (user's choice), else
+  `VAULT_DIR`, else `vault/` next to the DB file (a temp folder for `:memory:`).
+  The file name is `slugify(title)` (`common/slug.ts`), numbered on collision;
+  renaming the title moves the file within its folder. Deleting moves it to
+  `.trash/`. There is no watcher: content is read from disk on every open,
+  `missing` flags rows whose file is gone, and `vault.rescan` imports new
+  files (title from the first `# heading`) and relinks renamed ones.
+  - File changes run synchronously inside the command's transaction and
+    register an undo with `ActionContext.compensate`; undos run newest first on
+    rollback. `afterCommit` is for cleanup integrity doesn't need (removing the
+    old vault after a move); its failures are only logged.
+  - **Content never travels through `entity.*`**: it would land in
+    `MutationEvent`s, SSE frames, the replay buffer and debug logs. It's saved
+    with `resource.content.save` (events carry only `{ operationId, id }`) and
+    read with `GET /resources/:id/content`, never in hydrated rows. Saves send
+    the `baseHash` they read; a different file on disk is a `VaultConflict`
+    unless `force`.
+- **Task context** (`repositories/taskContext.ts`, `GET /tasks/:id/context`):
+  a task's own resources, URLs and tags, plus those it inherits, grouped by
+  ancestor (project → goals → areas, the same chain as `workPredicate` in
+  `repositories/scheduler.ts`; keep them in step). Each item shows once, under
+  the nearest owner. Inherited items are read-only and never copied onto the task.
 - Logging via `common/Logger.ts` (`Logger.getInstance()`), not `console`.
 
 ## Data Model
 
-| Family      | Kinds / tables                                                                              | Notes                                                                                                                                                                                                                  |
-| ----------- | ------------------------------------------------------------------------------------------- | ---------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------- |
-| Entities    | `tasks`, `resources`                                                                        | `project_id` / `area_id` / `goal_id` (`set null`). Tasks also have `anchor_id`/`anchor_type`/`anchor_slot`, recurrence, flags, schedule.                                                                               |
-| Collections | `projects`, `areas`, `goals`                                                                | Projects → area, goal. Goals → area. Derived `count_tasks` / `count_resources`.                                                                                                                                        |
-| Supporters  | `tags`, `urls`, `time_entries`                                                              | Junctions `junction_*`: `attachedToId` = owner (no FK), `refId` = supporter. Derived `count_tasks` / `count_resources` / `count_pga`.                                                                                  |
-| Scheduler   | `day_plans`, `plan_items`, `task_occurrences`, `scheduling_overrides`, `scheduler_settings` | Plan id `${timezone}:${date}` with `revision`, `stale` and the day mode (`breakStartedAt`, `wrapReason`, `autoWrap`). Occurrence id `${taskId}:${date}:${slot}`. Overrides hold deferrals. One `default` settings row. |
+| Family      | Kinds / tables                                                                              | Notes                                                                                                                                                                                                                   |
+| ----------- | ------------------------------------------------------------------------------------------- | ----------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------- |
+| Entities    | `tasks`, `resources`                                                                        | Tasks: `project_id` / `area_id` / `goal_id` (`set null`), `anchor_id`/`anchor_type`/`anchor_slot`, recurrence, flags, schedule. Resources: no FKs; `file_path`, `content_hash`, own tags.                               |
+| Links       | `junction_resources`                                                                        | Many-to-many: `attachedToId` = task / project / area / goal (no FK), `refId` = resource (cascade). Owners send `resources: [{id}]`, a resource sends `links: [{kind,id}]`; collections count them in `count_resources`. |
+| App         | `app_settings`                                                                              | One `default` row: `{ vaultDir? }`.                                                                                                                                                                                     |
+| Collections | `projects`, `areas`, `goals`                                                                | Projects → area, goal. Goals → area. Derived `count_tasks` / `count_resources`.                                                                                                                                         |
+| Supporters  | `tags`, `urls`, `time_entries`                                                              | Junctions `junction_*`: `attachedToId` = owner (no FK), `refId` = supporter. Derived `count_tasks` / `count_resources` / `count_pga`.                                                                                   |
+| Scheduler   | `day_plans`, `plan_items`, `task_occurrences`, `scheduling_overrides`, `scheduler_settings` | Plan id `${timezone}:${date}` with `revision`, `stale` and the day mode (`breakStartedAt`, `wrapReason`, `autoWrap`). Occurrence id `${taskId}:${date}:${slot}`. Overrides hold deferrals. One `default` settings row.  |
 
 ## Workflows (commands → actions → events → reactions)
 
@@ -169,19 +205,36 @@ Scheduler commands (`SchedulerCommands`) and the event each one publishes:
 Scheduler reads, which never write: `GET /scheduler/settings`,
 `/day/:date`, `/next/:date` and `/week/:date` (with `?timezone=`).
 
+Vault commands (`VaultCommands`, `common/vault/contracts.ts`; `vaultHandlers.ts`
+→ `vaultActions.ts` over one `VaultState`, like the scheduler):
+
+| Command                 | Route                        | Event                      | Actions                                                |
+| ----------------------- | ---------------------------- | -------------------------- | ------------------------------------------------------ |
+| `resource.content.save` | `PUT /resources/:id/content` | `resource.content.changed` | `loadResource`, `checkContentBase`, `writeContent`     |
+| `vault.rescan`          | `POST /vault/rescan`         | `vault.changed`            | `listVaultFiles`, `repairMissing`, `importUnindexed`   |
+| `vault.settings.change` | `PATCH /vault`               | `vault.changed`            | `validateVaultTarget`, `copyVault`, `saveVaultSetting` |
+
+`GET /vault` reads the folder, its source and resource / missing counts.
+
 **Backend** (`src-db-server/workflows/`)
 
 - `commandHandlers.ts` maps each mutation command to an ordered list of action names.
   `handler:<command>` inlines another command's list, and cycles are rejected.
   Current lists, after the inlined `entry.*` row action:
   - `entity.add|change`: `validateTask`, `trackTaskInterval`,
-    `updateSupporters`, `updateSupporterCounts`, `updateCollectionCounts`,
-    `markPlansStale`, plus `syncPlanMembership` on change.
-  - `entity.delete|deleteAll`: `deleteJunctions`, both counts, `markPlansStale`,
-    `syncPlanMembership`.
-  - `entityCollection.*`: supporters + supporter counts on add/change.
-    `announceAffectedEntities` on change, and **before** the row delete on
+    `updateSupporters`, `updateResourceLinks`, `syncResourceFile`,
+    `updateSupporterCounts`, `updateCollectionCounts`, `markPlansStale`, plus
+    `syncPlanMembership` on change.
+  - `entity.delete|deleteAll`: `announceResourceLinks` and `trashResourceFiles`
+    **before** the row delete, then `deleteJunctions`, both counts,
+    `markPlansStale`, `syncPlanMembership`.
+  - `entityCollection.*`: supporters, `updateResourceLinks`, supporter and
+    collection counts on add/change. `announceAffectedEntities` on change, and
+    (with `announceResourceLinks`) **before** the row delete on
     delete/deleteAll. `markPlansStale` except on add.
+  - `updateResourceLinks` replaces links from either side and announces the
+    other side (`<kind>.change` with `attachedIds`). Task-, resource- and
+    file-only actions return early for other kinds.
   - `entitySupporter.*`: `deleteJunctions` on delete, and `markPlansStale`,
     which only reacts to tags.
 - `commandActions.ts` holds the named actions. An action
@@ -198,8 +251,9 @@ Scheduler reads, which never write: `GET /scheduler/settings`,
 - `validateTask` runs after the write, on the stored row: recurrence rule,
   `scheduled_end > scheduled_start` (`common/taskSchedule.ts`), and anchors
   (`validateTaskAnchors`).
-- `toRowValues` strips supporter keys (`tags`/`urls`/`time_entries`) and derived
-  counts. When a task's `status` changes it also strips `spent_minutes`,
+- `toRowValues` strips supporter and link keys (`tags`/`urls`/`time_entries`/
+  `resources`/`links`), derived counts and vault-owned columns (`file_path`,
+  `content_hash`, `content`, `missing`). When a task's `status` changes it also strips `spent_minutes`,
   `started_at` and `completed_at`, which `trackTaskInterval` owns. It sets URL
   `parts` and normalizes tag titles (`normalizeTagTitle`), as every write path does.
 - Derived counts (`count_tasks`, `count_resources`, `count_pga`) are recalculated
@@ -308,6 +362,12 @@ Scheduler reads, which never write: `GET /scheduler/settings`,
   - `task.transition`, task deletes and all scheduler commands are serialized
     on one queue. Starting an occurrence or a break (`scheduler.mode.change`
     `startBreak`) pauses the tracked task first.
+- Vault commands go through `services/vault.ts` (`options.vault` in tests).
+  They wait for their event like scheduler commands; saves of one resource are
+  queued one at a time. `resource.content.changed` and `vault.changed` →
+  `refreshVault` (`vaultEventDependencies`). Autosave (`lib/resourceAutosave.ts`,
+  `useResourceAutosave`) debounces 1s, keeps one save in flight, stops on a
+  409 until Reload / Keep mine, and flushes before navigation.
 - Frontend-only events (`tracking.changed`) are declared in
   `src/workflows/contracts.ts`.
 - `eventStream.ts` is the SSE client, built on `fetch`. The webview has
@@ -332,9 +392,10 @@ Scheduler reads, which never write: `GET /scheduler/settings`,
 - Reads go through the query coordinator (`queries.ts`, `useWorkflowQuery`):
   - keys look like `list:<kind>:<page>`, `detail:<kind>:<id>`,
     `search:<kind>:<term>`, `related:<kind>:<id>`, `tagged:tags:<id>`,
-    `schedule:day:<tz>:<date>`, `schedule:week:<tz>:<date>`, `schedule:settings`.
-    Each one declares `dependencies` (`EntryKind` or `schedule` /
-    `occurrences` / `schedulerSettings`). `dependencies(kind)` in `runtime.ts`
+    `schedule:day:<tz>:<date>`, `schedule:week:<tz>:<date>`, `schedule:settings`,
+    `content:resources:<id>` (refetched on every mount), `context:tasks:<id>`,
+    `vault:info`. Each one declares `dependencies` (`EntryKind` or `schedule` /
+    `occurrences` / `schedulerSettings` / `resourceContent` / `vault`). `dependencies(kind)` in `runtime.ts`
     gives the standard set for a kind;
   - requests are deduplicated and empty results are cached;
   - an obsolete response can never overwrite a newer one (generations);
@@ -412,8 +473,10 @@ Extending:
 ## Frontend UI
 
 - Routes (`src/lib/router.ts`): `/` (NextTaskCard + BrainDumpInput), `/day`,
-  `/week`, `/scheduler/settings`, and list pages `/projects`, `/areas`,
-  `/goals`, `/tasks`, `/urls`, `/tags` (`entityRoutes`). List pages take
+  `/week`, `/scheduler/settings` (with the vault card), list pages `/projects`,
+  `/areas`, `/goals`, `/tasks`, `/urls`, `/tags`, `/resources` (`entityRoutes`),
+  and the lazy-loaded MDXEditor page `/resources/:id`
+  (`getEntityItemRoute('resources', id)` goes there). List pages take
   `?id=` (selection), `?q=` (search), `?related=` and column filters as query params.
 - `EntityListPage` is configured per kind in `pages/EntityPages.tsx` (columns,
   filters, actions, related panel). `lib/entityActions/registry.ts` holds each
@@ -423,6 +486,14 @@ Extending:
   or goal by title (underscores = spaces) or by one of its tags, otherwise it
   becomes a tag. URLs are `http(s)://`, `file://` and `www.`. The estimate is
   `est:` / `et:` (`1h 30m`), and the due date is `due …` at the end.
+- File URLs (`lib/fileUrls.ts`): `PickPathButtons` (Tauri only) fill a
+  `file://` URL from the dialog plugin; `openLink` opens files with the
+  default app (`openPath`) and other URLs in the browser; `revealLink` shows a
+  file in its folder. The webview has no `Bun.fileURLToPath`, so the converters
+  use `URL` and are tested against Bun's.
+- Forms: `resources` (tasks and collections) and `resourceLinks` (resources)
+  field types use `EntityRefsInput`. NextTaskCard's `TaskContextSheet` lists
+  the task's own and inherited resources, URLs and tags.
 
 ## Database & Migrations
 
@@ -475,7 +546,7 @@ Apply happens automatically on server startup via `migrate()`.
 - `.env.local`, `.env.test` are gitignored; `.env.template` documents vars.
 - `.agentic/` is gitignored (local tooling state).
 - Never read/commit `.env.*` secrets. Vars: `VITE_LOG_LEVEL`, `NODE_ENV`, `DB_FILE_URL`,
-  `DB_MIGRATIONS_DIR`, `VITE_DB_SERVER_PORT` (API port for both server and frontend; default 3456),
+  `DB_MIGRATIONS_DIR`, `VAULT_DIR`, `VITE_DB_SERVER_PORT` (API port for both server and frontend; default 3456),
   `DB_SERVER_BUILD_DIR`, `VITE_SEARCH_RESULTS_COUNT`, `VITE_FETCH_LIMIT_<KIND>` (list page sizes, `src/workflows/services.ts`).
 - Rust sidecar settings via `src-tauri/.env.x11` / `.env.wayland`.
 

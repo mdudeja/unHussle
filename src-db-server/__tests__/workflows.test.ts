@@ -206,12 +206,16 @@ describe('Transactional command handlers', () => {
         action: 'create',
         changes: {
           title: 'Unsupported',
-          tags: [{ title: 'ignored_before' }],
+          urls: [{ url: 'https://ignored-before.example' }],
         },
       }),
     ).rejects.toThrow('Provided Supporters are not supported for resources')
     expect(
-      db.select().from(tags).where(eq(tags.title, 'ignored_before')).all(),
+      db
+        .select()
+        .from(urls)
+        .where(eq(urls.url, 'https://ignored-before.example'))
+        .all(),
     ).toEqual([])
     runtime.dispose()
   })
@@ -280,7 +284,7 @@ describe('Transactional command handlers', () => {
     runtime.dispose()
   })
 
-  test('collection counts follow entity foreign keys', async () => {
+  test('collection counts follow task foreign keys and resource links', async () => {
     const runtime = createBackendRuntime(database)
     const db = await database.getDb()
     const project = (await runtime.commands.execute('entityCollection.add', {
@@ -311,7 +315,10 @@ describe('Transactional command handlers', () => {
     await runtime.commands.execute('entity.add', {
       kind: 'resources',
       action: 'create',
-      changes: { title: 'Member resource', project_id: project.id },
+      changes: {
+        title: 'Member resource',
+        links: [{ kind: 'projects', id: project.id }],
+      },
     })
     expect(countsOf(project.id)).toEqual({ count_tasks: 1, count_resources: 1 })
 
@@ -404,6 +411,7 @@ describe('Transactional command handlers', () => {
     const actions = spans.filter((span) => span.kind === 'action')
     expect(actions.map((span) => span.name)).toEqual([
       'announceAffectedEntities',
+      'announceResourceLinks',
       'deleteRow',
       'deleteJunctions',
       'updateSupporterCounts',

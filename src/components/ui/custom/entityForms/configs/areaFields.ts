@@ -1,11 +1,12 @@
 import {
   AlignLeft,
   Boxes,
+  FileText,
   Flag,
-  Palette,
-  Sparkles,
   Hash,
   Link,
+  Palette,
+  Sparkles,
 } from 'lucide-react'
 import { Area, WithSupporters } from '@c/types/index'
 import type { FieldConfig } from '../types'
@@ -65,5 +66,12 @@ export const createAreaFields = (): FieldConfig<
     type: 'urls',
     colSpan: 2,
     icon: Link,
+  },
+  {
+    name: 'resources',
+    label: 'Resources',
+    type: 'resources',
+    colSpan: 2,
+    icon: FileText,
   },
 ]

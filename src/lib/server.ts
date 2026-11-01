@@ -1,3 +1,14 @@
+/** A non-2xx response; `status` lets callers tell a conflict (409) from other failures. */
+export class HttpError extends Error {
+  name = 'HttpError'
+  constructor(
+    message: string,
+    readonly status: number,
+  ) {
+    super(message)
+  }
+}
+
 export const makeJSONRequest = async <T>({
   url,
   method,
@@ -5,7 +16,7 @@ export const makeJSONRequest = async <T>({
   headers,
 }: {
   url: string
-  method: 'GET' | 'POST' | 'PATCH' | 'DELETE'
+  method: 'GET' | 'POST' | 'PUT' | 'PATCH' | 'DELETE'
   body?: unknown
   headers?: Record<string, string>
 }) => {
@@ -25,10 +36,11 @@ export const makeJSONRequest = async <T>({
     const error = (await res.json().catch(() => null)) as {
       message?: unknown
     } | null
-    throw new Error(
+    throw new HttpError(
       typeof error?.message === 'string'
         ? error.message
         : `HTTP error! status: ${res.status}`,
+      res.status,
     )
   }
 

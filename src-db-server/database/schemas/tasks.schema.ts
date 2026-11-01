@@ -16,6 +16,7 @@ import {
   goals,
   junctionTags,
   junctionUrls,
+  junctionResources,
   RecurranceRule,
   anchorTypeSchema,
   taskOccurrences,
@@ -97,6 +98,7 @@ export const tasksRelations = relations(tasks, ({ one, many }) => ({
   tags: many(junctionTags),
   urls: many(junctionUrls),
   timeEntries: many(junctionTimeEntries),
+  resources: many(junctionResources),
 }))
 
 export type Task = InferTableTypes<Entity, typeof tasks>
