@@ -8,8 +8,10 @@ const cleared = ['clearRows', 'invalidateDependents'] as const
 // is handled once; kind events (`tasks.delete`) carry kind-specific behaviour.
 export const reactionRegistry: ReactionRegistry = {
   'scheduler.changed': ['refreshSchedule'],
+  'scheduler.mode.changed': ['refreshSchedule'],
   'scheduler.settings.changed': ['refreshSchedule'],
   'occurrence.changed': ['refreshSchedule'],
+  'tracking.stopped': ['refreshSchedule'],
   'entity.add': [...upserted],
   'entity.change': [...upserted],
   'entity.delete': [...deleted],

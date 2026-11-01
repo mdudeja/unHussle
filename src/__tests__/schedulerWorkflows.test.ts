@@ -12,7 +12,8 @@ import {
   schedulerCommandEvents,
 } from '@c/scheduler/contracts'
 import { createTelemetry } from '@c/workflows/telemetry'
-import { ProgressStatus } from '@c/types'
+import { ProgressStatus, type TimeEntry } from '@c/types'
+import { overnightStart, suggestedStop } from '@/workflows/schedulerHooks'
 
 function fixture({ emit = true, failRefresh = false } = {}) {
   let handlers: EventHandlers | undefined
@@ -164,6 +165,30 @@ describe('Scheduler frontend workflows', () => {
     expect(f.taskReads()).toBe(2)
     f.dispose()
   })
+  test('day mode changes refresh the plan and tasks, since a break pauses work', async () => {
+    const f = fixture()
+    await f.runtime.queries.ensure(f.key)
+    await f.runtime.queries.ensure('tasks:test')
+    await f.runtime.commands.execute('scheduler.mode.change', {
+      date: '2026-11-02',
+      timezone: 'UTC',
+      change: 'startBreak',
+    })
+    expect(f.taskReads()).toBe(2)
+    expect(f.runtime.queries.snapshot<DayPlan>(f.key).data?.revision).toBe(2)
+    f.dispose()
+  })
+  test('stopping a running interval at a past time ends the local tracking session', async () => {
+    const f = fixture()
+    f.runtime.tracking.start('essay', 1)
+    await f.runtime.commands.execute('tracking.stop', {
+      taskId: 'essay',
+      occurrenceId: null,
+      at: 2,
+    })
+    expect(f.runtime.tracking.getActiveTracking()).toBeNull()
+    f.dispose()
+  })
   test('stream resync reloads a saved plan without generating a new one', async () => {
     const f = fixture()
     await f.runtime.queries.ensure(f.key)
@@ -171,5 +196,65 @@ describe('Scheduler frontend workflows', () => {
     expect(f.reads()).toBe(2)
     expect(f.writes()).toBe(0)
     f.dispose()
+  })
+})
+
+describe('Work running since an earlier day', () => {
+  const at = (day: string, time: string) => getDateTimeMillis(day, time, 'UTC')
+  const entry = (
+    start_time: number,
+    changes: Partial<TimeEntry['Read']> = {},
+  ): TimeEntry['Read'] => ({
+    id: 'entry',
+    title: '',
+    description: null,
+    task_id: 'essay',
+    occurrence_id: null,
+    start_time,
+    end_time: null,
+    duration: null,
+    count_tasks: 0,
+    count_resources: 0,
+    count_pga: 0,
+    created_at: 0,
+    updated_at: 0,
+    ...changes,
+  })
+  const running = (
+    start: number,
+    changes: Partial<TimeEntry['Read']> = {},
+  ) => ({
+    id: 'essay',
+    status: ProgressStatus.IN_PROGRESS,
+    timeEntries: [entry(start, changes)],
+  })
+  const morning = at('2026-11-03', '07:00')
+
+  test('asks only for an open one-off interval that started on an earlier day', () => {
+    const yesterday = at('2026-11-02', '21:40')
+    expect(overnightStart(running(yesterday), morning, 'UTC')).toBe(yesterday)
+    expect(
+      overnightStart(running(at('2026-11-03', '06:00')), morning, 'UTC'),
+    ).toBeUndefined()
+    expect(
+      overnightStart(running(yesterday, { end_time: morning }), morning, 'UTC'),
+    ).toBeUndefined()
+    expect(
+      overnightStart(
+        { ...running(yesterday), status: ProgressStatus.PAUSED },
+        morning,
+        'UTC',
+      ),
+    ).toBeUndefined()
+  })
+
+  test('suggests the start day’s wind-down, or the start when it came later', () => {
+    const settings = { ...defaultSchedulerSettings, overrides: {} }
+    expect(suggestedStop(at('2026-11-02', '21:40'), 'UTC', settings)).toBe(
+      at('2026-11-02', '23:00'),
+    )
+    expect(suggestedStop(at('2026-11-02', '23:30'), 'UTC', settings)).toBe(
+      at('2026-11-02', '23:30'),
+    )
   })
 })

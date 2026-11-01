@@ -1,7 +1,7 @@
 {
   "version": "6",
   "dialect": "sqlite",
-  "id": "8b3aacf3-5a25-4b3b-af00-0a870975ad1a",
+  "id": "8dcd0014-41bd-4be8-93c7-2f1f42036fad",
   "prevId": "00000000-0000-0000-0000-000000000000",
   "tables": {
     "areas": {
@@ -1733,6 +1733,28 @@
           "primaryKey": false,
           "notNull": true,
           "autoincrement": false
+        },
+        "break_started_at": {
+          "name": "break_started_at",
+          "type": "integer",
+          "primaryKey": false,
+          "notNull": false,
+          "autoincrement": false
+        },
+        "wrap_reason": {
+          "name": "wrap_reason",
+          "type": "text",
+          "primaryKey": false,
+          "notNull": false,
+          "autoincrement": false
+        },
+        "auto_wrap": {
+          "name": "auto_wrap",
+          "type": "integer",
+          "primaryKey": false,
+          "notNull": true,
+          "autoincrement": false,
+          "default": true
         }
       },
       "indexes": {

@@ -25,6 +25,7 @@ export function validateSettings(settings: SchedulerSettings) {
     settings.quickMinutes,
     settings.starterMinutes,
     settings.longMinutes,
+    settings.wrapMinutes,
   ]) {
     if (!Number.isFinite(n) || n <= 0 || n > 1440)
       throw new Error('Durations must be between 1 and 1440 minutes')

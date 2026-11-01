@@ -1,4 +1,5 @@
 import {
+  getDayBoundsMillis,
   getLocalDateString,
   getDateTimeMillis,
   MINUTE_MS,
@@ -27,19 +28,28 @@ function urgency(entry: PlanEntry, date: string, timezone: string) {
   return day <= addDaysToDate(date, 7) ? 2 : 3
 }
 
-/** The schedulable part of a day: from wake (or now, today) until sleep. */
+/**
+ * The schedulable part of a day: from wake (or now, today) until sleep. With
+ * `pastWindDown`, a day already past its wind-down runs until midnight, so
+ * work the user asks for after wind-down still fits.
+ */
 export function dayWindow(
   date: string,
   timezone: string,
   now: number,
   settings: SchedulerSettings,
+  { pastWindDown = false }: { pastWindDown?: boolean } = {},
 ) {
   const window = settings.overrides[date] ?? settings
   const start = Math.max(
     getDateTimeMillis(date, window.wake, timezone),
     getLocalDateString(now, timezone) === date ? now : 0,
   )
-  const end = getDateTimeMillis(date, window.sleep, timezone)
+  const sleep = getDateTimeMillis(date, window.sleep, timezone)
+  const end =
+    pastWindDown && start >= sleep
+      ? getDayBoundsMillis(date, timezone)[1]
+      : sleep
   return {
     start,
     end,
@@ -68,11 +78,13 @@ export function buildDay(
   const { date, timezone, now, settings, previous } = input
   const cue = input.cue ?? 'fresh'
   const workUsed = input.workUsed ?? 0
+  // Wrapping up and pulling more are explicit requests, even after wind-down.
   const { start, end, capacityMinutes, workLimit } = dayWindow(
     date,
     timezone,
     now,
     settings,
+    { pastWindDown: cue === 'wrap' || cue === 'more' },
   )
   const pinned = new Set(
     previous?.entries.filter((entry) => entry.pinned).map((entry) => entry.id),
@@ -265,6 +277,9 @@ export function buildDay(
     revision: previous?.revision ?? 0,
     saved: false,
     stale: false,
+    breakStartedAt: previous?.breakStartedAt ?? null,
+    wrapReason: previous?.wrapReason ?? null,
+    autoWrap: previous?.autoWrap ?? true,
     entries: stack,
     conflicts: [...new Set(conflicts)],
     workUsed,
@@ -277,7 +292,13 @@ export function buildDay(
   }
 }
 
-export function nextTask(plan: DayPlan, now: number, bypass?: string) {
+/** `skipped` holds entries the user passed over with "Do something else". */
+export function nextTask(
+  plan: DayPlan,
+  now: number,
+  skipped: ReadonlySet<string> | string = new Set(),
+) {
+  const skips = typeof skipped === 'string' ? new Set([skipped]) : skipped
   const pending = plan.entries.filter((entry) => isPending(entry.status))
   let active: PlanEntry | undefined
   let appointment: PlanEntry | undefined
@@ -311,7 +332,7 @@ export function nextTask(plan: DayPlan, now: number, bypass?: string) {
     ready: chain.every(
       (member) => member.windowStart === null || member.windowStart <= now,
     ),
-    bypassed: chain.some((member) => member.id === bypass),
+    bypassed: chain.some((member) => skips.has(member.id)),
     fixedStart: Math.min(
       ...chain.flatMap((member) =>
         member.fixedStart !== null && member.fixedStart > now
@@ -330,7 +351,7 @@ export function nextTask(plan: DayPlan, now: number, bypass?: string) {
   const upcomingStart = upcoming?.fixedStart ?? null
   const item = pending.find((entry) => {
     if (
-      entry.id === bypass ||
+      skips.has(entry.id) ||
       entry.fixedStart !== null ||
       anchors.blocked.has(entry.id) ||
       anchors.beforeDependents.has(entry.id)

@@ -37,14 +37,14 @@ import { schedulerSettings, tasks } from '@d/database/schemas'
 export class ScheduleConflict extends Error {}
 export const planId = (date: string, timezone: string) => `${timezone}:${date}`
 
+/** Saved settings over the defaults, so settings saved before a field existed get its default. */
 export function readSettings(db: ScheduleTx): SchedulerSettings {
-  return (
-    db
-      .select()
-      .from(schedulerSettings)
-      .where(eq(schedulerSettings.id, 'default'))
-      .get()?.settings ?? { ...defaultSchedulerSettings, overrides: {} }
-  )
+  const saved = db
+    .select()
+    .from(schedulerSettings)
+    .where(eq(schedulerSettings.id, 'default'))
+    .get()?.settings
+  return { ...defaultSchedulerSettings, overrides: {}, ...saved }
 }
 
 /** Throws on an invalid calendar date or timezone. */
@@ -63,9 +63,7 @@ function continuingEntries(
 ) {
   const others = states.filter(
     (state) =>
-      state.status === 'in_progress' &&
-      state.date !== date &&
-      state.taskId,
+      state.status === 'in_progress' && state.date !== date && state.taskId,
   )
   if (!others.length) return []
   const byId = new Map(
@@ -80,7 +78,9 @@ function continuingEntries(
   )
   return others.flatMap((state) => {
     const task = state.taskId ? byId.get(state.taskId) : undefined
-    return task ? entryFor(task, state.id, state.date, timezone, settings, states) : []
+    return task
+      ? entryFor(task, state.id, state.date, timezone, settings, states)
+      : []
   })
 }
 
@@ -190,16 +190,22 @@ function hydrateSaved(
     const live =
       byId.get(row.itemId) ??
       (task
-        ? entryFor(task, row.itemId, state?.date ?? date, timezone, settings, occurrences)[0]
+        ? entryFor(
+            task,
+            row.itemId,
+            state?.date ?? date,
+            timezone,
+            settings,
+            occurrences,
+          )[0]
         : undefined)
     // Rows outlive deleted tasks; their recorded status is all that remains.
-    const entry = live ?? detachedEntry(row.itemId, row.sourceTaskId, row.occurrenceId)
+    const entry =
+      live ?? detachedEntry(row.itemId, row.sourceTaskId, row.occurrenceId)
     return {
       ...entry,
       status:
-        row.status === 'migrated' ||
-        row.status === 'cancelled' ||
-        !live
+        row.status === 'migrated' || row.status === 'cancelled' || !live
           ? (state?.status ?? row.status)
           : entry.status,
       pinned: row.pinned,
@@ -208,7 +214,13 @@ function hydrateSaved(
   })
   const present = new Set(entries.map((entry) => entry.id))
   if (date === today)
-    for (const entry of continuingEntries(db, settings, occurrences, date, timezone))
+    for (const entry of continuingEntries(
+      db,
+      settings,
+      occurrences,
+      date,
+      timezone,
+    ))
       if (!present.has(entry.id)) entries.unshift(entry)
   // Fixed commitments are always live, even after the stack was saved.
   for (const entry of candidates)
@@ -233,6 +245,9 @@ function hydrateSaved(
     revision: saved.revision,
     stale: saved.stale,
     conflicts: saved.conflicts,
+    breakStartedAt: saved.breakStartedAt,
+    wrapReason: saved.wrapReason,
+    autoWrap: saved.autoWrap,
     entries,
     saved: true,
     settings,

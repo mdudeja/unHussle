@@ -6,7 +6,10 @@ import {
 import { addDaysToDate } from '@c/calendarUtils'
 import { useCallback, useEffect, useRef, useState } from 'react'
 
-import type { DayPlan } from '@c/scheduler/contracts'
+import type { DayPlan, SchedulerSettings } from '@c/scheduler/contracts'
+import { windDownOf, wrapUpReason } from '@c/scheduler/dayMode'
+import { ProgressStatus, type TimeEntry } from '@c/types'
+import { Logger } from '@c/Logger'
 import { useWorkflowQuery, useWorkflowRuntime } from './hooks'
 import type { QueryDependency } from './queries'
 
@@ -84,6 +87,27 @@ export function useTodayPlan() {
         ),
       )
   }, [query.data, runtime, date, timezone])
+
+  // Wrap-up starts on its own once; the backend ignores it after a pull for more.
+  const reason = data ? wrapUpReason(data, now) : null
+  const wrapped = useRef('')
+
+  useEffect(() => {
+    const key = `${date}:${reason}`
+    if (!reason || wrapped.current === key) return
+    wrapped.current = key
+    runtime.commands
+      .execute('scheduler.mode.change', {
+        date,
+        timezone,
+        change: 'startWrap',
+        reason,
+      })
+      .catch((error) =>
+        Logger.getInstance().error('Could not start wrapping up', { error }),
+      )
+  }, [reason, runtime, date, timezone])
+
   useEffect(() => {
     if (!data?.saved) return
     const boundaries = data.entries
@@ -129,4 +153,115 @@ export function useSchedulerAction() {
     }
   }
   return { busy, error, run }
+}
+
+const skippedKey = (date: string) => `unhussle.skipped:${date}`
+
+/**
+ * Tasks passed over with "Do something else", per day. Kept in localStorage so
+ * they stay skipped across reloads; a re-plan clears them.
+ */
+export function useSkippedTasks(date: string) {
+  const read = useCallback((): string[] => {
+    try {
+      const value: unknown = JSON.parse(
+        localStorage.getItem(skippedKey(date)) ?? '[]',
+      )
+      return Array.isArray(value)
+        ? value.filter((id): id is string => typeof id === 'string')
+        : []
+    } catch {
+      return []
+    }
+  }, [date])
+  const [state, setState] = useState(() => ({ date, ids: read() }))
+  // A new day starts with nothing skipped.
+  const ids = state.date === date ? state.ids : read()
+  if (state.date !== date) setState({ date, ids })
+  const save = (next: string[]) => {
+    // Earlier days' skips are never read again.
+    for (const key of Object.keys(localStorage))
+      if (key.startsWith(skippedKey('')) && key !== skippedKey(date))
+        localStorage.removeItem(key)
+    if (next.length)
+      localStorage.setItem(skippedKey(date), JSON.stringify(next))
+    else localStorage.removeItem(skippedKey(date))
+    setState({ date, ids: next })
+  }
+  return {
+    skipped: new Set(ids),
+    skip: (id: string) => save([...new Set([...ids, id])]),
+    clear: () => save([]),
+  }
+}
+
+const overnightStorageKey = 'unhussle.overnight-ok'
+
+/** Identifies one running interval, so a new interval asks again. */
+export const overnightKey = (
+  taskId: string,
+  occurrenceId: string | null,
+  startedAt: number,
+) => `${taskId}|${occurrenceId ?? ''}|${startedAt}`
+
+const readOvernightAnswer = () =>
+  typeof localStorage === 'undefined'
+    ? null
+    : localStorage.getItem(overnightStorageKey)
+
+/** Whether the user already said they're still working on this interval. */
+export const isStillWorking = (key: string) => readOvernightAnswer() === key
+
+/** Where "I stopped at" starts: the start day's wind-down, if after the start. */
+export function suggestedStop(
+  startedAt: number,
+  timezone: string,
+  settings: SchedulerSettings,
+) {
+  const windDown = windDownOf({
+    date: getLocalDateString(startedAt, timezone),
+    timezone,
+    settings,
+  })
+  return windDown > startedAt ? windDown : startedAt
+}
+
+/**
+ * The open one-off interval of a task that has run since an earlier day and
+ * hasn't been confirmed as still going: its start, or `undefined`.
+ */
+export function overnightStart(
+  task: {
+    id: string
+    status: string | null
+    timeEntries?: TimeEntry['Read'][]
+  },
+  now = getNowMillis(),
+  timezone = getTimeZoneId(),
+) {
+  if (task.status !== ProgressStatus.IN_PROGRESS) return undefined
+  const open = task.timeEntries?.find(
+    (entry) => entry.end_time === null && entry.occurrence_id === null,
+  )
+  if (
+    !open ||
+    getLocalDateString(open.start_time, timezone) >=
+      getLocalDateString(now, timezone) ||
+    isStillWorking(overnightKey(task.id, null, open.start_time))
+  )
+    return undefined
+  return open.start_time
+}
+
+/** Remembers a "still on it" answer for `interval`. */
+export function useOvernightAnswer(interval: string | null) {
+  const [answered, setAnswered] = useState(readOvernightAnswer)
+  return {
+    stillWorking: interval !== null && answered === interval,
+    confirm: () => {
+      if (!interval) return
+      localStorage.setItem(overnightStorageKey, interval)
+      setAnswered(interval)
+    },
+  }
 }

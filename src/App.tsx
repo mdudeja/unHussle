@@ -9,7 +9,11 @@ import {
   SidebarTrigger,
 } from '@/components/ui/sidebar'
 import { TooltipProvider } from '@/components/ui/tooltip'
-import { AppSidebarComponent, EntityEditDialogHost } from '@/components/app'
+import {
+  AppSidebarComponent,
+  EntityEditDialogHost,
+  OvernightDialogHost,
+} from '@/components/app'
 import { Logger } from '@c/Logger'
 import { WorkflowInspector } from '@/components/dev/WorkflowInspector'
 
@@ -51,6 +55,7 @@ function App() {
           <WorkflowWarnings />
           <Outlet />
           <EntityEditDialogHost />
+          <OvernightDialogHost />
           {import.meta.env.DEV && <WorkflowInspector />}
         </SidebarInset>
       </SidebarProvider>

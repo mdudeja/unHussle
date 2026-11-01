@@ -1,5 +1,9 @@
 import { Ban, CheckCircle2, Pause, Play } from 'lucide-react'
-import { ProgressStatus, Task } from '@c/types/index'
+import { ProgressStatus } from '@c/types/index'
+import type { HydratedTask } from '@c/types/Hydrated'
+import { useStore } from '@/store'
+import type { OvernightPrompt } from '@/store/slices/createUISlice'
+import { overnightStart } from '@/workflows/schedulerHooks'
 import {
   cancelTask,
   completeTask,
@@ -8,7 +12,18 @@ import {
 } from '@/workflows/taskCommands'
 import type { EntityAction } from './types'
 
-type TaskLike = Pick<Task['Read'], 'id' | 'status'>
+type TaskLike = Pick<HydratedTask, 'id' | 'status' | 'timeEntries'>
+
+/**
+ * Work running since an earlier day asks when the user stopped before an
+ * action that would count the whole night. Returns whether it asked.
+ */
+const askedOvernight = (task: TaskLike, then: OvernightPrompt['then']) => {
+  const startedAt = overnightStart(task)
+  if (startedAt === undefined) return false
+  useStore.getState().askOvernight({ taskId: task.id, startedAt, then })
+  return true
+}
 
 const isClosed = (task: TaskLike) =>
   task.status === ProgressStatus.COMPLETED ||
@@ -29,7 +44,8 @@ export const useTaskActions = <T extends TaskLike>(): EntityAction<T>[] => [
     label: 'Pause',
     icon: Pause,
     variant: 'outline',
-    run: (task) => pauseTask(task.id),
+    run: (task) =>
+      askedOvernight(task, 'pause') ? undefined : pauseTask(task.id),
     isVisible: (task) => task.status === ProgressStatus.IN_PROGRESS,
   },
   {
@@ -37,7 +53,8 @@ export const useTaskActions = <T extends TaskLike>(): EntityAction<T>[] => [
     label: 'Complete',
     icon: CheckCircle2,
     variant: 'outline',
-    run: (task) => completeTask(task.id),
+    run: (task) =>
+      askedOvernight(task, 'complete') ? undefined : completeTask(task.id),
     isVisible: (task) => !isClosed(task),
   },
   {
@@ -45,7 +62,8 @@ export const useTaskActions = <T extends TaskLike>(): EntityAction<T>[] => [
     label: 'Cancel',
     icon: Ban,
     variant: 'outline',
-    run: (task) => cancelTask(task.id),
+    run: (task) =>
+      askedOvernight(task, 'cancel') ? undefined : cancelTask(task.id),
     isVisible: (task) => !isClosed(task),
     confirm: {
       title: 'Cancel this task?',

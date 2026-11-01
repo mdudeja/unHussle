@@ -242,7 +242,10 @@ CREATE TABLE `day_plans` (
 	`timezone` text NOT NULL,
 	`revision` integer DEFAULT 1 NOT NULL,
 	`stale` integer DEFAULT false NOT NULL,
-	`conflicts` text NOT NULL
+	`conflicts` text NOT NULL,
+	`break_started_at` integer,
+	`wrap_reason` text,
+	`auto_wrap` integer DEFAULT true NOT NULL
 );
 --> statement-breakpoint
 CREATE INDEX `day_plans_date_idx` ON `day_plans` (`date`);--> statement-breakpoint

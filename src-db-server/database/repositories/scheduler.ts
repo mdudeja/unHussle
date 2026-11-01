@@ -19,6 +19,7 @@ import {
   MINUTE_MS,
 } from '@c/datetimeUtils'
 import type {
+  DayPlan,
   PlanEntry,
   SchedulerSettings,
   SchedulerTask,
@@ -310,10 +311,7 @@ export function readOpenIntervals(tx: ScheduleTx) {
       .from(timeEntries)
       .where(isNull(timeEntries.end_time))
       .all()
-      .map((entry) => [
-        intervalKey(entry.task_id, entry.occurrence_id),
-        entry,
-      ]),
+      .map((entry) => [intervalKey(entry.task_id, entry.occurrence_id), entry]),
   )
 }
 export const intervalKey = (taskId: string, occurrenceId: string | null) =>
@@ -390,9 +388,14 @@ export function writePlan(
     revision: number
     conflicts: string[]
     entries: PlanEntry[]
-  },
+  } & Pick<DayPlan, 'breakStartedAt' | 'wrapReason' | 'autoWrap'>,
 ) {
   const { id, date, timezone, revision, conflicts } = plan
+  const mode = {
+    breakStartedAt: plan.breakStartedAt,
+    wrapReason: plan.wrapReason,
+    autoWrap: plan.autoWrap,
+  }
   // Occurrences are materialized when their day is saved.
   const occurrences = plan.entries.flatMap((entry) =>
     entry.occurrenceId
@@ -409,10 +412,10 @@ export function writePlan(
   if (occurrences.length)
     tx.insert(taskOccurrences).values(occurrences).onConflictDoNothing().run()
   tx.insert(dayPlans)
-    .values({ id, date, timezone, revision, stale: false, conflicts })
+    .values({ id, date, timezone, revision, stale: false, conflicts, ...mode })
     .onConflictDoUpdate({
       target: dayPlans.id,
-      set: { revision, stale: false, conflicts },
+      set: { revision, stale: false, conflicts, ...mode },
     })
     .run()
   tx.delete(planItems).where(eq(planItems.planId, id)).run()

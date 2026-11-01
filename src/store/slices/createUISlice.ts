@@ -6,6 +6,13 @@ import { Logger } from '@c/Logger'
 // The entity shown in the global edit dialog (see EntityEditDialogHost).
 export type EditingEntity = { kind: EntityRouteKey; id: string }
 
+// A task action waiting on "did you stop at some point?" (see OvernightDialogHost).
+export type OvernightPrompt = {
+  taskId: string
+  startedAt: number
+  then: 'pause' | 'complete' | 'cancel'
+}
+
 export interface UISlice {
   isDBReady: boolean
   dbError?: string
@@ -18,6 +25,9 @@ export interface UISlice {
   editing: EditingEntity | null
   openEditor: (kind: EntityRouteKey, id: string) => void
   closeEditor: () => void
+  overnightPrompt: OvernightPrompt | null
+  askOvernight: (prompt: OvernightPrompt) => void
+  closeOvernight: () => void
 }
 
 export const createUISlice: StateCreator<UISlice> = (set) => ({
@@ -73,4 +83,7 @@ export const createUISlice: StateCreator<UISlice> = (set) => ({
   editing: null,
   openEditor: (kind, id) => set({ editing: { kind, id } }),
   closeEditor: () => set({ editing: null }),
+  overnightPrompt: null,
+  askOvernight: (prompt) => set({ overnightPrompt: prompt }),
+  closeOvernight: () => set({ overnightPrompt: null }),
 })

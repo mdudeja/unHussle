@@ -368,11 +368,15 @@ export function createFrontendRuntime(
         const operation = operations.begin(operationId, [event])
         traces.set(operationId, { traceId, parentId: trace?.spanId })
         try {
-          // Ordinary task tracking remains serialized with occurrence transitions.
+          // Ordinary task tracking remains serialized with occurrence
+          // transitions; a break pauses the tracked task like any other.
           if (
-            command === 'occurrence.transition' &&
-            'status' in input &&
-            input.status === ProgressStatus.IN_PROGRESS
+            (command === 'occurrence.transition' &&
+              'status' in input &&
+              input.status === ProgressStatus.IN_PROGRESS) ||
+            (command === 'scheduler.mode.change' &&
+              'change' in input &&
+              input.change === 'startBreak')
           ) {
             const session = tracking.getActiveTracking()
             if (session)
@@ -400,6 +404,16 @@ export function createFrontendRuntime(
               { traceId },
             )
             await invalidate(operationId, schedulerEventDependencies[event])
+          }
+          // A corrected one-off interval has stopped, so its session ends too.
+          if (
+            command === 'tracking.stop' &&
+            'taskId' in input &&
+            !input.occurrenceId &&
+            tracking.getActiveTracking()?.taskId === input.taskId
+          ) {
+            tracking.clear()
+            await context.publishTracking()
           }
           return result
         } finally {

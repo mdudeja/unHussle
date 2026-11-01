@@ -1,4 +1,4 @@
-import { eq, isNull, sql } from 'drizzle-orm'
+import { and, eq, isNull, sql } from 'drizzle-orm'
 import { MINUTE_MS } from '@c/datetimeUtils'
 import { ProgressStatus } from '@c/types'
 import type { ScheduleTx } from '@d/database/repositories/scheduler'
@@ -71,4 +71,40 @@ export function trackInterval(
       .values({ attachedToId: taskId, refId: id })
       .run()
   }
+}
+
+/**
+ * Closes every open interval and pauses its task or occurrence, e.g. when a
+ * break starts.
+ */
+export function pauseOpenWork(tx: ScheduleTx, now: number) {
+  const open = tx
+    .select()
+    .from(timeEntries)
+    .where(isNull(timeEntries.end_time))
+    .all()
+  for (const entry of open)
+    pauseInterval(tx, entry.task_id, entry.occurrence_id, now)
+}
+
+/** Closes a task's (or occurrence's) open interval at `at` and pauses it. */
+export function pauseInterval(
+  tx: ScheduleTx,
+  taskId: string,
+  occurrenceId: string | null,
+  at: number,
+) {
+  trackInterval(tx, taskId, occurrenceId, ProgressStatus.PAUSED, at)
+  if (occurrenceId)
+    tx.update(taskOccurrences)
+      .set({ status: ProgressStatus.PAUSED })
+      .where(eq(taskOccurrences.id, occurrenceId))
+      .run()
+  else
+    tx.update(tasks)
+      .set({ status: ProgressStatus.PAUSED })
+      .where(
+        and(eq(tasks.id, taskId), eq(tasks.status, ProgressStatus.IN_PROGRESS)),
+      )
+      .run()
 }

@@ -18,8 +18,10 @@ import { t } from 'elysia'
 import { AnchorType, ProgressStatus, Priority } from '@c/types/index'
 import {
   adjustActions,
+  dayModeChanges,
   planRuleNames,
   scheduleCues,
+  wrapReasons,
 } from '@c/scheduler/contracts'
 import { Type } from '@sinclair/typebox'
 
@@ -177,6 +179,7 @@ export const schedulerSettingsSchema = createSelectSchema(schedulerSettings, {
     quickMinutes: t.Number(),
     starterMinutes: t.Number(),
     longMinutes: t.Number(),
+    wrapMinutes: t.Number(),
     overrides: t.Record(
       t.String(),
       t.Object({ ...schedulerWindow, workMinutes: t.Optional(t.Number()) }),
@@ -198,6 +201,7 @@ export const selectDayPlanBaseSchema = createSelectSchema(dayPlans, {
   date: calendarDate,
   revision: t.Integer({ minimum: 0 }),
   conflicts: t.Array(t.String()),
+  wrapReason: t.Union([t.UnionEnum(wrapReasons), t.Null()]),
 })
 export const selectPlanItemSchema = createSelectSchema(planItems)
 export const selectOccurrenceSchema = createSelectSchema(taskOccurrences)
@@ -218,12 +222,22 @@ export const replanSchema = t.Object({
   ...generatePlanSchema.properties,
   cue: t.Optional(t.UnionEnum(scheduleCues)),
 })
+export const changeModeSchema = t.Object({
+  ...generatePlanSchema.properties,
+  change: t.UnionEnum(dayModeChanges),
+  reason: t.Optional(t.UnionEnum(wrapReasons)),
+})
 export const adjustPlanSchema = t.Object({
   ...generatePlanSchema.properties,
   itemId: selectPlanItemSchema.properties.itemId,
   action: t.UnionEnum(adjustActions),
   until: t.Optional(insertOverrideSchema.properties.availableDate),
   position: t.Optional(selectPlanItemSchema.properties.position),
+})
+export const stopTrackingSchema = t.Object({
+  taskId: selectTimeEntriesSchema.properties.task_id,
+  occurrenceId: selectTimeEntriesSchema.properties.occurrence_id,
+  at: t.Number(),
 })
 export const transitionOccurrenceSchema = t.Object({
   id: selectOccurrenceSchema.properties.id,

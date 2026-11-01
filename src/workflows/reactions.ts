@@ -33,8 +33,16 @@ export const schedulerEventDependencies: Record<
   QueryDependency[]
 > = {
   'scheduler.changed': ['schedule'],
+  // Starting a break pauses running work, which changes its tracked time.
+  'scheduler.mode.changed': [
+    'schedule',
+    'occurrences',
+    'tasks',
+    'time_entries',
+  ],
   'scheduler.settings.changed': ['schedule', 'schedulerSettings'],
   'occurrence.changed': ['schedule', 'occurrences', 'tasks', 'time_entries'],
+  'tracking.stopped': ['schedule', 'occurrences', 'tasks', 'time_entries'],
 }
 
 const setRows = (

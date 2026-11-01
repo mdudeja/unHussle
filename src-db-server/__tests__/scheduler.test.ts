@@ -910,8 +910,7 @@ describe('Scheduler maintenance actions', () => {
     const id = await f.add({ title: 'A' })
     await f.generate()
     const stale = () => readDay(f.db, date, timezone, f.now()).stale
-    const reset = () =>
-      f.db.update(dayPlans).set({ stale: false }).run()
+    const reset = () => f.db.update(dayPlans).set({ stale: false }).run()
     await f.runtime.commands.execute('entity.change', {
       kind: 'tasks',
       action: 'update',
@@ -952,7 +951,10 @@ describe('Scheduler maintenance actions', () => {
     ).rejects.toThrow('Scheduled end')
     expect(f.db.select().from(tasks).all()).toHaveLength(0)
     expect(f.db.select().from(timeEntries).all()).toHaveLength(0)
-    const id = await f.add({ title: 'Started', status: ProgressStatus.IN_PROGRESS })
+    const id = await f.add({
+      title: 'Started',
+      status: ProgressStatus.IN_PROGRESS,
+    })
     const started = f.db.select().from(tasks).where(eq(tasks.id, id)).get()
     expect(started?.started_at).toBe(f.now())
     expect(f.db.select().from(timeEntries).all()).toHaveLength(1)
@@ -992,6 +994,171 @@ describe('Scheduler maintenance actions', () => {
         .where(eq(taskOccurrences.id, `${id}:${date}:1`))
         .get(),
     ).toBeUndefined()
+    f.runtime.dispose()
+  })
+})
+
+describe('Day modes', () => {
+  const mode = (
+    f: Awaited<ReturnType<typeof fixture>>,
+    change: 'startBreak' | 'endBreak' | 'startWrap',
+    reason?: 'manual' | 'lastTask' | 'windDown',
+  ) =>
+    f.runtime.commands.execute('scheduler.mode.change', {
+      date,
+      timezone,
+      change,
+      ...(reason ? { reason } : {}),
+    })
+
+  test('a break pauses running work, plans an easy return and ends without re-planning', async () => {
+    const f = await fixture()
+    const long = await f.add({ title: 'Long', estimated_minutes: 60 })
+    const quick = await f.add({ title: 'Quick', is_quick: true })
+    await f.generate()
+    await f.runtime.commands.execute('entity.change', {
+      kind: 'tasks',
+      action: 'update',
+      id: long,
+      changes: { status: ProgressStatus.IN_PROGRESS },
+    })
+    f.advance(20)
+    const onBreak = await mode(f, 'startBreak')
+    expect(onBreak.breakStartedAt).toBe(f.now())
+    const paused = f.db.select().from(tasks).where(eq(tasks.id, long)).get()
+    expect(paused?.status).toBe(ProgressStatus.PAUSED)
+    expect(paused?.spent_minutes).toBe(20)
+    expect(
+      f.db
+        .select()
+        .from(timeEntries)
+        .all()
+        .every((e) => e.end_time !== null),
+    ).toBe(true)
+    expect(nextTask(onBreak, f.now()).item?.taskId).toBe(quick)
+
+    // Starting a break twice changes nothing.
+    expect((await mode(f, 'startBreak')).revision).toBe(onBreak.revision)
+
+    f.advance(15)
+    const back = await mode(f, 'endBreak')
+    expect(back.breakStartedAt).toBeNull()
+    expect(back.entries.map((e) => e.id)).toEqual(
+      onBreak.entries.map((e) => e.id),
+    )
+    expect(readDay(f.db, date, timezone, f.now()).breakStartedAt).toBeNull()
+    f.runtime.dispose()
+  })
+
+  test('wrapping up keeps only chores until the user pulls more', async () => {
+    const f = await fixture()
+    await f.add({ title: 'Report' })
+    const dishes = await f.add({ title: 'Dishes', is_chore: true })
+    await f.generate()
+
+    const wrapped = await mode(f, 'startWrap')
+    expect(wrapped.wrapReason).toBe('manual')
+    expect(wrapped.entries.map((e) => e.taskId)).toEqual([dishes])
+
+    // Rescheduling while wrapping up stays chores-only.
+    const rescheduled = await f.runtime.commands.execute('scheduler.replan', {
+      date,
+      timezone,
+    })
+    expect(rescheduled.entries.map((e) => e.taskId)).toEqual([dishes])
+
+    const more = await f.runtime.commands.execute('scheduler.replan', {
+      date,
+      timezone,
+      cue: 'more',
+    })
+    expect(more.wrapReason).toBeNull()
+    expect(more.autoWrap).toBe(false)
+    expect(more.entries).toHaveLength(2)
+
+    // After pulling more, automatic wrap-up is ignored; a manual one still works.
+    expect((await mode(f, 'startWrap', 'windDown')).wrapReason).toBeNull()
+    expect((await mode(f, 'startWrap')).wrapReason).toBe('manual')
+    f.runtime.dispose()
+  })
+
+  test('automatic wrap-up never interrupts a break', async () => {
+    const f = await fixture()
+    await f.add({ title: 'Report' })
+    await f.generate()
+    await mode(f, 'startBreak')
+    const result = await mode(f, 'startWrap', 'lastTask')
+    expect(result.wrapReason).toBeNull()
+    expect(result.breakStartedAt).not.toBeNull()
+    f.runtime.dispose()
+  })
+
+  test('settings saved before wrapMinutes existed read with its default', async () => {
+    const f = await fixture()
+    const legacy: Record<string, unknown> = { ...defaultSchedulerSettings }
+    delete legacy.wrapMinutes
+    f.db.run(
+      sql`INSERT INTO scheduler_settings (id, settings) VALUES ('default', ${JSON.stringify(legacy)})`,
+    )
+    expect(readSettings(f.db).wrapMinutes).toBe(30)
+    f.runtime.dispose()
+  })
+})
+
+describe('Work carried across days', () => {
+  test('a task paused yesterday is resumed ahead of older untouched work', async () => {
+    const f = await fixture()
+    await f.runtime.commands.execute('scheduler.settings.change', {
+      settings: { ...defaultSchedulerSettings, sleep: '08:00', overrides: {} },
+    })
+    await f.add({ title: 'Older A', estimated_minutes: 30 })
+    await f.add({ title: 'Older B', estimated_minutes: 30 })
+    const started = await f.add({ title: 'Started', estimated_minutes: 60 })
+    await f.generate()
+    for (const status of [ProgressStatus.IN_PROGRESS, ProgressStatus.PAUSED]) {
+      await f.runtime.commands.execute('entity.change', {
+        kind: 'tasks',
+        action: 'update',
+        id: started,
+        changes: { status },
+      })
+      f.advance(30)
+    }
+    f.advance(23 * 60)
+    const tomorrow = await f.runtime.commands.execute('scheduler.generate', {
+      date: '2026-11-03',
+      timezone,
+    })
+    expect(tomorrow.entries[0].taskId).toBe(started)
+    expect(tomorrow.entries[0].minutes).toBe(30)
+    f.runtime.dispose()
+  })
+
+  test('tracking.stop closes a running interval at the time the user gives', async () => {
+    const f = await fixture()
+    const id = await f.add({ title: 'Essay' })
+    await f.runtime.commands.execute('entity.change', {
+      kind: 'tasks',
+      action: 'update',
+      id,
+      changes: { status: ProgressStatus.IN_PROGRESS },
+    })
+    const started = f.now()
+    f.advance(24 * 60)
+    const stop = (at: number) =>
+      f.runtime.commands.execute('tracking.stop', {
+        taskId: id,
+        occurrenceId: null,
+        at,
+      })
+    await expect(stop(started - 1)).rejects.toThrow('between')
+    await expect(stop(f.now() + 1)).rejects.toThrow('between')
+    const entry = await stop(started + 90 * 60000)
+    expect(entry.end_time).toBe(started + 90 * 60000)
+    const task = f.db.select().from(tasks).where(eq(tasks.id, id)).get()
+    expect(task?.status).toBe(ProgressStatus.PAUSED)
+    expect(task?.spent_minutes).toBe(90)
+    await expect(stop(f.now())).rejects.toThrow('no longer running')
     f.runtime.dispose()
   })
 })

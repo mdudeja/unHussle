@@ -6,6 +6,7 @@ import type {
   ProgressStatus,
   SchedulerDayPlan,
   TaskOccurrence,
+  TimeEntry,
 } from '@c/types'
 
 export const scheduleCues = ['fresh', 'break', 'wrap', 'more'] as const
@@ -17,12 +18,15 @@ export const planRuleNames = [
   'preScheduled',
   'recurringOccurrences',
   'urgentCandidates',
+  'resumePaused',
   'dueSoon',
   'priorityRanking',
   'dueDateRanking',
   'oldestFirst',
+  'wrapChores',
   // Arrangers: reorder the stack without changing its membership.
   'starterTask',
+  'easyReturn',
   'shortChore',
   'quickOrFunBetweenLong',
   'choresLast',
@@ -40,6 +44,8 @@ export type SchedulerSettings = SchedulerWindow & {
   quickMinutes: number
   starterMinutes: number
   longMinutes: number
+  /** How long before wind-down, or before the last task ends, wrap-up starts. */
+  wrapMinutes: number
   overrides: Record<string, SchedulerWindow & { workMinutes?: number }>
   /** Per-cue rule order, merged over the default registry. */
   rules?: Partial<PlanRuleRegistry>
@@ -54,6 +60,7 @@ export const defaultSchedulerSettings: SchedulerSettings = {
   quickMinutes: 5,
   starterMinutes: 15,
   longMinutes: 45,
+  wrapMinutes: 30,
   overrides: {},
 }
 
@@ -117,6 +124,12 @@ type PlanInput = Pick<DayPlan, 'date' | 'timezone'> &
   Partial<Pick<DayPlan, 'revision'>> & {
     operationId?: string
   }
+/** Why a day is wrapping up: chosen by the user, or started automatically. */
+export const wrapReasons = ['manual', 'lastTask', 'windDown'] as const
+export type WrapReason = (typeof wrapReasons)[number]
+export const dayModeChanges = ['startBreak', 'endBreak', 'startWrap'] as const
+export type DayModeChange = (typeof dayModeChanges)[number]
+
 export const adjustActions = ['later', 'defer', 'pin', 'move'] as const
 export type AdjustAction = (typeof adjustActions)[number]
 export type SchedulerCommands = {
@@ -134,6 +147,10 @@ export type SchedulerCommands = {
     }
     result: DayPlan
   }
+  'scheduler.mode.change': {
+    input: PlanInput & { change: DayModeChange; reason?: WrapReason }
+    result: DayPlan
+  }
   'scheduler.settings.change': {
     input: { settings: SchedulerSettings; operationId?: string }
     result: SchedulerSettings
@@ -146,6 +163,16 @@ export type SchedulerCommands = {
     }
     result: OccurrenceState
   }
+  /** Closes a running interval at the time the user says they stopped. */
+  'tracking.stop': {
+    input: {
+      taskId: TimeEntry['Read']['task_id']
+      occurrenceId: TimeEntry['Read']['occurrence_id']
+      at: number
+      operationId?: string
+    }
+    result: TimeEntry['Read']
+  }
 }
 export type SchedulerEvent = {
   operationId: string
@@ -154,8 +181,10 @@ export type SchedulerEvent = {
 }
 export type SchedulerEvents = {
   'scheduler.changed': SchedulerEvent
+  'scheduler.mode.changed': SchedulerEvent
   'scheduler.settings.changed': SchedulerEvent
   'occurrence.changed': SchedulerEvent
+  'tracking.stopped': SchedulerEvent
 }
 
 /** The event each scheduler command publishes after it commits. */
@@ -163,8 +192,10 @@ export const schedulerCommandEvents = {
   'scheduler.generate': 'scheduler.changed',
   'scheduler.replan': 'scheduler.changed',
   'scheduler.adjust': 'scheduler.changed',
+  'scheduler.mode.change': 'scheduler.mode.changed',
   'scheduler.settings.change': 'scheduler.settings.changed',
   'occurrence.transition': 'occurrence.changed',
+  'tracking.stop': 'tracking.stopped',
 } as const satisfies Record<keyof SchedulerCommands, keyof SchedulerEvents>
 
 export const schedulerCommandNames = Object.keys(

@@ -132,6 +132,19 @@ export const planRules: { [K in PlanRuleName]?: PlanRule } = {
     pick(urgent, { required: true, reason: 'Due today' })
   },
 
+  /** One-off work paused earlier (or on an earlier day) is resumed before new work. */
+  resumePaused: (_name, { remaining, pick }) => {
+    pick(
+      sorted(
+        remaining.filter(
+          (entry) => entry.status === 'paused' && entry.occurrenceId === null,
+        ),
+        byPriority,
+      ),
+      { reason: 'You started this earlier' },
+    )
+  },
+
   dueSoon: (_name, { remaining, urgencyOf, pick }) => {
     pick(
       sorted(
@@ -160,9 +173,25 @@ export const planRules: { [K in PlanRuleName]?: PlanRule } = {
     pick(sorted(remaining, byAge))
   },
 
+  /** While wrapping up, only chores join the stack: most urgent first. */
+  wrapChores: (_name, { remaining, urgencyOf, pick }) => {
+    pick(
+      sorted(
+        remaining.filter((entry) => entry.isChore),
+        (a, b) => urgencyOf(a) - urgencyOf(b) || byPriority(a, b),
+      ),
+      { reason: 'A chore to wrap up the day' },
+    )
+  },
+
   starterTask: leadWith(
     (entry) => entry.isFun || entry.isQuick,
     'An easy starting point',
+  ),
+
+  easyReturn: leadWith(
+    (entry) => entry.isFun || entry.isQuick,
+    'An easy way back in after your break',
   ),
 
   shortChore: leadWith(

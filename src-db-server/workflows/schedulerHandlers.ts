@@ -13,6 +13,14 @@ export const schedulerHandlerRegistry: Record<
   'scheduler.generate': [...loadDay, 'keepSaved', 'buildPlan', 'savePlan'],
   'scheduler.replan': [...loadDay, 'buildPlan', 'savePlan'],
   'scheduler.adjust': [...loadDay, 'adjustPlan', 'checkAnchors', 'savePlan'],
+  'scheduler.mode.change': [
+    ...loadDay,
+    'changeMode',
+    'pauseForBreak',
+    'buildPlan',
+    'savePlan',
+  ],
   'scheduler.settings.change': ['saveSettings'],
   'occurrence.transition': ['transitionOccurrence', 'trackOccurrenceInterval'],
+  'tracking.stop': ['stopTracking'],
 }

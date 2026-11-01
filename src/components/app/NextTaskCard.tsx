@@ -7,14 +7,24 @@ import { Badge } from '@/components/ui/badge'
 import { Input } from '@/components/ui/input'
 import { Label } from '@/components/ui/label'
 import { nextTask } from '@c/scheduler/engine'
+import {
+  dayModeOf,
+  runningSinceEarlierDay,
+  windDownOf,
+} from '@c/scheduler/dayMode'
+import { OvernightCheck } from './OvernightCheck'
 import { ProgressStatus } from '@c/types'
 import { formatTimeDuration } from '@c/datetimeUtils'
 import {
   useTodayPlan,
   useSchedulerAction,
   useSchedulerClock,
+  useSkippedTasks,
+  useOvernightAnswer,
+  overnightKey,
+  suggestedStop,
 } from '@/workflows/schedulerHooks'
-import type { PlanEntry } from '@c/scheduler/contracts'
+import type { DayModeChange, DayPlan, PlanEntry } from '@c/scheduler/contracts'
 import { useWorkflowRuntime } from '@/workflows/hooks'
 import { startTask, pauseTask, completeTask } from '@/workflows/taskCommands'
 import { TaskTimerComponent } from './TaskTimer'
@@ -38,6 +48,20 @@ const OccurrenceTimer = ({
   )
 }
 
+const timeOf = (millis: number) =>
+  new Date(millis).toLocaleTimeString([], {
+    hour: '2-digit',
+    minute: '2-digit',
+  })
+
+/** Says why the day is wrapping up, so the switch to chores never surprises. */
+const wrapMessage = (plan: DayPlan) =>
+  plan.wrapReason === 'windDown'
+    ? `You usually wind down at ${timeOf(windDownOf(plan))}, so it’s chores from here.`
+    : plan.wrapReason === 'lastTask'
+      ? 'You’re on your last task, so only chores are left after it.'
+      : 'You’re wrapping up, so only chores are left.'
+
 export const NextTaskCardComponent = () => {
   const {
     data: plan,
@@ -52,12 +76,36 @@ export const NextTaskCardComponent = () => {
   } = useTodayPlan()
   const runtime = useWorkflowRuntime()
   const { run, busy, error } = useSchedulerAction()
-  const [bypass, setBypass] = useState<string>()
+  const { skipped, skip, clear: clearSkipped } = useSkippedTasks(date)
   const [showDeferral, setShowDeferral] = useState(false)
   const [until, setUntil] = useState('')
-  const selection = plan?.saved ? nextTask(plan, now, bypass) : null
-  const item = selection?.item
+  const selection = plan?.saved ? nextTask(plan, now, skipped) : null
+  const mode = plan?.saved ? dayModeOf(plan) : 'normal'
+  const onBreak = mode === 'break'
+  // On a break the card shows the break; the next task is only a peek.
+  const item = onBreak ? undefined : selection?.item
   const active = item?.status === 'in_progress'
+  const overnight =
+    item && runningSinceEarlierDay(item, date, timezone) ? item : undefined
+  const { stillWorking, confirm } = useOvernightAnswer(
+    overnight?.startedAt !== undefined
+      ? overnightKey(
+          overnight.taskId,
+          overnight.occurrenceId,
+          overnight.startedAt,
+        )
+      : null,
+  )
+  const askOvernight = overnight?.startedAt !== undefined && !stillWorking
+  const stopAt = (at: number) =>
+    run(async () => {
+      if (!overnight) return
+      await runtime.commands.execute('tracking.stop', {
+        taskId: overnight.taskId,
+        occurrenceId: overnight.occurrenceId,
+        at,
+      })
+    })
   const replan = (cue: 'fresh' | 'break' | 'wrap' | 'more') =>
     run(async () => {
       await runtime.commands.execute('scheduler.replan', {
@@ -66,7 +114,17 @@ export const NextTaskCardComponent = () => {
         revision: plan?.revision,
         cue,
       })
-      setBypass(undefined)
+      clearSkipped()
+    })
+  const changeMode = (change: DayModeChange) =>
+    run(async () => {
+      await runtime.commands.execute('scheduler.mode.change', {
+        date,
+        timezone,
+        change,
+      })
+      // Starting a break or wrap-up re-plans the stack.
+      if (change !== 'endBreak') clearSkipped()
     })
   const transition = (status: ProgressStatus) =>
     run(async () => {
@@ -82,7 +140,6 @@ export const NextTaskCardComponent = () => {
           : status === ProgressStatus.PAUSED
             ? pauseTask(item.taskId)
             : completeTask(item.taskId))
-      setBypass(undefined)
     })
   const adjust = (action: 'later' | 'defer') =>
     run(async () => {
@@ -96,30 +153,34 @@ export const NextTaskCardComponent = () => {
         ...(action === 'defer' ? { until: until || tomorrow } : {}),
       })
       setShowDeferral(false)
-      setBypass(undefined)
     })
   return (
     <Card className="w-full max-w-2xl mx-auto border-primary/30">
       <CardHeader>
         <div className="flex justify-between items-center gap-4">
-          <span className="text-sm text-muted-foreground">
-            {active ? 'Current focus' : 'Next up'}
+          <span className="flex items-center gap-2 text-sm text-muted-foreground">
+            {onBreak ? 'Break time' : active ? 'Current focus' : 'Next up'}
+            {mode === 'wrap' && <Badge variant="secondary">Wrapping up</Badge>}
           </span>
-          <Button
-            variant="ghost"
-            size="sm"
-            disabled={busy}
-            onClick={() => replan('fresh')}
-          >
-            <RefreshCw className="size-4 mr-2" />
-            Reschedule
-          </Button>
+          {!onBreak && (
+            <Button
+              variant="ghost"
+              size="sm"
+              disabled={busy}
+              onClick={() => replan('fresh')}
+            >
+              <RefreshCw className="size-4 mr-2" />
+              Reschedule
+            </Button>
+          )}
         </div>
         <CardTitle className="text-2xl">
-          {item?.title ??
-            (isLoading || !plan?.saved
-              ? 'Preparing your stack…'
-              : 'A little breathing room')}
+          {onBreak
+            ? 'On a break ☕'
+            : (item?.title ??
+              (isLoading || !plan?.saved
+                ? 'Preparing your stack…'
+                : 'A little breathing room'))}
         </CardTitle>
       </CardHeader>
       <CardContent className="space-y-5">
@@ -143,13 +204,44 @@ export const NextTaskCardComponent = () => {
             </Button>
           </div>
         )}
-        {selection?.upcoming && (
+        {plan && mode === 'wrap' && (
+          <div className="flex items-center justify-between gap-2 flex-wrap rounded-md bg-muted px-3 py-2 text-sm">
+            <span>{wrapMessage(plan)}</span>
+            <Button
+              variant="ghost"
+              size="sm"
+              disabled={busy}
+              onClick={() => replan('more')}
+            >
+              Pull more tasks
+            </Button>
+          </div>
+        )}
+        {onBreak ? (
+          <div className="space-y-3">
+            <p className="text-sm text-muted-foreground">
+              Take all the time you need. Everything will be right here when you
+              get back.
+            </p>
+            <Button disabled={busy} onClick={() => changeMode('endBreak')}>
+              I’m back
+            </Button>
+            {selection?.item && (
+              <details className="text-sm text-muted-foreground">
+                <summary className="cursor-pointer">
+                  Peek at what’s next
+                </summary>
+                <p className="mt-2">
+                  When you come back: {selection.item.title}
+                </p>
+              </details>
+            )}
+          </div>
+        ) : null}
+        {!onBreak && selection?.upcoming && (
           <p className="text-sm text-muted-foreground">
             Upcoming: {selection.upcoming.title} at{' '}
-            {new Date(selection.upcoming.fixedStart ?? now).toLocaleTimeString([], {
-              hour: '2-digit',
-              minute: '2-digit',
-            })}
+            {timeOf(selection.upcoming.fixedStart ?? now)}
           </p>
         )}
         {item ? (
@@ -160,7 +252,21 @@ export const NextTaskCardComponent = () => {
               {item.isChore && <Badge variant="outline">Chore</Badge>}
               {item.occurrenceId && <Badge variant="outline">Recurring</Badge>}
             </div>
-            <div className="flex gap-2 flex-wrap">
+            {askOvernight && overnight?.startedAt !== undefined && plan && (
+              <OvernightCheck
+                startedAt={overnight.startedAt}
+                suggestedStop={suggestedStop(
+                  overnight.startedAt,
+                  plan.timezone,
+                  plan.settings,
+                )}
+                busy={busy}
+                stillWorkingLabel="Yes, I’m still on it"
+                onStillWorking={confirm}
+                onStopped={stopAt}
+              />
+            )}
+            <div className={askOvernight ? 'hidden' : 'flex gap-2 flex-wrap'}>
               <Button
                 disabled={busy}
                 onClick={() =>
@@ -211,7 +317,7 @@ export const NextTaskCardComponent = () => {
                   variant="ghost"
                   size="sm"
                   disabled={busy}
-                  onClick={() => setBypass(item.id)}
+                  onClick={() => skip(item.id)}
                 >
                   Do something else
                 </Button>
@@ -266,27 +372,30 @@ export const NextTaskCardComponent = () => {
             </details>
           </>
         ) : (
-          plan?.saved && (
+          plan?.saved &&
+          !onBreak && (
             <div className="space-y-3">
               <Coffee className="size-8 text-primary" />
               <p className="text-sm text-muted-foreground">
                 {selection?.upcoming
                   ? 'There is no suitable task before your next appointment.'
-                  : bypass
-                    ? 'No other task is ready right now.'
-                    : plan.entries.some((i) =>
-                          ['planned', 'paused'].includes(i.status),
-                        )
-                      ? 'Your remaining tasks will be available later.'
-                      : plan.backlogCount > 0
-                        ? 'Other tasks remain, but none fit this stack’s capacity or constraints.'
-                        : plan.entries.length === 0
-                          ? 'No tasks are ready yet. Capture something below whenever you like.'
-                          : 'You’ve reached the end of this stack.'}
+                  : skipped.size
+                    ? 'You’ve set the other ready tasks aside for now.'
+                    : mode === 'wrap'
+                      ? 'No chores left. That’s a wrap for today.'
+                      : plan.entries.some((i) =>
+                            ['planned', 'paused'].includes(i.status),
+                          )
+                        ? 'Your remaining tasks will be available later.'
+                        : plan.backlogCount > 0
+                          ? 'Other tasks remain, but none fit this stack’s capacity or constraints.'
+                          : plan.entries.length === 0
+                            ? 'No tasks are ready yet. Capture something below whenever you like.'
+                            : 'You’ve reached the end of this stack.'}
               </p>
-              {bypass && (
-                <Button variant="outline" onClick={() => setBypass(undefined)}>
-                  Show suggestion again
+              {!!skipped.size && (
+                <Button variant="outline" onClick={clearSkipped}>
+                  Show skipped tasks again
                 </Button>
               )}
               <Button
@@ -299,24 +408,29 @@ export const NextTaskCardComponent = () => {
             </div>
           )
         )}
-        <div className="flex gap-2 flex-wrap border-t pt-4">
-          <Button
-            variant="ghost"
-            size="sm"
-            disabled={busy || active}
-            onClick={() => replan('break')}
-          >
-            Taking a break
-          </Button>
-          <Button
-            variant="ghost"
-            size="sm"
-            disabled={busy || active}
-            onClick={() => replan('wrap')}
-          >
-            Wrapping up
-          </Button>
-        </div>
+        {plan?.saved && !onBreak && (
+          <div className="flex gap-2 flex-wrap border-t pt-4">
+            <Button
+              variant="ghost"
+              size="sm"
+              disabled={busy}
+              onClick={() => changeMode('startBreak')}
+            >
+              <Coffee className="size-4 mr-2" />
+              Taking a break
+            </Button>
+            {mode !== 'wrap' && (
+              <Button
+                variant="ghost"
+                size="sm"
+                disabled={busy}
+                onClick={() => changeMode('startWrap')}
+              >
+                Wrapping up
+              </Button>
+            )}
+          </div>
+        )}
         {plan?.entries.some(
           (i) =>
             i.fixedEnd !== null &&

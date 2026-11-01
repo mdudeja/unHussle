@@ -6,12 +6,14 @@ import type {
 } from './contracts'
 
 // Earlier pickers win capacity first, so this order is the user's workload
-// preference: commitments, then urgency, then priority, due date and age.
+// preference: commitments, then urgency, then work already started, then
+// priority, due date and age.
 const pickers = [
   'keepActive',
   'preScheduled',
   'recurringOccurrences',
   'urgentCandidates',
+  'resumePaused',
   'dueSoon',
   'priorityRanking',
   'dueDateRanking',
@@ -19,8 +21,6 @@ const pickers = [
 ] as const satisfies PlanRuleName[]
 
 // Arrangers only reorder what the pickers placed.
-const pause = ['shortChore', 'quickOrFunBetweenLong', 'restorePins'] as const
-
 export const planRuleRegistry: PlanRuleRegistry = {
   fresh: [
     ...pickers,
@@ -29,8 +29,16 @@ export const planRuleRegistry: PlanRuleRegistry = {
     'choresLast',
     'restorePins',
   ],
-  break: [...pickers, ...pause],
-  wrap: [...pickers, ...pause],
+  // Planned when a break starts, so the stack is ready on return.
+  break: [
+    ...pickers,
+    'easyReturn',
+    'quickOrFunBetweenLong',
+    'choresLast',
+    'restorePins',
+  ],
+  // Wrapping up keeps commitments and active work, then only chores.
+  wrap: ['keepActive', 'preScheduled', 'wrapChores', 'restorePins'],
   more: [...pickers, 'quickOrFunBetweenLong', 'choresLast', 'restorePins'],
 }
 

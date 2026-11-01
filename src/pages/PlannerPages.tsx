@@ -1,3 +1,4 @@
+import { dayModeOf } from '@c/scheduler/dayMode'
 import {
   getNowMillis,
   getLocalDateString,
@@ -123,6 +124,12 @@ function DayStack({
         <CardTitle className="flex gap-2 flex-wrap items-center">
           <Link to={`/day?date=${plan.date}`}>{plan.date}</Link>
           <Badge variant="outline">{plan.saved ? 'Saved' : 'Tentative'}</Badge>
+          {dayModeOf(plan) === 'break' && (
+            <Badge variant="secondary">On a break ☕</Badge>
+          )}
+          {dayModeOf(plan) === 'wrap' && (
+            <Badge variant="secondary">Wrapping up</Badge>
+          )}
         </CardTitle>
       </CardHeader>
       <CardContent className="space-y-4">
@@ -368,7 +375,8 @@ function SettingsForm({ initial }: { initial: SchedulerSettings }) {
       | 'defaultMinutes'
       | 'quickMinutes'
       | 'starterMinutes'
-      | 'longMinutes',
+      | 'longMinutes'
+      | 'wrapMinutes',
     label: string,
   ) => (
     <div className="space-y-1">
@@ -451,6 +459,10 @@ function SettingsForm({ initial }: { initial: SchedulerSettings }) {
           {numeric('quickMinutes', 'Unestimated quick task (minutes)')}
           {numeric('starterMinutes', 'Maximum starter length (minutes)')}
           {numeric('longMinutes', 'Long task threshold (minutes)')}
+          {numeric(
+            'wrapMinutes',
+            'Start wrapping up before wind-down or the last task ends (minutes)',
+          )}
         </div>
       </details>
       <section className="space-y-3">

@@ -10,6 +10,7 @@ import { getDateTimeMillis, getDayBoundsMillis } from '@c/datetimeUtils'
 import { describe, expect, test } from 'bun:test'
 import { AnchorType, Priority, ProgressStatus } from '@c/types'
 import { buildDay, dayWindow, nextTask } from '@c/scheduler/engine'
+import { dayModeOf, wrapUpReason } from '@c/scheduler/dayMode'
 import {
   defaultSchedulerSettings,
   type PlanRuleName,
@@ -158,11 +159,17 @@ describe('Whole-day scheduler', () => {
     // The starter goes first; urgent work follows it and stays in the stack.
     expect(urgent.entries.map((i) => i.id)).toEqual(['fun', 'urgent'])
     expect(urgent.entries[0].reason).toBe('An easy starting point')
-    const chore = plan(
-      [task('normal'), task('chore', { is_chore: true, estimated_minutes: 5 })],
+    // After a break the stack leads with something easy, not a chore.
+    const back = plan(
+      [
+        task('normal'),
+        task('chore', { is_chore: true, estimated_minutes: 5 }),
+        task('fun', { is_fun: true, estimated_minutes: 5 }),
+      ],
       { cue: 'break' },
     )
-    expect(chore.entries[0].id).toBe('chore')
+    expect(back.entries[0].id).toBe('fun')
+    expect(back.entries[0].reason).toBe('An easy way back in after your break')
   })
   test('keeps fixed times and picks a task that fits before the appointment', () => {
     const result = plan([
@@ -484,7 +491,9 @@ describe('Day windows and recurrence dates', () => {
     )
     const override = {
       ...settings,
-      overrides: { '2026-11-03': { wake: '10:00', sleep: '12:00', workMinutes: 60 } },
+      overrides: {
+        '2026-11-03': { wake: '10:00', sleep: '12:00', workMinutes: 60 },
+      },
     }
     expect(dayWindow('2026-11-03', timezone, later, override)).toMatchObject({
       capacityMinutes: 120,
@@ -517,5 +526,134 @@ describe('Day windows and recurrence dates', () => {
     expect(occursOn(daily, date, timezone, 0)).toBe(true)
     expect(occursOn(daily, date, timezone, 1)).toBe(false)
     expect(occursOn(task('one-off'), date, timezone)).toBe(false)
+  })
+})
+
+test('paused one-off work resumes before new work of the same priority, but not over urgency', () => {
+  const hour = { ...settings, sleep: '08:00' }
+  const result = plan(
+    [
+      task('old-a', { created_at: 0 }),
+      task('old-b', { created_at: 0 }),
+      task('half-done', {
+        status: ProgressStatus.PAUSED,
+        estimated_minutes: 60,
+        spent_minutes: 30,
+        created_at: 5,
+      }),
+    ],
+    { settings: hour },
+  )
+  expect(result.entries.map((i) => i.id)).toEqual(['half-done', 'old-a'])
+  expect(result.entries[0].reason).toBe('You started this earlier')
+
+  const urgent = plan(
+    [
+      task('due', { due_date: now }),
+      task('half-done', { status: ProgressStatus.PAUSED, created_at: 5 }),
+    ],
+    { settings: { ...settings, sleep: '07:40' } },
+  )
+  expect(urgent.entries.map((i) => i.id)).toEqual(['due'])
+})
+
+describe('Day modes', () => {
+  const saved = (
+    tasks: SchedulerTask[],
+    extra: Parameters<typeof plan>[1] = {},
+  ) => ({ ...plan(tasks, extra), saved: true })
+
+  test('do something else skips several tasks in stack order', () => {
+    const result = plan([
+      task('a', { created_at: 1 }),
+      task('b', { created_at: 2 }),
+      task('c', { created_at: 3 }),
+    ])
+    expect(nextTask(result, now, new Set(['a'])).item?.id).toBe('b')
+    expect(nextTask(result, now, new Set(['a', 'b'])).item?.id).toBe('c')
+    expect(nextTask(result, now, new Set(['a', 'b', 'c'])).item).toBeNull()
+  })
+
+  test('wrapping up keeps active work, appointments and pins, then only chores', () => {
+    const result = plan(
+      [
+        task('active', { status: ProgressStatus.IN_PROGRESS }),
+        task('meeting', {
+          scheduled_start: now + 60 * 60000,
+          scheduled_end: now + 90 * 60000,
+        }),
+        task('urgent', { due_date: now }),
+        task('dishes', { is_chore: true }),
+      ],
+      { cue: 'wrap' },
+    )
+    expect(result.entries.map((i) => i.id).sort()).toEqual(
+      ['active', 'dishes', 'meeting'].sort(),
+    )
+    expect(result.entries.find((i) => i.id === 'dishes')?.reason).toBe(
+      'A chore to wrap up the day',
+    )
+  })
+
+  test('wrap-up and pulling more still fit work after wind-down', () => {
+    const late = getDateTimeMillis(date, '23:10', timezone)
+    const chores = [task('dishes', { is_chore: true, estimated_minutes: 10 })]
+    expect(plan(chores, { now: late }).entries).toHaveLength(0)
+    expect(plan(chores, { now: late, cue: 'wrap' }).entries).toHaveLength(1)
+    expect(plan(chores, { now: late, cue: 'more' }).entries).toHaveLength(1)
+    expect(
+      dayWindow(date, timezone, late, settings, { pastWindDown: true })
+        .capacityMinutes,
+    ).toBe(50)
+  })
+
+  test('wrap-up starts within the lead time of wind-down, but not after it', () => {
+    const tasks = [task('a'), task('b')]
+    const before = getDateTimeMillis(date, '22:29', timezone)
+    const within = getDateTimeMillis(date, '22:31', timezone)
+    const after = getDateTimeMillis(date, '23:01', timezone)
+    expect(wrapUpReason(saved(tasks), before)).toBeNull()
+    expect(wrapUpReason(saved(tasks), within)).toBe('windDown')
+    expect(wrapUpReason(saved(tasks), after)).toBeNull()
+  })
+
+  test('wrap-up starts with the last task: at once when short, near its end when long', () => {
+    const short = saved([
+      task('last', { status: ProgressStatus.IN_PROGRESS }),
+      task('chore', { is_chore: true }),
+    ])
+    expect(wrapUpReason(short, now)).toBe('lastTask')
+
+    const long = saved([
+      task('last', {
+        status: ProgressStatus.IN_PROGRESS,
+        estimated_minutes: 90,
+      }),
+    ])
+    expect(wrapUpReason(long, now)).toBeNull()
+    const nearlyDone = {
+      ...long,
+      entries: long.entries.map((entry) => ({ ...entry, minutes: 25 })),
+    }
+    expect(wrapUpReason(nearlyDone, now)).toBe('lastTask')
+
+    const notLast = saved([
+      task('current', { status: ProgressStatus.IN_PROGRESS }),
+      task('next'),
+    ])
+    expect(wrapUpReason(notLast, now)).toBeNull()
+  })
+
+  test('wrap-up never starts on its own during a break, twice, or after pulling more', () => {
+    const base = saved([task('last', { status: ProgressStatus.IN_PROGRESS })])
+    expect(wrapUpReason({ ...base, breakStartedAt: now }, now)).toBeNull()
+    expect(wrapUpReason({ ...base, wrapReason: 'manual' }, now)).toBeNull()
+    expect(wrapUpReason({ ...base, autoWrap: false }, now)).toBeNull()
+    expect(dayModeOf({ breakStartedAt: now, wrapReason: 'manual' })).toBe(
+      'break',
+    )
+    expect(dayModeOf({ breakStartedAt: null, wrapReason: 'lastTask' })).toBe(
+      'wrap',
+    )
   })
 })

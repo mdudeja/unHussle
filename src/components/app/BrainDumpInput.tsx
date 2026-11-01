@@ -317,7 +317,7 @@ export const BrainDumpInputComponent = () => {
               value={inputValue}
               onChange={(e) => setInputValue(e.target.value)}
               onKeyDown={handleKeyDown}
-              placeholder="Write your extended thoughts here... Use # for tags/projects/areas/goals. Add 'high priority', 'fun', 'quick', etc. Include links (https://... or www....) to attach them. Add time estimates like '30m' or '2h'. Add due dates like 'tomorrow' or '4th January'."
+              placeholder="Write your extended thoughts here... Use # for tags/projects/areas/goals. Include links (https://... or www....) to attach them. Add time estimates like 'est: 30m' or 'et: 1h 30m'. End with a due date like 'due tomorrow' or 'due 4th January'. Set priority, flags and times with the buttons below."
               rows={8}
               disabled={isSubmitting}
             />

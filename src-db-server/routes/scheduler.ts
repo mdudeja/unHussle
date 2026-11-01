@@ -14,6 +14,7 @@ import {
 } from '@d/workflows/scheduler'
 import {
   adjustPlanSchema,
+  changeModeSchema,
   generatePlanSchema,
   replanSchema,
   schedulerDayParamsSchema,
@@ -22,6 +23,8 @@ import {
   selectDayPlanSchema,
   selectNextTaskSchema,
   selectOccurrenceSchema,
+  selectTimeEntriesSchema,
+  stopTrackingSchema,
   transitionOccurrenceSchema,
 } from '@d/database/validation'
 import { operationIdHeader, traceOf } from './telemetry'
@@ -129,6 +132,20 @@ export function createSchedulerRoutes(
       { body: adjustPlanSchema, response: selectDayPlanSchema },
     )
 
+    .post(
+      '/mode',
+      async ({ body, headers, request }) =>
+        Value.Parse(
+          selectDayPlanSchema,
+          await runtime.commands.execute(
+            'scheduler.mode.change',
+            { ...body, operationId: headers[operationIdHeader] },
+            traceOf(request),
+          ),
+        ),
+      { body: changeModeSchema, response: selectDayPlanSchema },
+    )
+
     .patch(
       '/settings',
       async ({ body, headers, request }) =>
@@ -155,6 +172,20 @@ export function createSchedulerRoutes(
           ),
         ),
       { body: transitionOccurrenceSchema, response: selectOccurrenceSchema },
+    )
+
+    .post(
+      '/tracking/stop',
+      async ({ body, headers, request }) =>
+        Value.Parse(
+          selectTimeEntriesSchema,
+          await runtime.commands.execute(
+            'tracking.stop',
+            { ...body, operationId: headers[operationIdHeader] },
+            traceOf(request),
+          ),
+        ),
+      { body: stopTrackingSchema, response: selectTimeEntriesSchema },
     )
 }
 
