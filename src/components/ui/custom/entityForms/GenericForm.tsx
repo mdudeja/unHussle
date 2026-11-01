@@ -404,6 +404,7 @@ function FormField<T extends object>({
             kinds={['resources']}
             value={value as EntityRef[] | null | undefined}
             disabled={disabled}
+            hasError={Boolean(error)}
             placeholder={field.placeholder ?? 'Search resources…'}
             onChange={onChange}
           />
@@ -415,6 +416,7 @@ function FormField<T extends object>({
             kinds={['tasks', 'projects', 'areas', 'goals']}
             value={value as EntityRef[] | null | undefined}
             disabled={disabled}
+            hasError={Boolean(error)}
             placeholder={field.placeholder ?? 'Search tasks and collections…'}
             onChange={onChange}
           />
