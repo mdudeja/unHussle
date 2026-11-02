@@ -86,13 +86,13 @@ export function buildDay(
     settings,
     { pastWindDown: cue === 'wrap' || cue === 'more' },
   )
-  const pinned = new Set(
+  const pinnedEarlier = new Set(
     previous?.entries.filter((entry) => entry.pinned).map((entry) => entry.id),
   )
 
   const entries = input.candidates.map((entry) => ({
     ...entry,
-    pinned: entry.pinned || pinned.has(entry.id),
+    pinned: entry.pinned || pinnedEarlier.has(entry.id),
   }))
 
   const urgencyById = new Map(
@@ -120,8 +120,12 @@ export function buildDay(
 
   let free: Interval[] = end > start ? [[start, end]] : []
 
+  /**
+   * Reserves a time interval from the free intervals, splitting them as needed.
+   */
   const reserve = (from: number, to: number) => {
     free = free.flatMap(([s, e]): Interval[] =>
+      // if the interval to reserve is completely outside this free interval, keep it as-is.
       to <= s || from >= e
         ? [[s, e]]
         : (

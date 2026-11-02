@@ -19,6 +19,7 @@ sleep 2
 echo "Running tests..."
 bun test --env-file=.env.test **/__tests__
 
+
 TEST_EXIT_CODE=$?
 
 echo "Tests completed with exit code $TEST_EXIT_CODE"

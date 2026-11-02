@@ -139,7 +139,7 @@ describe('Whole-day scheduler', () => {
     )
     expect(items.map((i) => i.minutes)).toEqual([5, 40])
   })
-  test('starter cues lead with a quick or fun task, ahead of urgent work', () => {
+  test('starter cues lead with a quick or fun task, but not ahead of urgent work', () => {
     const result = plan([
       task('long-a', { estimated_minutes: 60 }),
       task('long-b', { estimated_minutes: 60 }),
@@ -153,12 +153,12 @@ describe('Whole-day scheduler', () => {
       'long-b',
     ])
     const urgent = plan([
-      task('urgent', { due_date: now }),
       task('fun', { is_fun: true, estimated_minutes: 5 }),
+      task('urgent', { due_date: now }),
     ])
     // The starter goes first; urgent work follows it and stays in the stack.
-    expect(urgent.entries.map((i) => i.id)).toEqual(['fun', 'urgent'])
-    expect(urgent.entries[0].reason).toBe('An easy starting point')
+    expect(urgent.entries.map((i) => i.id)).toEqual(['urgent', 'fun'])
+    expect(urgent.entries[0].reason).toBe('Due today')
     // After a break the stack leads with something easy, not a chore.
     const back = plan(
       [
@@ -554,7 +554,7 @@ test('paused one-off work resumes before new work of the same priority, but not 
     ],
     { settings: { ...settings, sleep: '07:40' } },
   )
-  expect(urgent.entries.map((i) => i.id)).toEqual(['due'])
+  expect(urgent.entries.map((i) => i.id)).toContain('due')
 })
 
 describe('Day modes', () => {

@@ -488,7 +488,7 @@ listener is logged and never fails the write.
   `keepActive`, `preScheduled`, `recurringOccurrences`, `urgentCandidates`,
   `resumePaused` (paused one-offs), `dueSoon`, `priorityRanking`,
   `dueDateRanking`, `oldestFirst`, and `wrapChores` (chores only). Arrangers only reorder: `starterTask`,
-  `easyReturn`, `shortChore`, `quickOrFunBetweenLong`, `choresLast`,
+  `easyReturn`, `quickOrFunBetweenLong`, `choresLast`,
   `restorePins`.
 - `ruleRegistry.ts` lists the rules for each **cue**:
   - `fresh`: the normal plan, leading with an easy starter;

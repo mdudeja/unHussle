@@ -13,6 +13,7 @@
     "server:debug": "bun run --inspect-wait --env-file=.env.local src-db-server/server.ts",
     "server": "bun run --env-file=.env.local src-db-server/server.ts",
     "server:test": "bun run --env-file=.env.test src-db-server/server.ts",
+    "test:debug": "bun test --env-file=.env.test **/__tests__ --timeout 0",
     "test": "./scripts/test-with-server.sh",
     "lint": "eslint .",
     "lint:fix": "eslint . --fix",

@@ -27,7 +27,6 @@ export const planRuleNames = [
   // Arrangers: reorder the stack without changing its membership.
   'starterTask',
   'easyReturn',
-  'shortChore',
   'quickOrFunBetweenLong',
   'choresLast',
   'restorePins',

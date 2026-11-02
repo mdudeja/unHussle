@@ -83,8 +83,10 @@ const leadWith =
     const lead = stack.find(
       (entry) =>
         movable(entry) &&
-        (entry.isQuick || entry.minutes <= settings.starterMinutes) &&
-        (entry.isFun || urgencyOf(entry) === urgencyOf(first)) &&
+        (entry.isFun ||
+          entry.isQuick ||
+          entry.minutes <= settings.starterMinutes) &&
+        urgencyOf(entry) <= urgencyOf(first) &&
         matches(entry),
     )
     if (lead) move(lead, stack.indexOf(first), reason)
@@ -99,7 +101,7 @@ export const planRules: { [K in PlanRuleName]?: PlanRule } = {
           entry.status === 'paused' ||
           entry.pinned,
       ),
-      { required: true },
+      { required: true, reason: 'You started this earlier' },
     )
   },
 
@@ -197,11 +199,6 @@ export const planRules: { [K in PlanRuleName]?: PlanRule } = {
     'An easy way back in after your break',
   ),
 
-  shortChore: leadWith(
-    (entry) => entry.isChore,
-    'A short chore before a pause',
-  ),
-
   quickOrFunBetweenLong: (
     _name,
     { stack, movable, urgencyOf, settings, move },
@@ -216,8 +213,9 @@ export const planRules: { [K in PlanRuleName]?: PlanRule } = {
         (entry, position) =>
           position > index &&
           movable(entry) &&
-          (entry.isQuick || entry.minutes <= settings.starterMinutes) &&
-          (entry.isFun || urgencyOf(entry) === urgencyOf(stack[index])),
+          (entry.isQuick ||
+            entry.minutes <= settings.starterMinutes ||
+            (entry.isFun && urgencyOf(entry) <= urgencyOf(stack[index]))),
       )
       if (
         quick &&
@@ -236,7 +234,7 @@ export const planRules: { [K in PlanRuleName]?: PlanRule } = {
       while (
         target + 1 < stack.length &&
         movable(stack[target + 1]) &&
-        urgencyOf(entry) === urgencyOf(stack[target + 1])
+        urgencyOf(entry) >= urgencyOf(stack[target + 1])
       )
         target++
       if (target !== index) move(entry, target)

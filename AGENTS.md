@@ -326,7 +326,7 @@ Vault commands (`VaultCommands`, `common/vault/contracts.ts`; `vaultHandlers.ts`
   `priorityRanking`, `dueDateRanking`, `oldestFirst`, `wrapChores`) call
   `pick`. `resumePaused` takes paused one-offs (not occurrences, which are
   per-day and expire as `missed`); it is not required. Arrangers
-  (`starterTask`, `easyReturn`, `shortChore`, `quickOrFunBetweenLong`,
+  (`starterTask`, `easyReturn`, `quickOrFunBetweenLong`,
   `choresLast`, `restorePins`) call `move`, which is refused if it would break
   an anchor. `keepActive` also keeps pinned entries.
 - `ruleRegistry.ts`: an ordered rule list per cue:

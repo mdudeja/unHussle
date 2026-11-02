@@ -8,6 +8,7 @@ export const isBeforeAnchor = (item: PlanEntry) =>
 const isAdjacent = (item: PlanEntry) =>
   item.anchorType === AnchorType.before || item.anchorType === AnchorType.after
 
+/** breadth-first search to find connected components of pending items. */
 function components(items: PlanEntry[], neighbours: Map<string, Set<string>>) {
   const byId = new Map(items.map((item) => [item.id, item]))
   const groups = new Map<string, PlanEntry[]>()
@@ -29,7 +30,7 @@ function components(items: PlanEntry[], neighbours: Map<string, Set<string>>) {
   return groups
 }
 
-/** Resolve occurrence targets once, retaining ambiguity and unavailable-anchor errors. */
+/** Resolve pending items with anchors to their targets, returning the ordered stack and any violations. */
 export function resolveAnchors(items: PlanEntry[]) {
   const pending = items.filter((item) => isPending(item.status))
   const byTask = new Map<string, PlanEntry[]>()
@@ -38,13 +39,19 @@ export function resolveAnchors(items: PlanEntry[]) {
     occurrences.push(item)
     byTask.set(item.taskId, occurrences)
   }
+  // pending item -> anchor target
   const targets = new Map<string, PlanEntry>()
   const errors = new Map<string, string>()
+  // pending items whose anchors are already satisfied by completed targets
   const satisfied = new Set<string>()
+  // anchor target with a pending dependent that must be scheduled before it
   const beforeDependents = new Set<string>()
+  // pending tasks with anchors
   const anchorTasks = new Set<string>()
   const neighbours = new Map<string, Set<string>>()
   const adjacentNeighbours = new Map<string, Set<string>>()
+
+  /** Connects two items in a graph, creating the sets if needed. */
   const connect = (graph: Map<string, Set<string>>, a: string, b: string) => {
     if (!graph.has(a)) graph.set(a, new Set())
     if (!graph.has(b)) graph.set(b, new Set())
@@ -81,6 +88,7 @@ export function resolveAnchors(items: PlanEntry[]) {
   }
   const groups = components(pending, neighbours)
   const adjacentGroups = components(pending, adjacentNeighbours)
+
   const blocked = new Set<string>()
   const block = (id: string, message: string) => {
     errors.set(id, message)
@@ -129,6 +137,7 @@ export function resolveAnchors(items: PlanEntry[]) {
   const order = () => {
     const next = new Map<string, PlanEntry>()
     const previous = new Map<string, PlanEntry>()
+    // adjacent anchor/items must be scheduled next to each other, so we collapse them into chains
     for (const item of pending) {
       const target = targets.get(item.id)
       if (!target || !isPending(target.status) || !isAdjacent(item)) continue
@@ -141,6 +150,7 @@ export function resolveAnchors(items: PlanEntry[]) {
       next.set(a.id, b)
       previous.set(b.id, a)
     }
+
     const blocks: PlanEntry[][] = []
     const blockOf = new Map<string, number>()
     for (const item of pending) {

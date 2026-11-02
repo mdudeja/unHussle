@@ -106,7 +106,7 @@ export function expandCandidates(
         due: task.due_date,
         reason:
           fixedStart !== null
-            ? 'Scheduled appointment'
+            ? 'Scheduled appointment or task'
             : 'Priority and available capacity',
       })
       continue
