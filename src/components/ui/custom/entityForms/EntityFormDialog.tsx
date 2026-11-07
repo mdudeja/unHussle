@@ -5,8 +5,7 @@ import {
   DialogHeader,
   DialogTitle,
 } from '@/components/ui/dialog'
-import { GenericForm } from './GenericForm'
-import type { FieldConfig } from './types'
+import { GenericForm, FieldConfig } from '@/components/ui/custom/entityForms'
 
 export interface EntityFormDialogProps<T extends object> {
   open: boolean

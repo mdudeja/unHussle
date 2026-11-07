@@ -1,18 +1,37 @@
-import { ExtractTablesWithRelations, like, eq } from 'drizzle-orm'
+import { ExtractTablesWithRelations, like, eq, desc } from 'drizzle-orm'
 import { SQLiteTransaction } from 'drizzle-orm/sqlite-core'
 import * as schema from '../schemas'
-import { tags, junctionTags } from '../schemas'
+import {
+  tags,
+  junctionTags,
+  urls,
+  timeEntries,
+  resources,
+  tasks,
+  projects,
+  areas,
+  goals,
+} from '../schemas'
 import { UnHussleDB } from '../UnHussleDB'
 import type { ResourceLink } from '@c/types/Hydrated'
 
 // Nested `with` configs for relations that go through a junction table
-export const withTags = { with: { tag: true } } as const
-export const withUrls = { with: { url: true } } as const
-export const withTimeEntries = { with: { timeEntry: true } } as const
-export const withResources = { with: { resource: true } } as const
+export const withTags = { with: { tag: { orderBy: [tags.id] } } } as const
+export const withUrls = { with: { url: { orderBy: [urls.id] } } } as const
+export const withTimeEntries = {
+  with: { timeEntry: { orderBy: [desc(timeEntries.id)] } },
+} as const
+export const withResources = {
+  with: { resource: { orderBy: [resources.id] } },
+} as const
 // A resource's links, with whichever owner each junction row points at
 export const withResourceLinks = {
-  with: { task: true, project: true, area: true, goal: true },
+  with: {
+    task: { orderBy: [desc(tasks.id)] },
+    project: { orderBy: [desc(projects.id)] },
+    area: { orderBy: [areas.id] },
+    goal: { orderBy: [goals.id] },
+  },
 } as const
 
 // Junction relation key -> property on the join row holding the referenced record
