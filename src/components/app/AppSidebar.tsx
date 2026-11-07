@@ -29,6 +29,7 @@ import {
   entitySearchParams,
   getEntityItemRoute,
 } from '@/lib/entityRoutes'
+import { VERSION } from '@c/version'
 
 const RECENT_ITEMS_LIMIT = 5
 
@@ -223,7 +224,8 @@ export const AppSidebarComponent = () => {
     <Sidebar>
       <SidebarHeader>
         <Link to="/" className="px-2 text-lg font-semibold">
-          unHussle
+          unHussle{' '}
+          <span className="text-xs text-muted-foreground">v{VERSION}</span>
         </Link>
       </SidebarHeader>
       <SidebarContent>

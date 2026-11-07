@@ -1,7 +1,7 @@
 {
   "name": "unhussle",
   "private": true,
-  "version": "0.1.0",
+  "version": "1.0.0",
   "type": "module",
   "scripts": {
     "dev": "bun run build:server && vite",
@@ -34,7 +34,7 @@
     "@tauri-apps/plugin-dialog": "~2",
     "@tauri-apps/plugin-fs": "^2.4.4",
     "@tauri-apps/plugin-opener": "^2",
-    "@tauri-apps/plugin-shell": "~2",
+    "@tauri-apps/plugin-shell": "2.6.0",
     "@tauri-apps/plugin-sql": "^2.3.1",
     "chrono-node": "^2.9.0",
     "class-variance-authority": "^0.7.1",
