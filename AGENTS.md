@@ -295,8 +295,10 @@ Vault commands (`VaultCommands`, `common/vault/contracts.ts`; `vaultHandlers.ts`
 - `announceAffectedEntities` publishes `<kind>.change` with `attachedIds` and no
   `result` for the members of a collection. It must run **before** a collection
   delete, because members' foreign keys are `set null` afterwards.
-- `routes/events.ts` sends every event to `GET /events` (SSE): numbered frames, a
-  500-frame replay buffer for `Last-Event-ID`, and `resync` when the gap can't be
+- `routes/events.ts` sends every event to `GET /events` (SSE): numbered,
+  unnamed frames whose data is `{ name, payload }` (an `EventSource` only
+  dispatches named events to per-name listeners), a 500-frame replay buffer for
+  `Last-Event-ID` (header, or `?lastEventId=`), and `resync` when the gap can't be
   covered. The handler calls `server.timeout(request, 0)` so a quiet stream isn't
   closed as idle (Elysia's default is 30s). `serve` options set on a plugin are
   ignored, so don't rely on them. There is no heartbeat: the client is local, so
@@ -370,10 +372,13 @@ Vault commands (`VaultCommands`, `common/vault/contracts.ts`; `vaultHandlers.ts`
   409 until Reload / Keep mine, and flushes before navigation.
 - Frontend-only events (`tracking.changed`) are declared in
   `src/workflows/contracts.ts`.
-- `eventStream.ts` is the SSE client, built on `fetch`. The webview has
-  `EventSource`, but the Bun runtime doesn't, and store tests run the client
-  under `bun test`. It reconnects with `Last-Event-ID`, and resyncs when it has
-  no id. Tests inject a fake `EventTransport`. On `resync` the runtime
+- `eventStream.ts` has two SSE clients; `createEventTransport` picks one. The
+  webview uses `EventSource`: WebKitGTK (Tauri on Linux) holds back the end of a
+  streamed `fetch` body until more bytes arrive, so the last frame of each burst
+  would wait for the next action and every command hit its 3s timeout. Bun has
+  no `EventSource`, so store tests under `bun test` use the `fetch` client. Both
+  handle frames one at a time, reconnect with the last id (an `EventSource`
+  that gave up is reopened with `?lastEventId=`), and resync when they have no id. Tests inject a fake `EventTransport`. On `resync` the runtime
   invalidates every kind plus `schedule`, `occurrences` and `schedulerSettings`.
 - `reactionRegistry.ts` maps events to reaction names; `reactions.ts` implements
   them:

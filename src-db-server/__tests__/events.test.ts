@@ -88,7 +88,7 @@ describe('Backend event stream', () => {
     const reader = response.body!.getReader()
     const decoder = new TextDecoder()
     let text = ''
-    while (!text.includes('event: tasks.add')) {
+    while (!text.includes('"name":"tasks.add"')) {
       const { value, done } = await reader.read()
       if (done) break
       text += decoder.decode(value)
@@ -96,9 +96,38 @@ describe('Backend event stream', () => {
     abort.abort()
 
     expect(text).toContain('retry: 2000')
-    expect(text).toContain('id: 1\nevent: entity.add\ndata: ')
+    expect(text).toContain('id: 1\ndata: {"name":"entity.add","payload":{')
     expect(text).toContain('"operationId":"op-stream"')
-    expect(text).toContain('id: 2\nevent: tasks.add\n')
+    expect(text).toContain('id: 2\ndata: {"name":"tasks.add"')
+    expect(text).not.toContain('event:')
+    forwarder.dispose()
+    runtime.dispose()
+  })
+
+  test('GET /events replays from a lastEventId query parameter', async () => {
+    const runtime = createBackendRuntime(database)
+    const forwarder = createEventForwarder(runtime)
+    const app = createEventRoutes(forwarder)
+    await addTask(runtime, 'Before reopen', 'op-before')
+
+    const abort = new AbortController()
+    const response = await app.handle(
+      new Request('http://localhost/events?lastEventId=1', {
+        signal: abort.signal,
+      }),
+    )
+    const reader = response.body!.getReader()
+    const decoder = new TextDecoder()
+    let text = ''
+    while (!text.includes('"name":"tasks.add"')) {
+      const { value, done } = await reader.read()
+      if (done) break
+      text += decoder.decode(value)
+    }
+    abort.abort()
+
+    expect(text).not.toContain('id: 1\n')
+    expect(text).toContain('id: 2\ndata: {"name":"tasks.add"')
     forwarder.dispose()
     runtime.dispose()
   })
@@ -145,7 +174,7 @@ describe('Backend event stream', () => {
     // Control: without the per-request override the server drops the stream.
     expect((await readUntil('/control', 'never sent')).closed).toBe(true)
 
-    const events = readUntil('/events', 'event: tasks.add')
+    const events = readUntil('/events', '"name":"tasks.add"')
     await new Promise((done) => setTimeout(done, 2500))
     await addTask(runtime, 'After idle', 'op-idle')
     const { text, closed } = await events

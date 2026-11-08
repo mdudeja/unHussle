@@ -31,7 +31,7 @@ import type {
   FrontendEvents,
   Transition,
 } from './contracts'
-import { createSseTransport, type EventTransport } from './eventStream'
+import { createEventTransport, type EventTransport } from './eventStream'
 import { createOperationTracker, settlesWithin } from './operations'
 import {
   createReactions,
@@ -93,7 +93,7 @@ export function createFrontendRuntime(
   const operations = createOperationTracker()
   const scheduler = options.scheduler ?? schedulerService
   const vault = options.vault ?? vaultService
-  const transport = options.transport ?? createSseTransport({ telemetry })
+  const transport = options.transport ?? createEventTransport({ telemetry })
   // Local operations in flight, so their events join the command's trace.
   const traces = new Map<string, TraceMeta>()
   const traceOf = (operationId: string | undefined): TraceMeta =>

@@ -54,15 +54,137 @@ const deferred = () => {
   return { promise, resolve }
 }
 
+const defaultUrl = () =>
+  `http://localhost:${import.meta.env.VITE_DB_SERVER_PORT}/events`
+
+/** A frame's data: the backend event name and its payload. */
+type WireEvent = { name: string; payload: unknown }
+
+const dispatch = async (handlers: EventHandlers, data: string) => {
+  const { name, payload } = JSON.parse(data) as WireEvent
+  if (name === 'resync') await handlers.onResync()
+  else await handlers.onEvent(name, payload)
+}
+
 /**
- * SSE client built on `fetch`. Browsers (and the Tauri webview) have
- * `EventSource`, but the Bun runtime does not, and the store tests run this
- * client under `bun test` against the real stream. `fetch` behaves the same in
- * both. Reconnects with `Last-Event-ID` so the server can replay missed events,
- * or asks for a resync when it cannot.
+ * Picks the client for the runtime: `EventSource` where it exists (the
+ * webview), `fetch` under Bun, which has no `EventSource`.
+ */
+export const createEventTransport = (options: { telemetry?: Telemetry } = {}) =>
+  typeof EventSource === 'undefined'
+    ? createSseTransport(options)
+    : createEventSourceTransport(options)
+
+type EventSourceLike = {
+  readonly readyState: number
+  onopen: ((event: Event) => void) | null
+  onmessage: ((event: MessageEvent<string>) => void) | null
+  onerror: ((event: Event) => void) | null
+  close(): void
+}
+
+/** `EventSource.CLOSED`: the source gave up and will not reconnect by itself. */
+const CLOSED = 2
+
+/**
+ * SSE client built on `EventSource`, for the webview. WebKitGTK (the Tauri
+ * webview on Linux) holds back the end of a streamed `fetch` body until more
+ * bytes arrive, so the last frame of every burst would wait for the next
+ * action; its `EventSource` delivers each frame as it comes.
+ *
+ * The source reconnects by itself and sends `Last-Event-ID`. When it gives up
+ * (a non-200 answer), a new one is opened with the id as a query parameter.
+ */
+export function createEventSourceTransport({
+  url = defaultUrl(),
+  createSource = (target) => new EventSource(target),
+  retryMs = 2000,
+  telemetry,
+}: {
+  url?: string
+  createSource?: (url: string) => EventSourceLike
+  retryMs?: number
+  telemetry?: Telemetry
+} = {}): EventTransport {
+  const logger = Logger.getInstance()
+  let closed = false
+  let started = false
+  let opened = false
+  let lastEventId: string | undefined
+  let connection = deferred()
+  let connected = false
+  let source: EventSourceLike | undefined
+  let retry: ReturnType<typeof setTimeout> | undefined
+  // `EventSource` fires synchronously; handlers still run one at a time, in order.
+  let queue = Promise.resolve()
+
+  const enqueue = (task: () => void | Promise<void>) => {
+    queue = queue.then(task).catch((error: unknown) => {
+      logger.error('Event handling failed', { error })
+    })
+  }
+
+  const disconnect = () => {
+    if (connected) connection = deferred()
+    connected = false
+  }
+
+  const open = (handlers: EventHandlers) => {
+    const target = lastEventId
+      ? `${url}${url.includes('?') ? '&' : '?'}lastEventId=${encodeURIComponent(lastEventId)}`
+      : url
+    const current = createSource(target)
+    source = current
+    current.onopen = () => {
+      if (opened) {
+        telemetry?.signal('stream.reconnect', {
+          lastEventId: lastEventId ?? 'none',
+        })
+        // Without an id the server cannot replay, so a reconnect must resync.
+        if (!lastEventId) enqueue(() => handlers.onResync())
+      }
+      opened = true
+      connected = true
+      connection.resolve()
+    }
+    current.onmessage = (event) => {
+      if (event.lastEventId) lastEventId = event.lastEventId
+      if (event.data) enqueue(() => dispatch(handlers, event.data))
+    }
+    current.onerror = () => {
+      disconnect()
+      if (closed || current.readyState !== CLOSED) return
+      logger.debug('Event stream closed; reopening')
+      retry = setTimeout(() => {
+        if (!closed) open(handlers)
+      }, retryMs)
+    }
+  }
+
+  return {
+    connect(handlers) {
+      if (started || closed) return
+      started = true
+      open(handlers)
+    },
+    ready: () => connection.promise,
+    close() {
+      closed = true
+      clearTimeout(retry)
+      source?.close()
+      disconnect()
+    },
+  }
+}
+
+/**
+ * SSE client built on `fetch`, for the Bun runtime, which has no
+ * `EventSource`; the store tests run it under `bun test` against the real
+ * stream. Reconnects with `Last-Event-ID` so the server can replay missed
+ * events, or asks for a resync when it cannot.
  */
 export function createSseTransport({
-  url = `http://localhost:${import.meta.env.VITE_DB_SERVER_PORT}/events`,
+  url = defaultUrl(),
   fetchImpl = fetch,
   retryMs = 2000,
   telemetry,
@@ -124,12 +246,8 @@ export function createSseTransport({
           for (const frame of parsed.frames) {
             if (frame.retry !== undefined) delay = frame.retry
             if (frame.id) lastEventId = frame.id
-            if (frame.event === 'resync') await handlers.onResync()
-            else if (frame.event !== 'message' || frame.data)
-              await handlers.onEvent(
-                frame.event,
-                frame.data ? (JSON.parse(frame.data) as unknown) : undefined,
-              )
+            if (frame.event === 'message' && frame.data)
+              await dispatch(handlers, frame.data)
           }
         }
       } catch (error) {

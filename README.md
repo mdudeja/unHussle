@@ -527,7 +527,7 @@ store/                     Zustand store; one generic DbSlice per kind + UI slic
 workflows/
   runtime.ts               createFrontendRuntime / getFrontendRuntime
   commandRegistry.ts       verb → service call (add→create, change→update, …)
-  eventStream.ts           fetch-based SSE client with Last-Event-ID and resync
+  eventStream.ts           SSE clients (EventSource in the webview, fetch under Bun)
   operations.ts            waits for an operation's events to be handled
   reactionRegistry.ts      event → ordered reaction names
   reactions.ts             upsertRows, removeRows, clearRows, invalidateDependents, refreshAnnounced, refreshSchedule, tracking cleanup

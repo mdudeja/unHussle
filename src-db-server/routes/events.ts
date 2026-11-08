@@ -67,20 +67,29 @@ export function createEventForwarder(
 
 export type EventForwarder = ReturnType<typeof createEventForwarder>
 
+/**
+ * Frames are unnamed messages carrying `{ name, payload }`: an `EventSource`
+ * only dispatches named events to listeners registered for each name, and the
+ * client should not need to know every event name up front.
+ */
 export const formatFrame = ({ id, name, payload }: EventFrame) =>
-  `id: ${id}\nevent: ${name}\ndata: ${JSON.stringify(payload ?? null)}\n\n`
+  `id: ${id}\ndata: ${JSON.stringify({ name, payload: payload ?? null })}\n\n`
 
 export const createEventRoutes = (forwarder: EventForwarder) =>
   new Elysia({ name: 'events' }).get(
     '/events',
-    ({ headers, request, server }) => {
+    ({ headers, query, request, server }) => {
       // A quiet stream counts as idle, and the server closes idle connections
       // (Elysia's default is 30s). Disable the timeout for this request only;
       // `serve` options on a plugin are ignored, only the listening app's apply.
       server?.timeout(request, 0)
 
       const encoder = new TextEncoder()
-      const parsed = Number(headers['last-event-id'])
+      // An `EventSource` sends `Last-Event-ID` only on its own reconnects; a
+      // client that opens a new one passes the id as a query parameter.
+      const parsed = Number(
+        headers['last-event-id'] ?? (query.lastEventId as string | undefined),
+      )
       const lastEventId = Number.isInteger(parsed) ? parsed : undefined
       let cleanup = () => {}
 
