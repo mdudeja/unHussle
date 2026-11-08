@@ -104,7 +104,7 @@ Both frontend and sidecar share these aliases.
   Reads go through `database/repositories/*`.
 - **Repositories** (`IRepository`: `getAll`, `getPaginated`, `getById`,
   `search`, plus `getByIds` / `getByQuery` where needed) return hydrated rows:
-  relations, tags, URLs and time entries are unwrapped from the junctions.
+  relations, tags, URLs, time entries and resources are unwrapped from the junctions.
   A collection's `getById` includes tasks that reach it through goals and
   projects. Nested lists, and `resources` everywhere, stay direct-only: edit
   forms are filled from these rows, so merged items would be saved as links.
@@ -172,8 +172,7 @@ Both frontend and sidecar share these aliases.
 
 ## Workflows (commands → actions → events → reactions)
 
-Both sides use `createRuntime` (`common/workflows/runtime.ts`): typed commands with
-one handler each, plus events with any number of listeners (`on`, `onAny`).
+Both sides use `createRuntime` (`common/workflows/runtime.ts`): typed commands with one handler each, plus events with any number of listeners (`on`, `onAny`).
 Handlers and listeners receive `(name, payload, context, trace?)`. `publish`
 uses `Promise.allSettled`, so a failing listener never throws into the
 publisher. Shared types are in `common/workflows/contracts.ts` (mutations) and
