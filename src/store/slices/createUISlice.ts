@@ -17,11 +17,6 @@ export interface UISlice {
   isDBReady: boolean
   dbError?: string
   checkDBReady: () => Promise<void>
-  isSidebarOpen: boolean
-  toggleSidebar: () => void
-  activeModal: string | null
-  openModal: (modalId: string) => void
-  closeModal: () => void
   editing: EditingEntity | null
   openEditor: (kind: EntityRouteKey, id: string) => void
   closeEditor: () => void
@@ -74,12 +69,6 @@ export const createUISlice: StateCreator<UISlice> = (set) => ({
       await new Promise((resolve) => setTimeout(resolve, retryDelay))
     }
   },
-  isSidebarOpen: true,
-  toggleSidebar: () =>
-    set((state) => ({ isSidebarOpen: !state.isSidebarOpen })),
-  activeModal: null,
-  openModal: (modalId) => set({ activeModal: modalId }),
-  closeModal: () => set({ activeModal: null }),
   editing: null,
   openEditor: (kind, id) => set({ editing: { kind, id } }),
   closeEditor: () => set({ editing: null }),

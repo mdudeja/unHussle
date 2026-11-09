@@ -4,34 +4,35 @@ import * as schema from '../schemas'
 import {
   tags,
   junctionTags,
-  urls,
-  timeEntries,
-  resources,
-  tasks,
-  projects,
-  areas,
-  goals,
+  junctionUrls,
+  junctionTimeEntries,
+  junctionResources,
 } from '../schemas'
 import { UnHussleDB } from '../UnHussleDB'
 import type { ResourceLink } from '@c/types/Hydrated'
 
-// Nested `with` configs for relations that go through a junction table
-export const withTags = { with: { tag: { orderBy: [tags.id] } } } as const
-export const withUrls = { with: { url: { orderBy: [urls.id] } } } as const
+// Nested `with` configs for relations that go through a junction table.
+// The referenced row is a `one` relation, which takes no `orderBy`: order the
+// junction rows by `refId` (the referenced id) instead.
+export const withTags = {
+  orderBy: junctionTags.refId,
+  with: { tag: true },
+} as const
+export const withUrls = {
+  orderBy: junctionUrls.refId,
+  with: { url: true },
+} as const
 export const withTimeEntries = {
-  with: { timeEntry: { orderBy: [desc(timeEntries.id)] } },
+  orderBy: desc(junctionTimeEntries.refId),
+  with: { timeEntry: true },
 } as const
 export const withResources = {
-  with: { resource: { orderBy: [resources.id] } },
+  orderBy: junctionResources.refId,
+  with: { resource: true },
 } as const
 // A resource's links, with whichever owner each junction row points at
 export const withResourceLinks = {
-  with: {
-    task: { orderBy: [desc(tasks.id)] },
-    project: { orderBy: [desc(projects.id)] },
-    area: { orderBy: [areas.id] },
-    goal: { orderBy: [goals.id] },
-  },
+  with: { task: true, project: true, area: true, goal: true },
 } as const
 
 // Junction relation key -> property on the join row holding the referenced record
