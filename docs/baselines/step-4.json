@@ -1,0 +1,193 @@
+{
+  "bun": "1.4.3",
+  "samples": [
+    {
+      "elapsedMs": 24.96046100000001,
+      "requests": [
+        {
+          "method": "PATCH",
+          "path": "/tasks/d2jvxtcldjg1w39i3ilwxjat",
+          "bytes": 1797
+        },
+        {
+          "method": "GET",
+          "path": "/tasks/d2jvxtcldjg1w39i3ilwxjat",
+          "bytes": 1797
+        },
+        {
+          "method": "GET",
+          "path": "/tags/paginated/1/100",
+          "bytes": 4838
+        },
+        {
+          "method": "GET",
+          "path": "/tasks/search/Baseline",
+          "bytes": 7404
+        }
+      ],
+      "duplicateReads": {}
+    },
+    {
+      "elapsedMs": 8.456568000000004,
+      "requests": [
+        {
+          "method": "PATCH",
+          "path": "/tasks/d2jvxtcldjg1w39i3ilwxjat",
+          "bytes": 1797
+        },
+        {
+          "method": "GET",
+          "path": "/tasks/d2jvxtcldjg1w39i3ilwxjat",
+          "bytes": 1797
+        },
+        {
+          "method": "GET",
+          "path": "/tags/paginated/1/100",
+          "bytes": 4838
+        },
+        {
+          "method": "GET",
+          "path": "/tasks/search/Baseline",
+          "bytes": 7404
+        }
+      ],
+      "duplicateReads": {}
+    },
+    {
+      "elapsedMs": 10.971991000000003,
+      "requests": [
+        {
+          "method": "PATCH",
+          "path": "/tasks/d2jvxtcldjg1w39i3ilwxjat",
+          "bytes": 1797
+        },
+        {
+          "method": "GET",
+          "path": "/tasks/d2jvxtcldjg1w39i3ilwxjat",
+          "bytes": 1797
+        },
+        {
+          "method": "GET",
+          "path": "/tags/paginated/1/100",
+          "bytes": 4838
+        },
+        {
+          "method": "GET",
+          "path": "/tasks/search/Baseline",
+          "bytes": 7404
+        }
+      ],
+      "duplicateReads": {}
+    },
+    {
+      "elapsedMs": 10.194556000000034,
+      "requests": [
+        {
+          "method": "PATCH",
+          "path": "/tasks/d2jvxtcldjg1w39i3ilwxjat",
+          "bytes": 1797
+        },
+        {
+          "method": "GET",
+          "path": "/tasks/d2jvxtcldjg1w39i3ilwxjat",
+          "bytes": 1797
+        },
+        {
+          "method": "GET",
+          "path": "/tags/paginated/1/100",
+          "bytes": 4838
+        },
+        {
+          "method": "GET",
+          "path": "/tasks/search/Baseline",
+          "bytes": 7404
+        }
+      ],
+      "duplicateReads": {}
+    },
+    {
+      "elapsedMs": 7.566417999999999,
+      "requests": [
+        {
+          "method": "PATCH",
+          "path": "/tasks/d2jvxtcldjg1w39i3ilwxjat",
+          "bytes": 1797
+        },
+        {
+          "method": "GET",
+          "path": "/tasks/d2jvxtcldjg1w39i3ilwxjat",
+          "bytes": 1797
+        },
+        {
+          "method": "GET",
+          "path": "/tags/paginated/1/100",
+          "bytes": 4838
+        },
+        {
+          "method": "GET",
+          "path": "/tasks/search/Baseline",
+          "bytes": 7404
+        }
+      ],
+      "duplicateReads": {}
+    }
+  ],
+  "relationships": [
+    {
+      "kind": "projects",
+      "taskNames": [
+        "directProject",
+        "multiplePaths"
+      ],
+      "unique": true,
+      "count_tasks": 2,
+      "resolved_task_total": 2,
+      "responseBytes": 2370
+    },
+    {
+      "kind": "goals",
+      "taskNames": [
+        "directGoal",
+        "multiplePaths",
+        "indirect",
+        "sibling",
+        "directProject"
+      ],
+      "unique": true,
+      "count_tasks": 2,
+      "resolved_task_total": 5,
+      "responseBytes": 4576
+    },
+    {
+      "kind": "areas",
+      "taskNames": [
+        "directArea",
+        "multiplePaths",
+        "directGoal",
+        "indirect",
+        "sibling",
+        "directProject"
+      ],
+      "unique": true,
+      "count_tasks": 2,
+      "resolved_task_total": 6,
+      "responseBytes": 5025
+    },
+    {
+      "kind": "tags",
+      "taskNames": [
+        "multiplePaths",
+        "sibling",
+        "directArea",
+        "directGoal",
+        "indirect",
+        "directProject"
+      ],
+      "unique": true,
+      "resolved_task_total": 6,
+      "responseBytes": 14225
+    }
+  ],
+  "signals": [],
+  "note": "Decoded JSON bytes; excludes SSE and startup/fixture requests. Real HTTP and Bun fetch SSE; no browser render or Tauri timing."
+}

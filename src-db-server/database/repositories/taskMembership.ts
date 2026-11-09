@@ -27,6 +27,9 @@ export function taskMembershipPredicate(
   db: MembershipDb,
   { kind, id }: PredicateContainer,
 ): SQL {
+  const goalsInArea = () =>
+    db.select({ id: goals.id }).from(goals).where(eq(goals.area_id, id))
+
   switch (kind) {
     case 'projects':
       return eq(tasks.project_id, id)
@@ -42,8 +45,6 @@ export function taskMembershipPredicate(
         ),
       )!
     case 'areas':
-      const goalsInArea = () =>
-        db.select({ id: goals.id }).from(goals).where(eq(goals.area_id, id))
       return or(
         eq(tasks.area_id, id),
         inArray(tasks.goal_id, goalsInArea()),
