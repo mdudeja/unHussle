@@ -2,12 +2,8 @@ import { useEntryList } from '@/workflows/hooks'
 import { useMemo, useState } from 'react'
 import { useStore } from '@/store'
 import { Logger } from '@c/Logger'
-import {
-  Priority,
-  ProgressStatus,
-  Project,
-  WithSupporters,
-} from '@c/types/index'
+import { Priority, ProgressStatus } from '@c/types/enums'
+import { Project, WithSupporters } from '@c/types/index'
 import { Button } from '@/components/ui/button'
 import { Plus } from 'lucide-react'
 import {

@@ -2,7 +2,7 @@ import { eq } from 'drizzle-orm'
 import type { TableWithId } from '@d/database/repositories/BaseRepository'
 import type { SyncTx } from '@d/database/repositories/helpers'
 import type { UnHussleDB } from '@d/database/UnHussleDB'
-import { TransactionWorkUnit } from '@c/workflows/contracts'
+import type { TransactionWorkUnit } from '@d/workflows/contracts'
 
 /** These primitives never fetch a database or create a nested transaction. */
 export function transactionRepository<T extends TableWithId>(

@@ -1,7 +1,8 @@
 import { useMemo, useState } from 'react'
 import { useStore } from '@/store'
 import { Logger } from '@c/Logger'
-import { Priority, Area, WithSupporters } from '@c/types/index'
+import { Priority } from '@c/types/enums'
+import { Area, WithSupporters } from '@c/types/index'
 import { Button } from '@/components/ui/button'
 import { Plus } from 'lucide-react'
 import {

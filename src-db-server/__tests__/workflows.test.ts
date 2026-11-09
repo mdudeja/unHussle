@@ -423,9 +423,9 @@ describe('Transactional command handlers', () => {
         .filter((span) => span.kind === 'event')
         .map((span) => [span.name, span.parentId]),
     ).toEqual([
+      ['tasks.change', command.spanId],
       ['entityCollection.delete', command.spanId],
       ['projects.delete', command.spanId],
-      ['tasks.change', command.spanId],
     ])
     expect(telemetry.recent().length).toBe(spans.length)
     runtime.dispose()

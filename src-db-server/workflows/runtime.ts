@@ -1,15 +1,19 @@
-import { createRuntime } from '@c/workflows/runtime'
+import { commandHeadForKind } from '@c/workflows/contracts'
+import type { BackendMutationCommands } from './contracts'
 import type {
   ActionContext,
   Announce,
+  CommandAction,
+  TransactionWorkUnit,
+} from '@d/workflows/contracts'
+import { createRuntime } from '@c/workflows/runtime'
+import type {
   AppEvents,
   MutationCommands,
   MutationEvent,
   MutationInput,
   MutationResult,
   EntryRecord,
-  CommandAction,
-  TransactionWorkUnit,
 } from '@c/workflows/contracts'
 import { Logger } from '@c/Logger'
 import { UnHussleDB } from '@d/database/UnHussleDB'
@@ -37,7 +41,8 @@ import {
   type VaultCommands,
 } from '@c/vault/contracts'
 import { createVault, defaultVaultRoot } from '@d/vault/vault'
-import { vaultActions, type VaultState } from '@d/workflows/vaultActions'
+import { vaultActions } from '@d/workflows/vaultActions'
+import type { VaultState } from './contracts'
 import { vaultHandlerRegistry } from '@d/workflows/vaultHandlers'
 
 const supporterKinds: MutationInput['kind'][] = ['tags', 'urls', 'time_entries']
@@ -48,7 +53,7 @@ const supporterKinds: MutationInput['kind'][] = ['tags', 'urls', 'time_entries']
  * */
 function replaceNestedActions(
   actionList: CommandAction[],
-  visited: Set<keyof MutationCommands> = new Set(),
+  visited: Set<keyof BackendMutationCommands> = new Set(),
 ): CommandAction[] {
   const cleanedList: CommandAction[] = []
   for (const action of actionList) {
@@ -56,7 +61,7 @@ function replaceNestedActions(
       const handlerName = action.replace(
         'handler:',
         '',
-      ) as keyof MutationCommands
+      ) as keyof BackendMutationCommands
       if (visited.has(handlerName)) {
         throw new Error(`Circular command handler reference: ${handlerName}`)
       }
@@ -212,10 +217,25 @@ export function createBackendRuntime(
   }
 
   for (const commandName in commandHandlerRegistry) {
+    if (commandName.startsWith('entry.')) continue
     runtime.commands.handle(
       commandName as keyof MutationCommands,
       async (handlerName, input, context, trace) => {
         const { logger } = context
+        const [head, requestedVerb] = handlerName.split('.')
+        const expectedAction = {
+          add: 'create',
+          change: 'update',
+          delete: 'delete',
+          deleteAll: 'deleteAll',
+        }[requestedVerb]
+        if (
+          head !== commandHeadForKind[input.kind] ||
+          input.action !== expectedAction
+        )
+          throw new Error(
+            `Command ${handlerName} does not accept ${input.kind}/${input.action}`,
+          )
         // Payloads hold user data, so they are only logged at debug level.
         logger.debug(
           `Executing command: ${handlerName} for input: ${JSON.stringify(input)}`,
@@ -250,7 +270,8 @@ export function createBackendRuntime(
         const work = replaceNestedActions(actionsForCommand).map(
           (actionName): TransactionWorkUnit<MutationResult> =>
             (transaction) => {
-              const action = availableActions[actionName]
+              const action =
+                availableActions[actionName as keyof typeof availableActions]
               if (!action) {
                 logger.warn(`Action not found: ${actionName}. Skipping...`)
                 return
@@ -288,18 +309,20 @@ export function createBackendRuntime(
           kind: input.kind,
           operationId,
           announcements: announcements.length,
-          events: [...eventNames, ...announcements.map(([name]) => name)].join(
+          events: [...announcements.map(([name]) => name), ...eventNames].join(
             ',',
           ),
         })
 
         await publishAll(
           [
+            // Deliver dependent changes before the completion events the client
+            // waits for, so it observes all atomically changed tasks on return.
+            ...announcements,
             ...[...eventNames].map(
               (name) =>
                 [name as keyof AppEvents, event] as Parameters<Announce>,
             ),
-            ...announcements,
           ],
           operationId,
           meta,
@@ -315,6 +338,7 @@ export function createBackendRuntime(
     runtime.commands.handle(command, async (_name, input, context, trace) => {
       const operationId =
         input.operationId ?? trace?.traceId ?? crypto.randomUUID()
+      const announcements: Parameters<Announce>[] = []
       const result = await commit(
         [
           (transaction) => {
@@ -323,6 +347,12 @@ export function createBackendRuntime(
               input,
               now: now(),
               settings: readSettings(transaction.tx),
+              publication: {
+                operationId,
+                announce: (name, payload) => {
+                  announcements.push([name, payload])
+                },
+              },
             } as SchedulerState
             for (const actionName of schedulerHandlerRegistry[command]) {
               if (state.done) break
@@ -344,6 +374,7 @@ export function createBackendRuntime(
       )
       await publishAll(
         [
+          ...announcements,
           [
             schedulerCommandEvents[command],
             { operationId, ...('date' in input ? { date: input.date } : {}) },

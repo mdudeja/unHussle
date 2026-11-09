@@ -4,7 +4,7 @@ import {
   MINUTE_MS,
 } from '@c/datetimeUtils'
 import { parseCalendarDate } from '@c/calendarUtils'
-import { AnchorType, ProgressStatus, Priority } from '@c/types'
+import { AnchorType, ProgressStatus, Priority } from '@c/types/enums'
 import type {
   SchedulerTask,
   SchedulerSettings,

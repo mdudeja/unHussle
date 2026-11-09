@@ -1,5 +1,5 @@
 import { Ban, CheckCircle2, Pause, Play } from 'lucide-react'
-import { ProgressStatus } from '@c/types/index'
+import { ProgressStatus } from '@c/types/enums'
 import type { HydratedTask } from '@c/types/Hydrated'
 import { useStore } from '@/store'
 import type { OvernightPrompt } from '@/store/slices/createUISlice'

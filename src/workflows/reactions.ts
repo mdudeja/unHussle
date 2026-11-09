@@ -12,6 +12,7 @@ import type { SchedulerEvents } from '@c/scheduler/contracts'
 import type { VaultEvents } from '@c/vault/contracts'
 import type { createTracking } from './tracking'
 import type { EntryTransport, ReactionName } from './contracts'
+import { ProgressStatus } from '@c/types/enums'
 
 /** What reactions may use; the frontend runtime context satisfies it. */
 export type ReactionContext = {
@@ -22,7 +23,12 @@ export type ReactionContext = {
   logger: Logger
   isDisposed: () => boolean
   defineList: (kind: EntryKind, page?: number) => string
-  warnRefresh: (operationId: string, key: string, error: unknown) => void
+  warnRefresh: (
+    operationId: string,
+    key: string,
+    error: unknown,
+    retry?: () => Promise<unknown>,
+  ) => void
   publishTracking: () => Promise<unknown>
 }
 
@@ -42,8 +48,18 @@ export const schedulerEventDependencies: Record<
     'time_entries',
   ],
   'scheduler.settings.changed': ['schedule', 'schedulerSettings'],
-  'occurrence.changed': ['schedule', 'occurrences', 'tasks', 'time_entries'],
-  'tracking.stopped': ['schedule', 'occurrences', 'tasks', 'time_entries'],
+  'scheduler.occurrence.changed': [
+    'schedule',
+    'occurrences',
+    'tasks',
+    'time_entries',
+  ],
+  'scheduler.tracking.stopped': [
+    'schedule',
+    'occurrences',
+    'tasks',
+    'time_entries',
+  ],
 }
 
 /** Reads each vault event can change. */
@@ -106,8 +122,48 @@ const stopTracking = async ({ tracking, publishTracking }: ReactionContext) => {
   await publishTracking()
 }
 
+/** Reconcile presentation after a committed backend transition; never retry the write. */
+export async function syncTrackedTask(
+  context: ReactionContext,
+  operationId: string,
+) {
+  const session = context.tracking.getActiveTracking()
+  if (!session) return
+  const refresh = async () => {
+    const task = await context.services.tasks.fetchById(session.taskId)
+    if (
+      task.status !== ProgressStatus.IN_PROGRESS &&
+      context.tracking.getActiveTracking() === session
+    )
+      await stopTracking(context)
+  }
+  try {
+    await refresh()
+  } catch (error) {
+    context.warnRefresh(
+      operationId,
+      `tracking:tasks:${session.taskId}`,
+      error,
+      refresh,
+    )
+  }
+}
+
 export function createReactions<Context extends ReactionContext>() {
   const reactions: { [K in ReactionName]?: Reaction<Context> } = {
+    // The persisted task decides whether a local timer still represents running work.
+    syncTracking: async (name, event, context) => {
+      const session = context.tracking.getActiveTracking()
+      if (!session) return
+      if (
+        name === 'tasks.change' &&
+        ![...resultIds(event), ...(event.attachedIds ?? [])].includes(
+          session.taskId,
+        )
+      )
+        return
+      await syncTrackedTask(context, event.operationId)
+    },
     refreshSchedule: async (name, event, context) => {
       const outcomes = await context.queries.invalidate(
         schedulerEventDependencies[name as keyof SchedulerEvents] ?? [

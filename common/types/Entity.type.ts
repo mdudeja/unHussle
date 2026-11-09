@@ -1,4 +1,4 @@
-import { Project, Area, Goal } from '@c/types/EntityCollection.type'
+import type { Project, Area, Goal } from '@c/types/EntityCollection.type'
 
 export { type Task } from '@d/database/schemas/tasks.schema'
 export { type Resource } from '@d/database/schemas/resources.schema'

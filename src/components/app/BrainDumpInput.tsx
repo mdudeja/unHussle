@@ -10,7 +10,7 @@ import {
   PopoverContent,
   PopoverTrigger,
 } from '@/components/ui/popover'
-import { Priority, ProgressStatus } from '@c/types/index'
+import { Priority, ProgressStatus } from '@c/types/enums'
 import {
   Expand,
   Minimize2,

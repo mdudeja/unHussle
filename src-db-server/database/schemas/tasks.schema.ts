@@ -23,7 +23,7 @@ import {
   planItems,
   schedulingOverrides,
 } from '@d/database/schemas/index'
-import { Entity, InferTableTypes } from '@c/types/index'
+import type { Entity, InferTableTypes } from '@c/types/index'
 
 export const tasks = sqliteTable(
   'tasks',

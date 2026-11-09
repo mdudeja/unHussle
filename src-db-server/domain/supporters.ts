@@ -9,12 +9,16 @@ import {
   urls,
 } from '@d/database/schemas'
 import { toUrlParts, type SyncTx } from '@d/database/repositories/helpers'
-import type { EntitySupporterKind, EntryKind } from '@c/workflows/contracts'
-import {
+import type {
+  EntitySupporterKind,
+  EntryKind,
+  MutationInput,
+} from '@c/workflows/contracts'
+import type {
   SupportersInput,
-  type TagInput,
-  type TimeEntryInput,
-  type UrlInput,
+  TagInput,
+  TimeEntryInput,
+  UrlInput,
 } from '@c/types'
 
 export const normalizeTagTitle = (title: string) =>
@@ -215,5 +219,63 @@ export const syncSupporters = (
         )
         .run()
     }
+  }
+}
+
+export function updateSupporters(tx: SyncTx, input: MutationInput) {
+  if (!input.id) throw new Error('Invalid input for updateSupporters action')
+  const { kind, action, id, changes = {} } = input
+  const { tags, urls, time_entries } = changes
+  const capability = supporterCapabilities[kind]
+
+  if (
+    (tags !== undefined && !capability?.tags) ||
+    (urls !== undefined && !capability?.urls) ||
+    (time_entries !== undefined && !capability?.time_entries)
+  ) {
+    throw new Error(`Provided Supporters are not supported for ${kind}`)
+  }
+
+  if (!capability) return
+  syncSupporters(
+    tx,
+    id,
+    {
+      tags: tags as TagInput[] | undefined,
+      urls: urls as UrlInput[] | undefined,
+      time_entries: time_entries as TimeEntryInput[] | undefined,
+    },
+    { replace: action === 'update' },
+  )
+}
+
+export function deleteSupporterJunctions(tx: SyncTx, input: MutationInput) {
+  if (!input || (!input.ids && !input.attachedIds)) {
+    throw new Error('Invalid input for deleteJunctions action')
+  }
+
+  if (input.ids && !Array.isArray(input.ids)) {
+    throw new Error('Input ids must be an array for deleteJunctions action')
+  }
+
+  if (input.attachedIds && !Array.isArray(input.attachedIds)) {
+    throw new Error(
+      'Input attachedIds must be an array for deleteJunctions action',
+    )
+  }
+
+  // `attachedIds` match junction `attachedToId` (owning entities / collections);
+  // `ids` match junction `refId` (supporters of `input.kind`).
+
+  if (input.attachedIds) {
+    removeEntityOwnedSupporterJunctions(tx, input.attachedIds)
+  }
+
+  if (input.ids) {
+    removeReferenceSupporterJunctions(
+      tx,
+      input.kind as EntitySupporterKind,
+      input.ids,
+    )
   }
 }

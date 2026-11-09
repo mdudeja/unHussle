@@ -15,7 +15,7 @@ import {
   taskOccurrences,
 } from '@d/database/schemas/index'
 import { t } from 'elysia'
-import { AnchorType, ProgressStatus, Priority } from '@c/types/index'
+import { AnchorType, ProgressStatus, Priority } from '@c/types/enums'
 import {
   adjustActions,
   dayModeChanges,

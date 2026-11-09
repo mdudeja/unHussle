@@ -8,7 +8,7 @@ import { planRuleRegistry } from '@c/scheduler/ruleRegistry'
 import { isPending } from '@c/scheduler/status'
 import { getDateTimeMillis, getDayBoundsMillis } from '@c/datetimeUtils'
 import { describe, expect, test } from 'bun:test'
-import { AnchorType, Priority, ProgressStatus } from '@c/types'
+import { AnchorType, Priority, ProgressStatus } from '@c/types/enums'
 import { buildDay, dayWindow, nextTask } from '@c/scheduler/engine'
 import { dayModeOf, wrapUpReason } from '@c/scheduler/dayMode'
 import {

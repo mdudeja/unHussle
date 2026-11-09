@@ -12,7 +12,7 @@ import {
   timeEntries,
 } from '@d/database/schemas'
 import { previewWeek, readDay, readSettings } from '@d/workflows/scheduler'
-import { AnchorType, Priority, ProgressStatus } from '@c/types'
+import { AnchorType, Priority, ProgressStatus } from '@c/types/enums'
 import { createTelemetry } from '@c/workflows/telemetry'
 import {
   readDayTasks,
@@ -137,7 +137,7 @@ describe('Persistent scheduling commands', () => {
     })
     const original = await f.generate()
     f.advance(16 * 60)
-    await f.runtime.commands.execute('occurrence.transition', {
+    await f.runtime.commands.execute('scheduler.occurrence.transition', {
       id: original.entries[0].id,
       status: ProgressStatus.IN_PROGRESS,
     })
@@ -149,7 +149,7 @@ describe('Persistent scheduling commands', () => {
     let current = readDay(f.db, '2026-11-03', timezone, f.now())
     expect(nextTask(current, f.now()).item?.id).toBe(original.entries[0].id)
     expect(current.workUsed).toBe(60)
-    await f.runtime.commands.execute('occurrence.transition', {
+    await f.runtime.commands.execute('scheduler.occurrence.transition', {
       id: original.entries[0].id,
       status: ProgressStatus.COMPLETED,
     })
@@ -447,7 +447,7 @@ describe('Persistent scheduling commands', () => {
       },
     })
     const first = await f.generate()
-    await f.runtime.commands.execute('occurrence.transition', {
+    await f.runtime.commands.execute('scheduler.occurrence.transition', {
       id: first.entries[0].id,
       status: ProgressStatus.COMPLETED,
     })
@@ -622,7 +622,7 @@ describe('Scheduler repository boundaries', () => {
       recurrance_rule: { type: 'daily', data: {} },
     })
     const plan = await f.generate()
-    await f.runtime.commands.execute('occurrence.transition', {
+    await f.runtime.commands.execute('scheduler.occurrence.transition', {
       id: plan.entries[0].id,
       status: ProgressStatus.COMPLETED,
     })
@@ -853,7 +853,7 @@ describe('Scheduler candidate preparation', () => {
       recurrance_rule: { type: 'weekly', data: { weekDays: [1] } },
     })
     const original = await f.generate()
-    await f.runtime.commands.execute('occurrence.transition', {
+    await f.runtime.commands.execute('scheduler.occurrence.transition', {
       id: original.entries[0].id,
       status: ProgressStatus.IN_PROGRESS,
     })
@@ -1146,7 +1146,7 @@ describe('Work carried across days', () => {
     const started = f.now()
     f.advance(24 * 60)
     const stop = (at: number) =>
-      f.runtime.commands.execute('tracking.stop', {
+      f.runtime.commands.execute('scheduler.tracking.stop', {
         taskId: id,
         occurrenceId: null,
         at,

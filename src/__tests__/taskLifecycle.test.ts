@@ -12,7 +12,7 @@ import {
   pauseTask,
   startTask,
 } from '@/workflows/taskCommands'
-import { ProgressStatus } from '@c/types/index'
+import { ProgressStatus } from '@c/types/enums'
 
 // The time tracker keeps its session in localStorage, which bun doesn't have.
 if (!('localStorage' in globalThis)) {

@@ -8,10 +8,10 @@ const cleared = ['clearRows', 'invalidateDependents'] as const
 // is handled once; kind events (`tasks.delete`) carry kind-specific behaviour.
 export const reactionRegistry: ReactionRegistry = {
   'scheduler.changed': ['refreshSchedule'],
-  'scheduler.mode.changed': ['refreshSchedule'],
+  'scheduler.mode.changed': ['refreshSchedule', 'syncTracking'],
   'scheduler.settings.changed': ['refreshSchedule'],
-  'occurrence.changed': ['refreshSchedule'],
-  'tracking.stopped': ['refreshSchedule'],
+  'scheduler.occurrence.changed': ['refreshSchedule', 'syncTracking'],
+  'scheduler.tracking.stopped': ['refreshSchedule', 'syncTracking'],
   'resource.content.changed': ['refreshVault'],
   'vault.changed': ['refreshVault'],
   'entity.add': [...upserted],
@@ -31,7 +31,7 @@ export const reactionRegistry: ReactionRegistry = {
   'tasks.deleteAll': ['stopTracking'],
 
   // Members of a changed or deleted collection, announced by the backend.
-  'tasks.change': ['refreshAnnounced'],
+  'tasks.change': ['refreshAnnounced', 'syncTracking'],
   'resources.change': ['refreshAnnounced'],
   'projects.change': ['refreshAnnounced'],
   'areas.change': ['refreshAnnounced'],

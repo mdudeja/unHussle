@@ -1,4 +1,4 @@
-import { Priority, ProgressStatus } from '@c/types/index'
+import { Priority, ProgressStatus } from '@c/types/enums'
 import type { FieldOption } from './types'
 
 export const isBlank = (value: unknown): boolean =>

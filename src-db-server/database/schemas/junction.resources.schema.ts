@@ -14,7 +14,7 @@ import {
   areas,
   goals,
 } from '@d/database/schemas/index'
-import { InferTableTypes, JunctionTable } from '@c/types/index'
+import type { InferTableTypes, JunctionTable } from '@c/types/index'
 
 // `attachedToId` is the task / project / area / goal a resource is linked to.
 export const junctionResources = sqliteTable(

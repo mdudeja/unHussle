@@ -29,7 +29,7 @@ import {
   titleColumn,
   urlColumn,
 } from '@/components/ui/custom/table/columns'
-import { Priority, ProgressStatus } from '@c/types/index'
+import { Priority, ProgressStatus } from '@c/types/enums'
 import { Task } from '@d/database/schemas/tasks.schema'
 import { Url } from '@d/database/schemas/urls.schema'
 import { Tag } from '@d/database/schemas/tags.schema'

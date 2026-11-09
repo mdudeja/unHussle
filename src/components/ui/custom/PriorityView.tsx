@@ -1,4 +1,4 @@
-import { Priority } from '@c/types'
+import { Priority } from '@c/types/enums'
 import { AlertCircle, Minus, ChevronDown } from 'lucide-react'
 import { toLabel } from '@/components/ui/utils/misc'
 

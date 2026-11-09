@@ -25,7 +25,7 @@ import type {
   SchedulerTask,
 } from '@c/scheduler/contracts'
 import { addDaysToDate, parseCalendarDate } from '@c/calendarUtils'
-import { ProgressStatus } from '@c/types'
+import { ProgressStatus } from '@c/types/enums'
 import { isPending, pendingStatuses } from '@c/scheduler/status'
 import { parseOccurrenceId } from '@c/scheduler/preparation'
 import {

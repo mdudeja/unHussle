@@ -1,4 +1,5 @@
-import type { VaultActionName, VaultCommand } from '@d/workflows/vaultActions'
+import type { VaultActionName } from '@d/workflows/vaultActions'
+import type { VaultCommand } from './contracts'
 
 /** Ordered actions per vault command, like `schedulerHandlerRegistry`. */
 export const vaultHandlerRegistry: Record<VaultCommand, VaultActionName[]> = {

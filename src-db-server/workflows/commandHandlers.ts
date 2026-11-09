@@ -1,4 +1,4 @@
-import { CommandHandlers } from '@c/workflows/contracts'
+import type { CommandHandlers } from '@d/workflows/contracts'
 
 export const commandHandlerRegistry: CommandHandlers = {
   'entry.add': ['createRow'],

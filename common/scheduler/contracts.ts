@@ -1,9 +1,9 @@
+import type { ProgressStatus } from '@c/types/enums'
 import type {
   Task,
   Project,
   Goal,
   Area,
-  ProgressStatus,
   SchedulerDayPlan,
   TaskOccurrence,
   TimeEntry,
@@ -64,7 +64,7 @@ export const defaultSchedulerSettings: SchedulerSettings = {
 }
 
 type TaskRead = Task['Read']
-type OccurrenceRead = TaskOccurrence['Read']
+export type OccurrenceState = TaskOccurrence['Read']
 
 export type SchedulerTask = TaskRead & {
   collectionPriorities: [
@@ -74,7 +74,6 @@ export type SchedulerTask = TaskRead & {
   ]
   isWork: boolean
 }
-export type OccurrenceState = OccurrenceRead
 
 /** A task or recurring occurrence as the scheduler sees it on one day. */
 export type PlanEntry = {
@@ -82,12 +81,12 @@ export type PlanEntry = {
   id: string
   taskId: TaskRead['id']
   taskData: TaskRead['custom_data']
-  occurrenceId: OccurrenceRead['id'] | null
+  occurrenceId: OccurrenceState['id'] | null
   title: TaskRead['title']
-  status: OccurrenceRead['status']
+  status: OccurrenceState['status']
   /** Estimated minutes still remaining. */
   minutes: number
-  spentMinutes: OccurrenceRead['spentMinutes']
+  spentMinutes: OccurrenceState['spentMinutes']
   isWork: boolean
   isFun: TaskRead['is_fun']
   isChore: TaskRead['is_chore']
@@ -154,7 +153,7 @@ export type SchedulerCommands = {
     input: { settings: SchedulerSettings; operationId?: string }
     result: SchedulerSettings
   }
-  'occurrence.transition': {
+  'scheduler.occurrence.transition': {
     input: {
       id: OccurrenceState['id']
       status: ProgressStatus
@@ -163,7 +162,7 @@ export type SchedulerCommands = {
     result: OccurrenceState
   }
   /** Closes a running interval at the time the user says they stopped. */
-  'tracking.stop': {
+  'scheduler.tracking.stop': {
     input: {
       taskId: TimeEntry['Read']['task_id']
       occurrenceId: TimeEntry['Read']['occurrence_id']
@@ -182,8 +181,8 @@ export type SchedulerEvents = {
   'scheduler.changed': SchedulerEvent
   'scheduler.mode.changed': SchedulerEvent
   'scheduler.settings.changed': SchedulerEvent
-  'occurrence.changed': SchedulerEvent
-  'tracking.stopped': SchedulerEvent
+  'scheduler.occurrence.changed': SchedulerEvent
+  'scheduler.tracking.stopped': SchedulerEvent
 }
 
 /** The event each scheduler command publishes after it commits. */
@@ -193,8 +192,8 @@ export const schedulerCommandEvents = {
   'scheduler.adjust': 'scheduler.changed',
   'scheduler.mode.change': 'scheduler.mode.changed',
   'scheduler.settings.change': 'scheduler.settings.changed',
-  'occurrence.transition': 'occurrence.changed',
-  'tracking.stop': 'tracking.stopped',
+  'scheduler.occurrence.transition': 'scheduler.occurrence.changed',
+  'scheduler.tracking.stop': 'scheduler.tracking.stopped',
 } as const satisfies Record<keyof SchedulerCommands, keyof SchedulerEvents>
 
 export const schedulerCommandNames = Object.keys(

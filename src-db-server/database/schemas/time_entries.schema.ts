@@ -1,6 +1,6 @@
 import { sqliteTable, integer, text, index } from 'drizzle-orm/sqlite-core'
 import { entitySupporterSchema } from './common.schema'
-import { EntitySupporter, InferTableTypes } from '@c/types/index'
+import type { EntitySupporter, InferTableTypes } from '@c/types/index'
 import { tasks } from './tasks.schema'
 import { relations } from 'drizzle-orm'
 import { taskOccurrences } from './scheduler.occurrences.schema'

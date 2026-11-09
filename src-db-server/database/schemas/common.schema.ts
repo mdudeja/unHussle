@@ -1,5 +1,5 @@
 import { createId } from '@paralleldrive/cuid2'
-import { AnchorType, Priority, ProgressStatus } from '@c/types/index'
+import { AnchorType, Priority, ProgressStatus } from '@c/types/enums'
 import * as t from 'drizzle-orm/sqlite-core'
 import { getNowMillis } from '@c/datetimeUtils'
 

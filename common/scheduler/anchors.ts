@@ -1,4 +1,4 @@
-import { AnchorType } from '@c/types'
+import { AnchorType } from '@c/types/enums'
 import type { PlanEntry } from './contracts'
 import { isPending } from './status'
 

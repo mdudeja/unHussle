@@ -1,3 +1,7 @@
+import type { MutationInput } from '@c/workflows/contracts'
+import type { PublicationContext } from '@d/workflows/contracts'
+import { supporterCapabilities } from './supporters'
+import { entityTables } from './entries'
 import { and, eq, inArray } from 'drizzle-orm'
 import {
   areas,
@@ -161,4 +165,84 @@ export function resourcesOfOwners(tx: SyncTx, ownerIds: string[]) {
       .all()
       .map((row) => row.id),
   )
+}
+
+export function updateResourceLinks(
+  tx: SyncTx,
+  input: MutationInput,
+  { operationId, announce }: PublicationContext,
+) {
+  const { kind, id, changes = {} } = input
+  const { resources: refs, links } = changes
+  if (refs !== undefined && !supporterCapabilities[kind]?.resources) {
+    throw new Error(`Provided Supporters are not supported for ${kind}`)
+  }
+  if (links !== undefined && kind !== 'resources') {
+    throw new Error(`Links are only supported for resources, got ${kind}`)
+  }
+
+  if (!id) return
+  if (refs !== undefined) {
+    const changed = syncOwnerResources(tx, id, refs as ResourceRef[])
+    if (changed.length)
+      announce('resources.change', {
+        kind: 'resources',
+        action: 'update',
+        attachedIds: changed,
+        operationId,
+        result: undefined,
+      })
+  }
+  if (links !== undefined) {
+    const owners = syncResourceLinks(tx, id, links as ResourceLinkInput[])
+    for (const [ownerKind, attachedIds] of owners)
+      announce(`${ownerKind}.change`, {
+        kind: ownerKind,
+        action: 'update',
+        attachedIds,
+        operationId,
+        result: undefined,
+      })
+  }
+}
+
+export function announceResourceLinks(
+  tx: SyncTx,
+  input: MutationInput,
+  { operationId, announce }: PublicationContext,
+) {
+  const { kind, action, id } = input
+  if (action !== 'deleteAll' && !id) {
+    throw new Error('An entity id is required for announceResourceLinks action')
+  }
+  const ids = action === 'deleteAll' ? undefined : [id as string]
+
+  if (kind === 'resources') {
+    for (const [ownerKind, attachedIds] of ownersOfResources(tx, ids))
+      announce(`${ownerKind}.change`, {
+        kind: ownerKind,
+        action: 'update',
+        attachedIds,
+        operationId,
+        result: undefined,
+      })
+    return
+  }
+  if (!supporterCapabilities[kind]?.resources) return
+  const ownerIds =
+    ids ??
+    tx
+      .select({ id: entityTables[kind].id })
+      .from(entityTables[kind])
+      .all()
+      .map((row) => row.id as string)
+  const attachedIds = resourcesOfOwners(tx, ownerIds)
+  if (attachedIds.length)
+    announce('resources.change', {
+      kind: 'resources',
+      action: 'update',
+      attachedIds,
+      operationId,
+      result: undefined,
+    })
 }

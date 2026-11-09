@@ -1,10 +1,10 @@
-import { and, eq, isNull } from 'drizzle-orm'
+import { eq } from 'drizzle-orm'
 import { anchorViolations } from '@c/scheduler/anchors'
 import { isPending } from '@c/scheduler/status'
 import { validateSettings } from '@c/scheduler/validation'
 import { getLocalDateString } from '@c/datetimeUtils'
 import { addDaysToDate, parseCalendarDate } from '@c/calendarUtils'
-import { ProgressStatus } from '@c/types'
+import { ProgressStatus } from '@c/types/enums'
 import type {
   DayPlan,
   ScheduleCue,
@@ -22,10 +22,15 @@ import {
   schedulerSettings,
   schedulingOverrides,
   taskOccurrences,
-  tasks,
-  timeEntries,
 } from '@d/database/schemas'
-import { pauseInterval, pauseOpenWork, trackInterval } from './tracking'
+import { pauseOpenWork } from '@d/domain/tracking'
+import {
+  transitionOccurrence,
+  trackOccurrenceTransition,
+  stopTracking,
+  announceTaskChanges,
+} from '@d/domain/tasks'
+import type { PublicationContext } from './contracts'
 import {
   ScheduleConflict,
   composeDay,
@@ -61,6 +66,7 @@ const modeOf = ({
 
 /** Carried from action to action within one scheduler command. */
 export type SchedulerState = Request & {
+  publication: PublicationContext
   now: number
   settings: SchedulerSettings
   today?: string
@@ -104,8 +110,8 @@ const staleRevision = () =>
 function dayRequest(state: SchedulerState): DayRequest['input'] {
   if (
     state.command === 'scheduler.settings.change' ||
-    state.command === 'occurrence.transition' ||
-    state.command === 'tracking.stop'
+    state.command === 'scheduler.occurrence.transition' ||
+    state.command === 'scheduler.tracking.stop'
   )
     throw new Error(`${state.command} does not plan a day`)
   return state.input
@@ -183,7 +189,7 @@ export const schedulerActions: {
       state.command === 'scheduler.mode.change' &&
       state.input.change === 'startBreak'
     )
-      pauseOpenWork(tx, state.now)
+      announceTaskChanges(pauseOpenWork(tx, state.now), state.publication)
   },
 
   buildPlan: (_name, state, { tx }) => {
@@ -329,75 +335,37 @@ export const schedulerActions: {
   },
 
   transitionOccurrence: (_name, state, { tx }) => {
-    if (state.command !== 'occurrence.transition')
+    if (state.command !== 'scheduler.occurrence.transition')
       throw new Error('transitionOccurrence only handles occurrences')
     const { id, status } = state.input
-    const occurrence = tx
-      .select()
-      .from(taskOccurrences)
-      .where(eq(taskOccurrences.id, id))
-      .get()
-    if (!occurrence?.taskId)
-      throw new Error('Occurrence not found; save its day first')
-    const task = tx
-      .select({ recurring: tasks.is_recurring, status: tasks.status })
-      .from(tasks)
-      .where(eq(tasks.id, occurrence.taskId))
-      .get()
-    if (!task?.recurring || !isPending(task.status ?? ProgressStatus.PLANNED))
-      throw new Error('This recurring task is no longer active')
-    if (status === ProgressStatus.IN_PROGRESS && !isPending(occurrence.status))
-      throw new Error('This occurrence has already ended')
-    tx.update(taskOccurrences)
-      .set({ status })
-      .where(eq(taskOccurrences.id, id))
-      .run()
+    transitionOccurrence(tx, id, status)
   },
 
   trackOccurrenceInterval: (_name, state, { tx }) => {
-    if (state.command !== 'occurrence.transition')
+    if (state.command !== 'scheduler.occurrence.transition')
       throw new Error('trackOccurrenceInterval only handles occurrences')
     const { id, status } = state.input
-    const occurrence = tx
-      .select()
-      .from(taskOccurrences)
-      .where(eq(taskOccurrences.id, id))
-      .get()
-    if (!occurrence?.taskId) return
-    trackInterval(tx, occurrence.taskId, id, status, state.now)
-    state.result = tx
-      .select()
-      .from(taskOccurrences)
-      .where(eq(taskOccurrences.id, id))
-      .get()
+    state.result = trackOccurrenceTransition(
+      tx,
+      id,
+      status,
+      state.now,
+      state.publication,
+    )
   },
 
   // The user says when they actually stopped, e.g. after a night away.
   stopTracking: (_name, state, { tx }) => {
-    if (state.command !== 'tracking.stop')
+    if (state.command !== 'scheduler.tracking.stop')
       throw new Error('stopTracking only handles tracking corrections')
     const { taskId, occurrenceId, at } = state.input
-    const open = tx
-      .select()
-      .from(timeEntries)
-      .where(
-        and(
-          isNull(timeEntries.end_time),
-          eq(timeEntries.task_id, taskId),
-          occurrenceId === null
-            ? isNull(timeEntries.occurrence_id)
-            : eq(timeEntries.occurrence_id, occurrenceId),
-        ),
-      )
-      .get()
-    if (!open) throw new Error('This task is no longer running')
-    if (!Number.isFinite(at) || at < open.start_time || at > state.now)
-      throw new Error('Choose a time between when you started and now')
-    pauseInterval(tx, taskId, occurrenceId, at)
-    state.result = tx
-      .select()
-      .from(timeEntries)
-      .where(eq(timeEntries.id, open.id))
-      .get()
+    state.result = stopTracking(
+      tx,
+      taskId,
+      occurrenceId,
+      at,
+      state.now,
+      state.publication,
+    )
   },
 }

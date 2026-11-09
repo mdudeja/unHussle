@@ -1,3 +1,4 @@
+import type { CommandHandlers } from '@d/workflows/contracts'
 import { afterAll, describe, expect, test } from 'bun:test'
 import {
   existsSync,
@@ -21,11 +22,7 @@ import { getTaskContext } from '@d/database/repositories/taskContext'
 import { readSchedulerTasks } from '@d/database/repositories/scheduler'
 import { readSettings } from '@d/workflows/scheduler'
 import { hashContent, VaultConflict, VaultError } from '@d/vault/vault'
-import type {
-  CommandHandlers,
-  EntryRecord,
-  MutationEvent,
-} from '@c/workflows/contracts'
+import type { EntryRecord, MutationEvent } from '@c/workflows/contracts'
 import { createTelemetry } from '@c/workflows/telemetry'
 import { slugify } from '@c/slug'
 

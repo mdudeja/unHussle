@@ -1,5 +1,5 @@
 import { areas, goals } from '@d/database/schemas'
-import { syncSupporters } from '@d/workflows/supporters'
+import { syncSupporters } from '@d/domain/supporters'
 import { UnHussleDB } from '@d/database/UnHussleDB'
 import { areasData, goalsData } from '@d/database/seed/data'
 import { eq } from 'drizzle-orm'

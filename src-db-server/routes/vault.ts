@@ -8,7 +8,7 @@ import {
   rescanResultSchema,
   vaultInfoSchema,
 } from '@d/database/validation'
-import { vaultInfo } from '@d/workflows/vaultActions'
+import { vaultInfo } from '@d/domain/vault'
 import { VaultConflict, VaultError } from '@d/vault/vault'
 import { operationIdHeader, traceOf } from './telemetry'
 

@@ -19,14 +19,8 @@ import {
   WashingMachine,
   Zap,
 } from 'lucide-react'
-import {
-  AnchorType,
-  Area,
-  Goal,
-  Project,
-  Task,
-  WithSupporters,
-} from '@c/types/index'
+import { AnchorType } from '@c/types/enums'
+import { Area, Goal, Project, Task, WithSupporters } from '@c/types/index'
 import { validateTaskSchedule } from '@c/taskSchedule'
 import type { FieldConfig, FieldOption } from '../types'
 import { priorityOptions, statusOptions } from '../utils'

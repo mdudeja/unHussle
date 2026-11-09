@@ -7,7 +7,7 @@ import type {
   MutationEvent,
   MutationInput,
 } from '@c/workflows/contracts'
-import { ProgressStatus } from '@c/types'
+import { ProgressStatus } from '@c/types/enums'
 import { getNowMillis } from '@c/datetimeUtils'
 import { Logger } from '@c/Logger'
 import type { StoreState } from '@/store'
@@ -37,6 +37,7 @@ import {
   createReactions,
   schedulerEventDependencies,
   vaultEventDependencies,
+  syncTrackedTask,
 } from './reactions'
 import { reactionRegistry } from './reactionRegistry'
 import { frontendTelemetry } from './telemetry'
@@ -66,6 +67,7 @@ const queryKindToLabel: Record<string, string> = {
   related: 'related tasks',
   tagged: 'tagged items',
   detail: 'item details',
+  tracking: 'timer',
   urls: 'links',
   time_entries: 'time entries',
 }
@@ -137,7 +139,12 @@ export function createFrontendRuntime(
       warnings: warnings.filter((warning) => warning.id !== id),
     }))
 
-  const warnRefresh = (operationId: string, key: string, error: unknown) => {
+  const warnRefresh = (
+    operationId: string,
+    key: string,
+    error: unknown,
+    retry?: () => Promise<unknown>,
+  ) => {
     if (disposed) return
     const id = `${operationId}:${key}`
     const [queryKind, entityKind] = key.split(':')
@@ -161,7 +168,8 @@ export function createFrontendRuntime(
           message: `Your changes were saved, but ${label} could not be refreshed.`,
           retry: async () => {
             try {
-              await queries.ensure(key)
+              if (retry) await retry()
+              else await queries.ensure(key)
               dismissWarning(id)
             } catch (retryError) {
               logger.error(`Refresh retry failed (${id})`, {
@@ -383,23 +391,6 @@ export function createFrontendRuntime(
         const operation = operations.begin(operationId, [event])
         traces.set(operationId, { traceId, parentId: trace?.spanId })
         try {
-          // Ordinary task tracking remains serialized with occurrence
-          // transitions; a break pauses the tracked task like any other.
-          if (
-            (command === 'occurrence.transition' &&
-              'status' in input &&
-              input.status === ProgressStatus.IN_PROGRESS) ||
-            (command === 'scheduler.mode.change' &&
-              'change' in input &&
-              input.change === 'startBreak')
-          ) {
-            const session = tracking.getActiveTracking()
-            if (session)
-              await transitionTask(
-                { id: session.taskId, status: ProgressStatus.PAUSED },
-                trace,
-              )
-          }
           await settlesWithin(transport.ready(), readyTimeoutMs)
           const result = await telemetry.span(
             'http',
@@ -420,9 +411,20 @@ export function createFrontendRuntime(
             )
             await invalidate(operationId, schedulerEventDependencies[event])
           }
+          // Only committed scheduler work can end the local presentation session.
+          if (
+            (command === 'scheduler.occurrence.transition' &&
+              'status' in input &&
+              input.status === ProgressStatus.IN_PROGRESS) ||
+            (command === 'scheduler.mode.change' &&
+              'change' in input &&
+              input.change === 'startBreak')
+          ) {
+            await syncTrackedTask(context, operationId)
+          }
           // A corrected one-off interval has stopped, so its session ends too.
           if (
-            command === 'tracking.stop' &&
+            command === 'scheduler.tracking.stop' &&
             'taskId' in input &&
             !input.occurrenceId &&
             tracking.getActiveTracking()?.taskId === input.taskId
@@ -501,18 +503,7 @@ export function createFrontendRuntime(
     { id, status, changes = {} }: Transition,
     trace?: SpanScope,
   ): Promise<EntryRecord> => {
-    let session = tracking.getActiveTracking()
-    if (
-      status === ProgressStatus.IN_PROGRESS &&
-      session &&
-      session.taskId !== id
-    ) {
-      await transitionTask(
-        { id: session.taskId, status: ProgressStatus.PAUSED },
-        trace,
-      )
-      session = null
-    }
+    const session = tracking.getActiveTracking()
     // The backend stamps lifecycle times and owns tracked minutes.
     const values: Record<string, unknown> = { ...changes, status }
     const stopsTracking =

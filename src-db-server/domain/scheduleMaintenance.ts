@@ -1,7 +1,7 @@
 import { and, eq, inArray } from 'drizzle-orm'
 import { occursOn } from '@c/scheduler/preparation'
 import { isPending, pendingStatuses } from '@c/scheduler/status'
-import { ProgressStatus } from '@c/types'
+import { ProgressStatus } from '@c/types/enums'
 import type { EntryKind, MutationInput } from '@c/workflows/contracts'
 import {
   bumpRevisions,

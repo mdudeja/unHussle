@@ -3,7 +3,8 @@ import type {
   EntryRecord,
   MutationCommands,
 } from '@c/workflows/contracts'
-import type { ProgressStatus, Task, UrlInput, WithSupporters } from '@c/types'
+import type { ProgressStatus } from '@c/types/enums'
+import type { Task, UrlInput, WithSupporters } from '@c/types'
 import type { MutationOptions } from '@/services/database/DbService'
 import type { SchedulerCommands } from '@c/scheduler/contracts'
 import type { VaultCommands } from '@c/vault/contracts'
@@ -20,10 +21,7 @@ export type Transition = {
 }
 
 /** Mutation commands exposed by the backend routes, plus frontend workflows. */
-export type FrontendCommands = Pick<
-  MutationCommands,
-  Exclude<keyof MutationCommands, `entry.${string}`>
-> &
+export type FrontendCommands = MutationCommands &
   SchedulerCommands &
   VaultCommands & {
     'task.transition': { input: Transition; result: EntryRecord }
@@ -66,6 +64,7 @@ export type ReactionName =
   | 'refreshAnnounced'
   | 'stopTrackingIfDeleted'
   | 'stopTracking'
+  | 'syncTracking'
 
 /** Which reactions run, in order, for each event. Mirrors the backend `CommandHandlers`. */
 export type ReactionRegistry = {

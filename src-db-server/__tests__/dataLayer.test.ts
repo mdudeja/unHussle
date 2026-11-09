@@ -8,7 +8,7 @@ import {
 import type { WithSupporters, Task, Tag } from '@c/types'
 import { describe, test, expect, beforeAll, afterAll } from 'bun:test'
 import { UnHussleDB } from '@d/database/UnHussleDB'
-import { Priority, ProgressStatus } from '@c/types/index'
+import { Priority, ProgressStatus } from '@c/types/enums'
 import { eq } from 'drizzle-orm'
 import type { BunSQLiteDatabase } from 'drizzle-orm/bun-sqlite'
 import * as schema from 'src-db-server/database/schemas'

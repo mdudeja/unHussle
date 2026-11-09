@@ -1,4 +1,4 @@
-import { ProgressStatus } from '@c/types'
+import { ProgressStatus } from '@c/types/enums'
 import { useStore } from '@/store'
 import { getFrontendRuntime } from './runtime'
 

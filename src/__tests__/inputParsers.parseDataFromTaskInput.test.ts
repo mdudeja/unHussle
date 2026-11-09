@@ -1,7 +1,7 @@
 import { describe, test, expect } from 'bun:test'
 import { Temporal } from 'temporal-polyfill'
 import { getStartOfDayMillis } from '@c/datetimeUtils'
-import { Priority } from '@c/types/index'
+import { Priority } from '@c/types/enums'
 import { parseDataFromTaskInput } from '@/lib/inputParsers/parseDataFromTaskInput'
 import type { Area, Goal, Project } from '@d/database/schemas'
 

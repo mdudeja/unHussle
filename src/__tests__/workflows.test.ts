@@ -8,7 +8,7 @@ import {
 import type { EventHandlers, EventTransport } from '@/workflows/eventStream'
 import type { MutationOptions } from '@/services/database/DbService'
 import { useStore, type StoreState } from '@/store'
-import { ProgressStatus } from '@c/types'
+import { ProgressStatus } from '@c/types/enums'
 import {
   commandHeadForKind,
   type EntityKind,
@@ -114,6 +114,32 @@ function fixture({
           ) => {
             const previous = data.get(id)
             if (!previous) throw new Error('Missing entity')
+            // The fake server owns exclusivity, just like the backend domain service.
+            if (
+              kind === 'tasks' &&
+              changes.status === ProgressStatus.IN_PROGRESS
+            ) {
+              const paused: string[] = []
+              for (const [otherId, other] of data) {
+                if (
+                  otherId !== id &&
+                  other.status === ProgressStatus.IN_PROGRESS
+                ) {
+                  data.set(otherId, { ...other, status: ProgressStatus.PAUSED })
+                  paused.push(otherId)
+                }
+              }
+              if (paused.length && emitEvents)
+                setTimeout(() => {
+                  void stream.emit('tasks.change', {
+                    kind,
+                    action: 'update',
+                    attachedIds: paused,
+                    operationId: options?.operationId,
+                    result: undefined,
+                  })
+                }, 0)
+            }
             const row = { ...previous, ...changes }
             data.set(id, row)
             publish(
@@ -318,6 +344,54 @@ describe('Frontend workflows', () => {
     })
     expect(services.tasks.update).toHaveBeenCalledTimes(1)
     expect(runtime.tracking.getActiveTracking()).toBeNull()
+    runtime.dispose()
+  })
+
+  test('a failed start sends no preliminary pause and preserves the current session', async () => {
+    const { runtime, services, rows } = fixture()
+    rows.get('tasks')!.set('one', {
+      id: 'one',
+      title: 'One',
+      status: ProgressStatus.IN_PROGRESS,
+    })
+    runtime.tracking.start('one', 1000)
+    services.tasks.update = mock(async () => {
+      throw new Error('Start rejected')
+    })
+    await expect(
+      runtime.commands.execute('task.transition', {
+        id: 'two',
+        status: ProgressStatus.IN_PROGRESS,
+      }),
+    ).rejects.toThrow('Start rejected')
+    expect(services.tasks.update).toHaveBeenCalledTimes(1)
+    expect(services.tasks.update).toHaveBeenCalledWith(
+      'two',
+      { status: ProgressStatus.IN_PROGRESS },
+      expect.anything(),
+    )
+    expect(rows.get('tasks')!.get('one')?.status).toBe(
+      ProgressStatus.IN_PROGRESS,
+    )
+    expect(runtime.tracking.getActiveTracking()?.taskId).toBe('one')
+    runtime.dispose()
+  })
+
+  test('a backend pause announcement clears a local timer without a local write', async () => {
+    const { runtime, services, rows, stream } = fixture()
+    rows
+      .get('tasks')!
+      .set('one', { id: 'one', title: 'One', status: ProgressStatus.PAUSED })
+    runtime.tracking.start('one', 1000)
+    await stream.emit('tasks.change', {
+      kind: 'tasks',
+      action: 'update',
+      attachedIds: ['one'],
+      operationId: 'remote-start',
+      result: undefined,
+    })
+    expect(runtime.tracking.getActiveTracking()).toBeNull()
+    expect(services.tasks.update).toHaveBeenCalledTimes(0)
     runtime.dispose()
   })
 

@@ -1,4 +1,4 @@
-import { ProgressStatus } from '@c/types'
+import { ProgressStatus } from '@c/types/enums'
 
 export const pendingStatuses = [
   ProgressStatus.PLANNED,

@@ -11,7 +11,8 @@ import {
 import { Button } from '@/components/ui/button'
 import { IconResolver } from '@/components/ui/utils/IconResolver'
 import { DataTableFilterOption } from '@/components/ui/custom/table/DataTable'
-import { Priority, ProgressStatus, Tag } from '@c/types/index'
+import { Priority, ProgressStatus } from '@c/types/enums'
+import { Tag } from '@c/types/index'
 import {
   formatMillisAsDdMmYyyy,
   formatMillisAsDdMmYyyyHhMm,

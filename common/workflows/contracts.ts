@@ -1,6 +1,3 @@
-import type { TableWithId } from '@d/database/repositories/BaseRepository'
-import type { SyncTx } from '@d/database/repositories/helpers'
-import type { transactionRepository } from '@d/workflows/unitOfWork'
 import type { SchedulerEvents } from '@c/scheduler/contracts'
 import type { VaultEvents } from '@c/vault/contracts'
 
@@ -31,18 +28,13 @@ export type MutationEvent = MutationInput & {
   result: MutationResult
 }
 
-const _commandHeads = [
-  'entry',
-  'entity',
-  'entityCollection',
-  'entitySupporter',
-] as const
+const _commandHeads = ['entity', 'entityCollection', 'entitySupporter'] as const
 
 export type CommandHead = (typeof _commandHeads)[number]
 
 /** The command family that owns mutations for each kind. */
 export const commandHeadForKind: {
-  [K in EntryKind]: Exclude<CommandHead, 'entry'>
+  [K in EntryKind]: CommandHead
 } = {
   tasks: 'entity',
   resources: 'entity',
@@ -89,30 +81,6 @@ export type MutationCommands = {
     input: MutationInput & { action: 'deleteAll' }
     result: EntryRecord[] | void
   }
-} & {
-  [T in (typeof _kindHeads)[number] as `${T}.add`]: {
-    input: MutationInput & { action: 'create' }
-    result: EntryRecord | void
-  }
-} & {
-  [U in (typeof _kindHeads)[number] as `${U}.change`]: {
-    input: MutationInput & {
-      action: 'update'
-      id: string
-      changes: Record<string, unknown>
-    }
-    result: EntryRecord | void
-  }
-} & {
-  [V in (typeof _kindHeads)[number] as `${V}.delete`]: {
-    input: MutationInput & { action: 'delete'; id: string }
-    result: EntryRecord | void
-  }
-} & {
-  [W in (typeof _kindHeads)[number] as `${W}.deleteAll`]: {
-    input: MutationInput & { action: 'deleteAll' }
-    result: EntryRecord[] | void
-  }
 }
 
 export type AppEvents = SchedulerEvents &
@@ -134,57 +102,6 @@ export type AppEvents = SchedulerEvents &
     [W in (typeof _kindHeads)[number] as `${W}.deleteAll`]: MutationEvent
   }
 
-export type CommandAction =
-  | 'createRow'
-  | 'updateRow'
-  | 'validateTask'
-  | 'trackTaskInterval'
-  | 'markPlansStale'
-  | 'syncPlanMembership'
-  | 'deleteRow'
-  | 'deleteAllRows'
-  | 'updateSupporters'
-  | 'updateSupporterCounts'
-  | 'updateCollectionCounts'
-  | 'announceAffectedEntities'
-  | 'deleteJunctions'
-  | 'updateResourceLinks'
-  | 'announceResourceLinks'
-  | 'syncResourceFile'
-  | 'trashResourceFiles'
-  | `handler:${keyof MutationCommands}`
-
-export type CommandHandlers = {
-  [K in keyof MutationCommands]?: CommandAction[]
-}
-
 export type AppEventListeners = {
   [K in keyof AppEvents]?: ((event: AppEvents[K]) => void | Promise<void>)[]
 }
-
-/** Queues an event that is published only after the command's transaction commits. */
-export type Announce = <K extends keyof AppEvents>(
-  name: K,
-  payload: AppEvents[K],
-) => void
-
-/**
- * Per-command context handed to every action of that command.
- * `compensate` registers an undo for a side effect outside the database (a
- * vault file); undos run in reverse order if the transaction rolls back.
- * `afterCommit` runs cleanup that integrity doesn't depend on; failures are
- * only logged.
- */
-export type ActionContext<Context> = Context & {
-  operationId: string
-  announce: Announce
-  compensate: (undo: () => void) => void
-  afterCommit: (run: () => void) => void
-}
-
-export type TransactionWorkUnit<T> = (context: {
-  tx: SyncTx
-  repository: <Table extends TableWithId>(
-    table: Table,
-  ) => ReturnType<typeof transactionRepository<Table>>
-}) => T

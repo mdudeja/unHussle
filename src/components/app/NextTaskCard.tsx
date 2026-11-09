@@ -14,7 +14,7 @@ import {
   windDownOf,
 } from '@c/scheduler/dayMode'
 import { OvernightCheck } from './OvernightCheck'
-import { ProgressStatus } from '@c/types'
+import { ProgressStatus } from '@c/types/enums'
 import { formatTimeDuration } from '@c/datetimeUtils'
 import {
   useTodayPlan,
@@ -101,7 +101,7 @@ export const NextTaskCardComponent = () => {
   const stopAt = (at: number) =>
     run(async () => {
       if (!overnight) return
-      await runtime.commands.execute('tracking.stop', {
+      await runtime.commands.execute('scheduler.tracking.stop', {
         taskId: overnight.taskId,
         occurrenceId: overnight.occurrenceId,
         at,
@@ -131,7 +131,7 @@ export const NextTaskCardComponent = () => {
     run(async () => {
       if (!item) return
       if (item.occurrenceId)
-        await runtime.commands.execute('occurrence.transition', {
+        await runtime.commands.execute('scheduler.occurrence.transition', {
           id: item.occurrenceId,
           status,
         })

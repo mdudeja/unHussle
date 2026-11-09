@@ -15,7 +15,7 @@ import {
   areas,
   goals,
 } from '@d/database/schemas/index'
-import { InferTableTypes, JunctionTable } from '@c/types/index'
+import type { InferTableTypes, JunctionTable } from '@c/types/index'
 
 export const junctionTags = sqliteTable(
   'junction_tags',

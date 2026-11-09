@@ -1,4 +1,4 @@
-import { Priority, ProgressStatus } from '@c/types/index'
+import { Priority, ProgressStatus } from '@c/types/enums'
 import { resolveTaskSchedule } from '@c/taskSchedule'
 import { StoreState } from '@/store'
 import {

@@ -56,8 +56,10 @@ src-db-server/        Elysia sidecar API
   server.ts           app bootstrap (port 3456)
   database/           UnHussleDB (singleton), schemas/, repositories/ (hydrated reads), validation, seed/
   routes/             routeGenerator-based CRUD routes, scheduler.ts, events.ts (SSE), telemetry.ts
-  workflows/          backend runtime: command + scheduler registries, actions, unit of work,
-                      counts, supporters, tracking, scheduler reads, schedule maintenance
+  workflows/          backend runtime: command + scheduler registries, action adapters, unit of work,
+                      private execution contracts, scheduler reads
+  domain/             task validation/lifecycle, tracking, collection integrity, supporters,
+                      counts, resource links/files, vault operations, schedule maintenance
 common/               Shared code for both sides
   workflows/          createRuntime, contracts, telemetry
   scheduler/          planning engine: contracts, preparation, engine, rules, ruleRegistry, anchors, validation, status
@@ -118,7 +120,7 @@ Both frontend and sidecar share these aliases.
   (`trackTaskInterval`) and occurrence transitions (`trackOccurrenceInterval`)
   open and close `time_entries` and add minutes to `tasks.spent_minutes` /
   `task_occurrences.spent_minutes`. Starting one task closes every other open
-  interval and pauses its task. `tracking.stop` closes an open interval at a
+  interval and pauses its task. `scheduler.tracking.stop` closes an open interval at a
   user-given time (`pauseInterval`), for work left running since an earlier
   day. The UI asks instead of counting the night: the home card inline
   (`runningSinceEarlierDay`, `OvernightCheck`), and the Tasks page before
@@ -126,7 +128,7 @@ Both frontend and sidecar share these aliases.
   `askOvernight` → `OvernightDialogHost`). "Still on it" is remembered per
   interval (`overnightKey`). The frontend only keeps the active session
   (`taskId`, `startTime`) in
-  localStorage for the UI timer, and clears it after a one-off `tracking.stop`.
+  localStorage for the UI timer, and clears it after a one-off `scheduler.tracking.stop`.
 - Paused one-off tasks stay eligible on later days. Past-day appointments
   that weren't done stop being candidates (by design: missed is missed).
 - **Vault** (`src-db-server/vault/vault.ts`). Each resource is a markdown file;
@@ -172,7 +174,9 @@ Both sides use `createRuntime` (`common/workflows/runtime.ts`): typed commands w
 Handlers and listeners receive `(name, payload, context, trace?)`. `publish`
 uses `Promise.allSettled`, so a failing listener never throws into the
 publisher. Shared types are in `common/workflows/contracts.ts` (mutations) and
-`common/scheduler/contracts.ts` (scheduler).
+`common/scheduler/contracts.ts` (scheduler). Backend action, transaction and
+publication types live in `src-db-server/workflows/contracts.ts`. Runtime enums
+come from `common/types/enums.ts`; schema-derived imports must be type-only.
 
 Command families come from `commandHeadForKind`:
 
@@ -187,21 +191,22 @@ the backend-internal base that the families nest.
 
 Scheduler commands (`SchedulerCommands`) and the event each one publishes:
 
-| Command                     | Route                           | Event                        |
-| --------------------------- | ------------------------------- | ---------------------------- |
-| `scheduler.generate`        | `POST /scheduler/generate`      | `scheduler.changed`          |
-| `scheduler.replan`          | `POST /scheduler/replan`        | `scheduler.changed`          |
-| `scheduler.adjust`          | `POST /scheduler/adjust`        | `scheduler.changed`          |
-| `scheduler.mode.change`     | `POST /scheduler/mode`          | `scheduler.mode.changed`     |
-| `scheduler.settings.change` | `PATCH /scheduler/settings`     | `scheduler.settings.changed` |
-| `occurrence.transition`     | `POST /scheduler/occurrence`    | `occurrence.changed`         |
-| `tracking.stop`             | `POST /scheduler/tracking/stop` | `tracking.stopped`           |
+| Command                           | Route                           | Event                          |
+| --------------------------------- | ------------------------------- | ------------------------------ |
+| `scheduler.generate`              | `POST /scheduler/generate`      | `scheduler.changed`            |
+| `scheduler.replan`                | `POST /scheduler/replan`        | `scheduler.changed`            |
+| `scheduler.adjust`                | `POST /scheduler/adjust`        | `scheduler.changed`            |
+| `scheduler.mode.change`           | `POST /scheduler/mode`          | `scheduler.mode.changed`       |
+| `scheduler.settings.change`       | `PATCH /scheduler/settings`     | `scheduler.settings.changed`   |
+| `scheduler.occurrence.transition` | `POST /scheduler/occurrence`    | `scheduler.occurrence.changed` |
+| `scheduler.tracking.stop`         | `POST /scheduler/tracking/stop` | `scheduler.tracking.stopped`   |
 
 Scheduler reads, which never write: `GET /scheduler/settings`,
 `/day/:date`, `/next/:date` and `/week/:date` (with `?timezone=`).
 
 Vault commands (`VaultCommands`, `common/vault/contracts.ts`; `vaultHandlers.ts`
-→ `vaultActions.ts` over one `VaultState`, like the scheduler):
+→ `vaultActions.ts` adapters over `domain/vault.ts` and one backend `VaultState`,
+like the scheduler):
 
 | Command                 | Route                        | Event                      | Actions                                                |
 | ----------------------- | ---------------------------- | -------------------------- | ------------------------------------------------------ |
@@ -235,7 +240,9 @@ Vault commands (`VaultCommands`, `common/vault/contracts.ts`; `vaultHandlers.ts`
 - `commandActions.ts` holds the named actions. An action
   `(name, input, ActionContext)` returns a **synchronous** `TransactionWorkUnit`.
   All of a command's units run in one transaction (`unitOfWork.ts`); an error
-  rolls the whole command back.
+  rolls the whole command back. Actions delegate integrity work to `domain/`.
+  `entry.*` handlers are internal expansion templates and cannot be executed
+  directly; public mutation families must match `commandHeadForKind[kind]`.
 - Actions are built one at a time, and `carryForward` feeds each result into the
   next action's input:
   - a created or updated row sets `id`;
@@ -252,8 +259,8 @@ Vault commands (`VaultCommands`, `common/vault/contracts.ts`; `vaultHandlers.ts`
   `started_at` and `completed_at`, which `trackTaskInterval` owns. It sets URL
   `parts` and normalizes tag titles (`normalizeTagTitle`), as every write path does.
 - Derived counts (`count_tasks`, `count_resources`, `count_pga`) are recalculated
-  in `counts.ts` and are never client-writable.
-- `scheduleMaintenance.ts`: `affectsSchedules` decides from the kind and changed
+  in `domain/counts.ts` and are never client-writable.
+- `domain/scheduleMaintenance.ts`: `affectsSchedules` decides from the kind and changed
   fields (`scheduleFields`) whether `markPlansStale` flags current and future
   plans. `syncPlanMembership` makes saved one-off rows follow their task's
   status, cancels or removes occurrences the task no longer produces, and bumps
@@ -281,9 +288,10 @@ Vault commands (`VaultCommands`, `common/vault/contracts.ts`; `vaultHandlers.ts`
   state), `readDay` (saved order + live task/occurrence/tracking data),
   `previewWeek` (allocates each one-off to at most one day), `readNext`.
   Unsaved days within the week follow the preview, so saving keeps the allocation.
-- After commit, the runtime publishes the family event (`entity.add`), the kind
-  event (`tasks.add`), and any events actions queued with
-  `ActionContext.announce(...)`. Queued events are dropped on rollback. All
+- After commit, the runtime publishes queued `ActionContext.announce(...)`
+  events before the family (`entity.add`) and kind (`tasks.add`) completion
+  events. Scheduler tracking changes also announce affected tasks before their
+  completion event, so clients settle after dependent rows refresh. Queued events are dropped on rollback. All
   mutation payloads are `MutationEvent` and carry `operationId`: the client's
   `x-operation-id` header, or a generated id. Scheduler events are
   `{ operationId, date? }`.
@@ -350,15 +358,18 @@ Vault commands (`VaultCommands`, `common/vault/contracts.ts`; `vaultHandlers.ts`
   three mutation families (`commandRegistry.ts` maps verbs to `EntryTransport`
   calls), the scheduler commands (`services/scheduler.ts`), plus:
   - `task.transition`: a `entity.change` on tasks with a `status` is routed
-    here. It pauses the currently tracked task before starting another,
-    updates the local tracking session, and publishes `tracking.changed`.
+    here. It sends one backend mutation, updates local session presentation
+    after commit, and publishes `tracking.changed`. Backend domain services
+    close competing intervals and pause work atomically; the UI never sends
+    a preliminary pause.
     `taskCommands.ts` wraps it (`startTask`, `pauseTask`, …).
   - `brainDump.submit`: creates the task, putting it in the "Brain Dump" area
     when it has no collection, or creates standalone URLs. It returns the URLs
     that failed, so a retry doesn't repeat the writes that succeeded.
   - `task.transition`, task deletes and all scheduler commands are serialized
-    on one queue. Starting an occurrence or a break (`scheduler.mode.change`
-    `startBreak`) pauses the tracked task first.
+    on one queue. Occurrence and break starts coordinate tracking in the
+    backend transaction. `syncTracking` reconciles local sessions from committed
+    task/scheduler events; failed timer reads offer a read-only retry.
 - Vault commands go through `services/vault.ts` (`options.vault` in tests).
   They wait for their event like scheduler commands; saves of one resource are
   queued one at a time. `resource.content.changed` and `vault.changed` →
@@ -384,7 +395,7 @@ Vault commands (`VaultCommands`, `common/vault/contracts.ts`; `vaultHandlers.ts`
     announcements: `attachedIds` and no `result`; reloads members already in
     the store);
   - `scheduler.changed`, `scheduler.mode.changed`,
-    `scheduler.settings.changed`, `occurrence.changed` → `refreshSchedule`
+    `scheduler.settings.changed`, `scheduler.occurrence.changed` → `refreshSchedule`
     (invalidates `schedulerEventDependencies[event]`; mode changes also refresh
     tasks, occurrences and time entries, since a break pauses work).
   - Put generic store reactions on family events, so each mutation is handled
@@ -457,7 +468,7 @@ trace.spanId }` as `execute`'s 3rd argument. Pass the same to `publish`.
 Extending:
 
 - Backend: add an action to `commandActions.ts` (and `CommandAction` in
-  contracts), then list it in `commandHandlers.ts`. Scheduler: add to
+  `src-db-server/workflows/contracts.ts`), then list it in `commandHandlers.ts`. Scheduler: add to
   `schedulerActions.ts` (and `SchedulerActionName`), then list it in
   `schedulerHandlers.ts`.
 - Frontend: add a reaction to `reactions.ts` (and `ReactionName`), then list it
@@ -517,7 +528,8 @@ Apply happens automatically on server startup via `migrate()`.
 - ESLint can be run by calling `bun run lint`.
 - Format on write is handled by harness hooks when enabled.
 - Use path aliases instead of relative deep imports where practical.
-- Shared types live in `common/types`.
+- Shared types live in `common/types`; import runtime enums from `common/types/enums`
+  and schema-derived types with `import type` to avoid runtime schema cycles.
 - `common` also has some additional utils (Logger, datetimeUtils, calendarUtils, taskSchedule). Use these instead of ad-hoc implementations.
 - This project uses shadcn/ui for UI components. New components as needed can be added using `bunx --bun shadcn@latest add [component-name]`.
 - UI Components are available under `src/components/ui` (shadcn), `src/components/ui/custom` and `src/components/app` (app-specific). Use these as much as possible instead of creating ad-hoc components like <input/>, <button/> etc.
@@ -562,9 +574,9 @@ Apply happens automatically on server startup via `migrate()`.
   `fetchLimits` in `src/workflows/services.ts`), Zustand slice. Also register the kind in the
   workflow layer:
   - `EntryKind` / the `_kindHeads` list and `commandHeadForKind` in `common/workflows/contracts.ts`;
-  - `entityTables` in `commandActions.ts`;
-  - `supporterCapabilities` / `supporterTables` / `collectionMembers` as relevant;
-  - `scheduleFields` in `scheduleMaintenance.ts` if it affects plans;
+  - `entityTables` in `domain/entries.ts`;
+  - `supporterCapabilities` / `supporterTables` / `collectionMembers` in `domain/` as relevant;
+  - `scheduleFields` in `domain/scheduleMaintenance.ts` if it affects plans;
   - `allKinds` and `dependencies()` in `src/workflows/runtime.ts`;
   - list page: `entityRoutes`, `entityRegistry`, `EntityPages.tsx`, router.
 - New foreign keys to collections should use `onDelete: 'set null'` and be added to

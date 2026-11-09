@@ -9,7 +9,7 @@ import {
   MINUTE_MS,
 } from '@c/datetimeUtils'
 import { addDaysToDate, parseCalendarDate } from '@c/calendarUtils'
-import { ProgressStatus } from '@c/types'
+import { ProgressStatus } from '@c/types/enums'
 import {
   defaultSchedulerSettings,
   type DayPlan,

@@ -1,4 +1,5 @@
-import { Task, Priority } from '@c/types/index'
+import { Priority } from '@c/types/enums'
+import { Task } from '@c/types/index'
 import { Area, Goal, Project, Tag, Url } from '@d/database/schemas'
 import { parseUrl } from '@/lib/inputParsers/parseUrl'
 import { parseHashtags } from '@/lib/inputParsers/parseHashtags'

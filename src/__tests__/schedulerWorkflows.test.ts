@@ -1,5 +1,7 @@
+import type { EntryKind } from '@c/workflows/contracts'
+import type { EntryTransport } from '@/workflows/contracts'
 import { getDateTimeMillis } from '@c/datetimeUtils'
-import { describe, expect, test } from 'bun:test'
+import { describe, expect, mock, test } from 'bun:test'
 import { createStore } from 'zustand/vanilla'
 import { useStore, type StoreState } from '@/store'
 import { createFrontendRuntime } from '@/workflows/runtime'
@@ -12,10 +14,45 @@ import {
   schedulerCommandEvents,
 } from '@c/scheduler/contracts'
 import { createTelemetry } from '@c/workflows/telemetry'
-import { ProgressStatus, type TimeEntry } from '@c/types'
+import { ProgressStatus } from '@c/types/enums'
+import { type TimeEntry } from '@c/types'
 import { overnightStart, suggestedStop } from '@/workflows/schedulerHooks'
 
-function fixture({ emit = true, failRefresh = false } = {}) {
+function fixture({
+  emit = true,
+  failRefresh = false,
+  failWrite = false,
+  keepRunning = false,
+  failTimerRead = false,
+} = {}) {
+  let taskStatus = ProgressStatus.IN_PROGRESS
+  const updateTask = mock(async () => {
+    throw new Error('Frontend must not pause tasks')
+  })
+  const taskService: EntryTransport = {
+    create: updateTask,
+    update: updateTask,
+    delete: updateTask,
+    reset: updateTask,
+    search: async () => [],
+    fetchPaginated: async () => [],
+    fetchById: async (id) => {
+      if (failTimerRead) throw new Error('Timer read unavailable')
+      return { id, status: taskStatus }
+    },
+  }
+  const services = Object.fromEntries(
+    [
+      'tasks',
+      'projects',
+      'areas',
+      'goals',
+      'resources',
+      'tags',
+      'urls',
+      'time_entries',
+    ].map((kind) => [kind, taskService]),
+  ) as Record<EntryKind, EntryTransport>
   let handlers: EventHandlers | undefined
   let writes = 0
   let reads = 0
@@ -45,6 +82,14 @@ function fixture({ emit = true, failRefresh = false } = {}) {
       options: { operationId?: string },
     ): Promise<SchedulerCommands[K]['result']> => {
       writes++
+      if (failWrite) throw new Error('Scheduler rejected')
+      if (
+        !keepRunning &&
+        (name === 'scheduler.tracking.stop' ||
+          name === 'scheduler.occurrence.transition' ||
+          name === 'scheduler.mode.change')
+      )
+        taskStatus = ProgressStatus.PAUSED
       plan = { ...plan, revision: plan.revision + 1 }
       if (emit)
         setTimeout(() => {
@@ -59,6 +104,7 @@ function fixture({ emit = true, failRefresh = false } = {}) {
     createStore<StoreState>(() => useStore.getInitialState()),
     {
       scheduler,
+      services,
       eventTimeoutMs: 5,
       transport: {
         connect: (next) => {
@@ -91,6 +137,10 @@ function fixture({ emit = true, failRefresh = false } = {}) {
   const deactivate = runtime.queries.activate(key)
   const deactivateTasks = runtime.queries.activate('tasks:test')
   return {
+    updateTask,
+    recoverTimer: () => {
+      failTimerRead = false
+    },
     taskReads: () => taskReads,
     runtime,
     key,
@@ -158,7 +208,7 @@ describe('Scheduler frontend workflows', () => {
       timezone: 'UTC',
     })
     expect(f.taskReads()).toBe(1)
-    await f.runtime.commands.execute('occurrence.transition', {
+    await f.runtime.commands.execute('scheduler.occurrence.transition', {
       id: 'recurring:2026-11-02:0',
       status: ProgressStatus.COMPLETED,
     })
@@ -181,12 +231,76 @@ describe('Scheduler frontend workflows', () => {
   test('stopping a running interval at a past time ends the local tracking session', async () => {
     const f = fixture()
     f.runtime.tracking.start('essay', 1)
-    await f.runtime.commands.execute('tracking.stop', {
+    await f.runtime.commands.execute('scheduler.tracking.stop', {
       taskId: 'essay',
       occurrenceId: null,
       at: 2,
     })
     expect(f.runtime.tracking.getActiveTracking()).toBeNull()
+    f.dispose()
+  })
+  test.each(['occurrence', 'break'] as const)(
+    'a failed %s start preserves the running session without a preliminary write',
+    async (target) => {
+      const f = fixture({ failWrite: true })
+      f.runtime.tracking.start('essay', 1)
+      const command =
+        target === 'occurrence'
+          ? f.runtime.commands.execute('scheduler.occurrence.transition', {
+              id: 'missing',
+              status: ProgressStatus.IN_PROGRESS,
+            })
+          : f.runtime.commands.execute('scheduler.mode.change', {
+              date: '2026-11-02',
+              timezone: 'UTC',
+              change: 'startBreak',
+            })
+      await expect(command).rejects.toThrow('Scheduler rejected')
+      expect(f.updateTask).toHaveBeenCalledTimes(0)
+      expect(f.runtime.tracking.getActiveTracking()?.taskId).toBe('essay')
+      f.dispose()
+    },
+  )
+  test('a no-op break request retains a task that the backend says is still running', async () => {
+    const f = fixture({ keepRunning: true })
+    f.runtime.tracking.start('essay', 1)
+    await f.runtime.commands.execute('scheduler.mode.change', {
+      date: '2026-11-02',
+      timezone: 'UTC',
+      change: 'startBreak',
+    })
+    expect(f.updateTask).toHaveBeenCalledTimes(0)
+    expect(f.runtime.tracking.getActiveTracking()?.taskId).toBe('essay')
+    f.dispose()
+  })
+  test('missing occurrence-start events still reconcile the timer after the committed write', async () => {
+    const f = fixture({ emit: false })
+    f.runtime.tracking.start('essay', 1)
+    await f.runtime.commands.execute('scheduler.occurrence.transition', {
+      id: 'recurring:2026-11-02:0',
+      status: ProgressStatus.IN_PROGRESS,
+    })
+    expect(f.updateTask).toHaveBeenCalledTimes(0)
+    expect(f.runtime.tracking.getActiveTracking()).toBeNull()
+    f.dispose()
+  })
+  test('timer refresh failure warns and retry reads without repeating the committed command', async () => {
+    const f = fixture({ failTimerRead: true })
+    f.runtime.tracking.start('essay', 1)
+    await f.runtime.commands.execute('scheduler.mode.change', {
+      date: '2026-11-02',
+      timezone: 'UTC',
+      change: 'startBreak',
+    })
+    expect(f.runtime.tracking.getActiveTracking()?.taskId).toBe('essay')
+    const warning = f.runtime.ui.getState().warnings[0]
+    expect(warning.message).toContain('timer')
+    f.recoverTimer()
+    await warning.retry()
+    expect(f.runtime.tracking.getActiveTracking()).toBeNull()
+    expect(f.runtime.ui.getState().warnings).toEqual([])
+    expect(f.writes()).toBe(1)
+    expect(f.updateTask).toHaveBeenCalledTimes(0)
     f.dispose()
   })
   test('stream resync reloads a saved plan without generating a new one', async () => {

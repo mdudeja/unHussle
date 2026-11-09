@@ -1,6 +1,6 @@
 import { and, eq, isNull, sql } from 'drizzle-orm'
 import { MINUTE_MS } from '@c/datetimeUtils'
-import { ProgressStatus } from '@c/types'
+import { ProgressStatus } from '@c/types/enums'
 import type { ScheduleTx } from '@d/database/repositories/scheduler'
 import {
   junctionTimeEntries,
@@ -8,6 +8,7 @@ import {
   tasks,
   timeEntries,
 } from '@d/database/schemas'
+import { syncPlanMembership } from './scheduleMaintenance'
 
 /**
  * Tracking intervals are the source of daily accounting. Starting work closes
@@ -21,17 +22,22 @@ export function trackInterval(
   status: string,
   now: number,
 ) {
+  const taskIds = new Set<string>()
+  const occurrenceIds = new Set<string>()
   const starting = status === 'in_progress'
   const open = tx
     .select()
     .from(timeEntries)
     .where(isNull(timeEntries.end_time))
     .all()
+
   const own = (entry: (typeof open)[number]) =>
     entry.task_id === taskId && entry.occurrence_id === occurrenceId
 
   for (const entry of open) {
     if (own(entry) === starting) continue
+    taskIds.add(entry.task_id)
+    if (entry.occurrence_id) occurrenceIds.add(entry.occurrence_id)
     const elapsed = Math.max(0, now - entry.start_time)
     const minutes = Math.ceil(elapsed / MINUTE_MS)
     tx.update(timeEntries)
@@ -71,6 +77,10 @@ export function trackInterval(
       .values({ attachedToId: taskId, refId: id })
       .run()
   }
+  // Saved one-off membership follows tasks paused as part of a different command.
+  for (const id of taskIds)
+    syncPlanMembership(tx, { kind: 'tasks', action: 'update', id })
+  return { taskIds: [...taskIds], occurrenceIds: [...occurrenceIds] }
 }
 
 /**
@@ -85,6 +95,7 @@ export function pauseOpenWork(tx: ScheduleTx, now: number) {
     .all()
   for (const entry of open)
     pauseInterval(tx, entry.task_id, entry.occurrence_id, now)
+  return [...new Set(open.map((entry) => entry.task_id))]
 }
 
 /** Closes a task's (or occurrence's) open interval at `at` and pauses it. */
@@ -107,4 +118,6 @@ export function pauseInterval(
         and(eq(tasks.id, taskId), eq(tasks.status, ProgressStatus.IN_PROGRESS)),
       )
       .run()
+  if (!occurrenceId)
+    syncPlanMembership(tx, { kind: 'tasks', action: 'update', id: taskId })
 }

@@ -6,7 +6,7 @@ import {
   primaryKey,
 } from 'drizzle-orm/sqlite-core'
 import { junctionTableSchema } from './common.schema'
-import { InferTableTypes, JunctionTable } from '@c/types/index'
+import type { InferTableTypes, JunctionTable } from '@c/types/index'
 import { relations } from 'drizzle-orm'
 import { tasks, timeEntries } from '.'
 

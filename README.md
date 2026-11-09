@@ -291,8 +291,9 @@ Shared row types (`Read` / `Write` / `Update`) and hydrated shapes live in
 Here is what happens when you click **Start** on a task:
 
 1. **UI → frontend command.** `startTask(id)` runs the frontend command
-   `task.transition`. Task transitions and task deletes are serialized. If
-   another task is being tracked, it is paused first, as a nested transition.
+   `task.transition`. Task transitions, deletes and scheduler commands are
+   serialized. The UI sends one request; the backend pauses competing work
+   in the same transaction as the start.
 2. **Frontend runtime → HTTP.** The runtime creates an `operationId`. It
    registers the events it expects (`entity.change`, `tasks.change`) and waits
    up to 1s for the event stream to connect. Then it sends
@@ -306,9 +307,10 @@ updateSupporters → updateSupporterCounts → updateCollectionCounts →
 markPlansStale → syncPlanMembership`. Each action returns a synchronous unit
    of work. All units run in one SQLite transaction, and each result
    (`id`, deleted ids) is carried into the next action's input. Any error rolls
-   everything back.
-5. **Publish after commit.** The backend publishes `entity.change` (the
-   family), `tasks.change` (the kind) and any announcements an action queued.
+   everything back, including pauses of competing tasks. Action adapters
+   delegate validation and persistence behavior to `src-db-server/domain/`.
+5. **Publish after commit.** The backend publishes dependent announcements
+   first, then `entity.change` (the family) and `tasks.change` (the kind).
    The route reads the hydrated row back and returns it.
 6. **SSE.** The event forwarder numbers each event and streams it on
    `GET /events`. It keeps a 500-frame replay buffer for `Last-Event-ID`.
@@ -346,15 +348,15 @@ keyed like `list:tasks:1`, `detail:areas:<id>`, `search:tags:<term>` or
 The scheduler follows the same pattern with its own commands. Its endpoints
 are under `/scheduler`:
 
-| Frontend command            | HTTP                            | Event published              |
-| --------------------------- | ------------------------------- | ---------------------------- |
-| `scheduler.generate`        | `POST /scheduler/generate`      | `scheduler.changed`          |
-| `scheduler.replan`          | `POST /scheduler/replan`        | `scheduler.changed`          |
-| `scheduler.adjust`          | `POST /scheduler/adjust`        | `scheduler.changed`          |
-| `scheduler.mode.change`     | `POST /scheduler/mode`          | `scheduler.mode.changed`     |
-| `scheduler.settings.change` | `PATCH /scheduler/settings`     | `scheduler.settings.changed` |
-| `occurrence.transition`     | `POST /scheduler/occurrence`    | `occurrence.changed`         |
-| `tracking.stop`             | `POST /scheduler/tracking/stop` | `tracking.stopped`           |
+| Frontend command                  | HTTP                            | Event published                |
+| --------------------------------- | ------------------------------- | ------------------------------ |
+| `scheduler.generate`              | `POST /scheduler/generate`      | `scheduler.changed`            |
+| `scheduler.replan`                | `POST /scheduler/replan`        | `scheduler.changed`            |
+| `scheduler.adjust`                | `POST /scheduler/adjust`        | `scheduler.changed`            |
+| `scheduler.mode.change`           | `POST /scheduler/mode`          | `scheduler.mode.changed`       |
+| `scheduler.settings.change`       | `PATCH /scheduler/settings`     | `scheduler.settings.changed`   |
+| `scheduler.occurrence.transition` | `POST /scheduler/occurrence`    | `scheduler.occurrence.changed` |
+| `scheduler.tracking.stop`         | `POST /scheduler/tracking/stop` | `scheduler.tracking.stopped`   |
 
 Reads: `GET /scheduler/day/:date`, `/next/:date`, `/week/:date` (each with
 `?timezone=`) and `GET /scheduler/settings`. The `refreshSchedule` reaction
@@ -365,14 +367,14 @@ invalidates the schedule queries, plus `occurrences`, `tasks` and
 `reason`: `manual`, `lastTask` or `windDown`):
 
 - `startBreak` pauses all open work (`pauseOpenWork`) and re-plans with the
-  `break` cue. The frontend pauses its tracked task first.
+  `break` cue in one backend transaction. A rejected break leaves work running.
 - `endBreak` only clears the break. The stack planned at the start is kept.
 - `startWrap` re-plans with the `wrap` cue. An automatic reason is ignored
   during a break or after the user pulled more (`auto_wrap = false`).
 - While a day is wrapping up, every re-plan uses `wrap`, except `more`, which
   ends wrap-up and clears `auto_wrap`.
 
-`tracking.stop` (`{ taskId, occurrenceId, at }`) closes a running interval at
+`scheduler.tracking.stop` (`{ taskId, occurrenceId, at }`) closes a running interval at
 `at`, which must fall between its start and now, and pauses the task or
 occurrence. The home card offers it when `runningSinceEarlierDay` is true. On the Tasks
 page, `useTaskActions` checks `overnightStart(task)` before Pause, Complete
@@ -409,14 +411,21 @@ routes/
 workflows/
   runtime.ts         createBackendRuntime: registers mutation + scheduler commands
   commandHandlers.ts command → ordered action names
-  commandActions.ts  named mutation actions
+  commandActions.ts  named action adapters over domain services
+  contracts.ts       backend-only action, transaction and publication types
   schedulerHandlers.ts / schedulerActions.ts   scheduler command → actions over a carried state
   scheduler.ts       composeDay, readDay, readNext, previewWeek (reads, never write)
-  scheduleMaintenance.ts  affectsSchedules, syncPlanMembership
-  tracking.ts        trackInterval: open/close time entries, total minutes
-  supporters.ts      syncSupporters, junction cleanup, normalizeTagTitle, supporterCapabilities
-  counts.ts          recompute derived counts
   unitOfWork.ts      one transaction for a list of synchronous work units
+domain/
+  entries.ts         normalized row persistence, server-owned field protection
+  tasks.ts           stored-task validation, lifecycle and overnight stop validation
+  collections.ts     announcements before foreign keys are nulled
+  tracking.ts        exclusive intervals, totals and saved-plan membership
+  supporters.ts      supporter synchronization and junction cleanup
+  counts.ts          derived counts
+  resourceLinks.ts / resourceFiles.ts  link integrity and compensated vault changes
+  vault.ts           content saves/conflicts, rescan, vault folder moves and info
+  scheduleMaintenance.ts  affectsSchedules, syncPlanMembership
 ```
 
 **Routes.** `routeGenerator` gives every kind `GET /`,
@@ -425,6 +434,11 @@ workflows/
 (`{ deleted: n }`). Reads call the repository directly. Writes call
 `${commandHeadForKind[kind]}.add|change|delete|deleteAll` and return the
 hydrated row.
+
+**Contracts.** Public commands/events are in `common/workflows/contracts.ts`.
+Backend execution types live in `src-db-server/workflows/contracts.ts`. Runtime
+enums live in `common/types/enums.ts`; schema-derived types use `import type`,
+so enum imports do not pull the schema graph into runtime dependencies.
 
 **Commands and actions.** The command families are:
 
@@ -435,7 +449,9 @@ hydrated row.
 | `entitySupporter`  | `tags`, `urls`, `time_entries` | junction cleanup on delete, plan staleness (tags only)                                   |
 
 Each family has `add`, `change`, `delete` and `deleteAll`. `handler:entry.*`
-inlines the base row actions, and cycles are rejected. Scheduler commands run
+inlines private row templates, and cycles are rejected. Templates cannot be
+executed directly; per-kind names such as `tasks.change` are events, and public
+commands must use the correct family for their kind. Scheduler commands run
 `expireOccurrences → loadPlan → checkRevision → … → savePlan` over one
 `SchedulerState`. A stale `revision` gets a 409.
 
@@ -461,17 +477,17 @@ listener is logged and never fails the write.
 
 ## Common (`common/`)
 
-| Path                                   | What                                                                                                       |
-| -------------------------------------- | ---------------------------------------------------------------------------------------------------------- |
-| `workflows/runtime.ts`                 | `createRuntime`: one handler per command, any number of event listeners (`on`, `onAny`), telemetry spans   |
-| `workflows/contracts.ts`               | `EntryKind`, `commandHeadForKind`, `MutationInput/Event`, `MutationCommands`, `AppEvents`, `CommandAction` |
-| `workflows/telemetry*.ts`              | span recorder, ring buffer, sinks, trace headers                                                           |
-| `scheduler/`                           | the pure planning engine shared by both sides (see below)                                                  |
-| `taskSchedule.ts`                      | derive the missing one of start / end / estimate; validate end > start                                     |
-| `types/`                               | row types (`Read`/`Write`/`Update`), hydrated shapes, `ProgressStatus`, `Priority`, `AnchorType`           |
-| `datetimeUtils.ts`, `calendarUtils.ts` | time zone–aware millis, local dates, calendar date math (Temporal)                                         |
-| `Logger.ts`                            | `Logger.getInstance()`. Use it instead of `console`.                                                       |
-| `testing/test-setup.ts`                | Bun preload that resets the test DB after the run                                                          |
+| Path                                   | What                                                                                                     |
+| -------------------------------------- | -------------------------------------------------------------------------------------------------------- |
+| `workflows/runtime.ts`                 | `createRuntime`: one handler per command, any number of event listeners (`on`, `onAny`), telemetry spans |
+| `workflows/contracts.ts`               | Public `EntryKind`, `commandHeadForKind`, `MutationInput/Event`, `MutationCommands`, `AppEvents`         |
+| `workflows/telemetry*.ts`              | span recorder, ring buffer, sinks, trace headers                                                         |
+| `scheduler/`                           | the pure planning engine shared by both sides (see below)                                                |
+| `taskSchedule.ts`                      | derive the missing one of start / end / estimate; validate end > start                                   |
+| `types/`                               | row types (`Read`/`Write`/`Update`), hydrated shapes, `ProgressStatus`, `Priority`, `AnchorType`         |
+| `datetimeUtils.ts`, `calendarUtils.ts` | time zone–aware millis, local dates, calendar date math (Temporal)                                       |
+| `Logger.ts`                            | `Logger.getInstance()`. Use it instead of `console`.                                                     |
+| `testing/test-setup.ts`                | Bun preload that resets the test DB after the run                                                        |
 
 ### The scheduler
 
@@ -556,7 +572,9 @@ commands, the frontend has two workflows of its own:
 **Reactions.** Generic store reactions hang off **family** events, so each
 mutation is handled once. Kind-specific behaviour hangs off **kind** events:
 `tasks.delete` stops tracking a deleted task, and `<kind>.change`
-announcements reload the members that are already loaded.
+announcements reload the members that are already loaded. `syncTracking`
+reconciles local timer presentation against committed task state. Failed starts
+preserve the existing session; failed timer reads offer a retry that only reads.
 
 **Runtime lifetime.** There is one runtime per store (`getFrontendRuntime`,
 keyed by `getState`). `disposeFrontendRuntimes()` closes the SSE stream,
@@ -611,7 +629,8 @@ bun run test     # starts a server on .env.test, runs **/__tests__, stops it
 ## Extending
 
 - **New backend side effect:** add an action to `commandActions.ts` and to
-  `CommandAction` in `common/workflows/contracts.ts`. Then list it under the
+  `CommandAction` in `src-db-server/workflows/contracts.ts`. Put integrity
+  behavior in a domain service and list the action under the
   commands in `commandHandlers.ts`. Actions must return a synchronous unit of
   work.
 - **New frontend behaviour on an event:** add a reaction to `reactions.ts` and

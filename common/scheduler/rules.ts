@@ -1,4 +1,4 @@
-import { Priority } from '@c/types'
+import { Priority } from '@c/types/enums'
 import type {
   DayPlan,
   PlanEntry,
