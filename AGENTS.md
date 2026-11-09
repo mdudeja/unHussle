@@ -10,10 +10,6 @@ local SQLite database accessed through Drizzle ORM. The app is fully offline.
 
 `README.md` has the user guide and a longer walk-through of the data flow.
 
-## Important
-
-This project uses `agentic-indexer` MCP. Use the MCP first to explore the project or go through files when needed, instead of relying on manual exploration or tools like cat, grep, etc. The MCP provides a structured way to understand the codebase, its architecture, and its components. Use the other tools only when the MCP does not return usable results. The MCP is designed to help you navigate the project efficiently and understand its structure and functionality.
-
 ## Tech Stack
 
 - Frontend: React 19, TypeScript ~5.8, React Router 7, Zustand, Tailwind CSS 4, Vite 7, shadcn/ui, TanStack Table
@@ -87,7 +83,7 @@ Both frontend and sidecar share these aliases.
 - Tauri (`src-tauri/src/lib.rs`) spawns `binaries/db-server-<triple>` with
   `DB_FILE_URL` (`<AppData>/db/ecn.unhussle.sqlite`), `DB_MIGRATIONS_DIR`
   (`resources/drizzle_migrations`) and `VAULT_DIR` (`<AppData>/vault`). On exit
-  it sends SIGTERM, then kills. Plugins: shell, fs, opener (with an
+  it sends SIGTERM, then kills. Plugins: shell, opener (with an
   `opener:allow-open-path` scope for `$HOME` and mount points, used by
   `openPath`) and dialog (file/folder pickers; added with `bun tauri add dialog`).
 - Frontend talks to `http://localhost:${VITE_DB_SERVER_PORT}` (default 3456).

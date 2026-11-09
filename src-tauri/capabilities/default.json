@@ -16,7 +16,6 @@
         { "path": "/Volumes/**" }
       ]
     },
-    "fs:default",
     "shell:default",
     "dialog:default"
   ]

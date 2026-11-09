@@ -513,9 +513,9 @@ main.tsx / lib/router.ts   routes: / (Next task), /day, /week, /scheduler/settin
 pages/                     HomePage, PlannerPages (Day/Week/Preferences), EntityPages (list pages)
 components/
   ui/                      shadcn/ui + ui/custom (pickers, forms, DataTable, …)
-  app/                     NextTaskCard, BrainDumpInput, TaskForm, EntityActionBar, Create*Button, WorkflowWarnings, …
+  app/                     NextTaskCard, BrainDumpInput, EntityActionBar, Create*Button, WorkflowWarnings, …
   pages/                   EntityListPage, PageView
-  dev/                     WorkflowInspector (Ctrl+Shift+O, dev only), DesignSystem
+  dev/                     WorkflowInspector (Ctrl+Shift+O, dev only)
 lib/
   entityActions/           per-kind labels, form fields and actions (Edit, Delete, Start, …)
   inputParsers/            brain dump parsing: hashtags, URLs, estimates, due dates
@@ -588,6 +588,11 @@ published as an app event.
 ---
 
 ## Testing
+
+For repeatable command, refresh and relationship measurements, run
+`bun run baseline /tmp/unhussle-baseline.json`. It uses a temporary database
+and vault. See the [baseline and cleanup report](docs/baselines/steps-1-2.md)
+for the recorded results and known relationship behavior.
 
 ```sh
 bun run test     # starts a server on .env.test, runs **/__tests__, stops it

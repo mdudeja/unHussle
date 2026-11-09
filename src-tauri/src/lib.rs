@@ -6,12 +6,6 @@ use tauri::{AppHandle, Manager};
 use tauri_plugin_shell::process::CommandChild;
 use tauri_plugin_shell::ShellExt;
 
-// Learn more about Tauri commands at https://tauri.app/develop/calling-rust/
-#[tauri::command]
-fn greet(name: &str) -> String {
-    format!("Hello, {}! You've been greeted from Rust!", name)
-}
-
 struct DbServer(Mutex<Option<CommandChild>>);
 
 fn start_db_server(app: &AppHandle) -> Result<CommandChild, String> {
@@ -132,7 +126,6 @@ pub fn run() {
     tauri::Builder::default()
         .plugin(tauri_plugin_dialog::init())
         .plugin(tauri_plugin_shell::init())
-        .plugin(tauri_plugin_fs::init())
         .plugin(tauri_plugin_opener::init())
         .manage(DbServer(Mutex::new(None)))
         .setup(|app| {
@@ -161,7 +154,6 @@ pub fn run() {
                 // Cleanup is handled on app exit
             }
         })
-        .invoke_handler(tauri::generate_handler![greet])
         .build(tauri::generate_context!())
         .expect("error while building tauri application")
         .run(|app_handle, event| {

@@ -65,29 +65,3 @@ export const getSortedMonthNames = (): string[] => {
     (a, b) => months[a].monthInt - months[b].monthInt,
   )
 }
-
-export const getNumberOfDaysInMonth = ({
-  year,
-  monthInt,
-  monthName,
-}: {
-  year: number
-  monthInt?: number
-  monthName?: string
-}): number => {
-  const monthRecord = monthInt
-    ? Object.values(months).find((m) => m.monthInt === monthInt)
-    : monthName
-      ? months[monthName.toLowerCase()]
-      : undefined
-
-  if (!monthRecord) {
-    return 0 // Invalid month
-  }
-
-  if (monthRecord.monthInt === 2) {
-    return year % 4 === 0 ? 29 : 28
-  }
-
-  return monthRecord.numberOfDays
-}
