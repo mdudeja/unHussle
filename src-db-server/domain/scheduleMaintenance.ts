@@ -81,11 +81,13 @@ export function syncPlanMembership(tx: ScheduleTx, input: MutationInput) {
     )
     .all()
   const changedPlans: string[] = []
+
   const setStatus = (row: (typeof rows)[number], status: string) => {
     if (row.status === status) return
     tx.update(planItems).set({ status }).where(eq(planItems.id, row.id)).run()
     changedPlans.push(row.planId)
   }
+
   for (const row of rows) {
     const task = byId.get(row.sourceTaskId)
     // Occurrence rows keep their status in task_occurrences.

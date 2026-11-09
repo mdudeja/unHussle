@@ -62,9 +62,11 @@ function replaceNestedActions(
         'handler:',
         '',
       ) as keyof BackendMutationCommands
+
       if (visited.has(handlerName)) {
         throw new Error(`Circular command handler reference: ${handlerName}`)
       }
+
       const nestedActions = commandHandlerRegistry[handlerName]
       if (nestedActions && nestedActions.length > 0) {
         const replacedNestedActions = replaceNestedActions(
