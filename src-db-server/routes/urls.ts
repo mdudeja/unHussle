@@ -4,10 +4,15 @@ import { UnHussleDB } from '@d/database/UnHussleDB'
 import {
   insertUrlsSchema,
   selectUrlsSchema,
+  selectSupporterItemsSchema,
   updateUrlsSchema,
 } from '@d/database/validation'
 import { routeGenerator } from '@d/routes/routegenerator'
-const repository = new UrlsRepository(UnHussleDB.getInstance())
+import { SupporterItemsRepository } from '@d/database/repositories/supporterItems'
+import { Value } from '@sinclair/typebox/value'
+const database = UnHussleDB.getInstance()
+const repository = new UrlsRepository(database)
+const items = new SupporterItemsRepository(database)
 
 const urlRoutes = routeGenerator({
   name: 'urls',
@@ -21,5 +26,12 @@ const urlRoutes = routeGenerator({
   },
   repository: repository,
 })
+
+urlRoutes.get(
+  '/:id/items',
+  async ({ params: { id } }) =>
+    Value.Parse(selectSupporterItemsSchema, await items.getItems('urls', id)),
+  { response: selectSupporterItemsSchema },
+)
 
 export { urlRoutes }

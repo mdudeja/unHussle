@@ -188,6 +188,7 @@ export const selectResourceSchema = Type.Object({
 
 export const selectAreaSchema = Type.Object({
   ...selectAreaBaseSchema.properties,
+  resolved_task_total: Type.Optional(Type.Integer({ minimum: 0 })),
   tasks: Type.Optional(Type.Array(selectTaskBaseSchema)),
   resources: Type.Optional(Type.Array(selectResourceBaseSchema)),
   goals: Type.Optional(Type.Array(selectGoalBaseSchema)),
@@ -198,6 +199,7 @@ export const selectAreaSchema = Type.Object({
 
 export const selectGoalSchema = Type.Object({
   ...selectGoalBaseSchema.properties,
+  resolved_task_total: Type.Optional(Type.Integer({ minimum: 0 })),
   area: Type.Optional(Type.Union([selectAreaBaseSchema, Type.Null()])),
   tasks: Type.Optional(Type.Array(selectTaskBaseSchema)),
   resources: Type.Optional(Type.Array(selectResourceBaseSchema)),
@@ -208,6 +210,7 @@ export const selectGoalSchema = Type.Object({
 
 export const selectProjectSchema = Type.Object({
   ...selectProjectBaseSchema.properties,
+  resolved_task_total: Type.Optional(Type.Integer({ minimum: 0 })),
   area: Type.Optional(Type.Union([selectAreaBaseSchema, Type.Null()])),
   goal: Type.Optional(Type.Union([selectGoalBaseSchema, Type.Null()])),
   tasks: Type.Optional(Type.Array(selectTaskBaseSchema)),
@@ -237,8 +240,10 @@ export const selectTaskContextSchema = Type.Object({
   ),
 })
 
-// Items linked to a tag, grouped by entity type
-export const selectTagItemsSchema = Type.Object({
+// Items linked to a tag or URL; collection/resource arrays stay direct-only.
+export const selectSupporterItemsSchema = Type.Object({
+  resolved_task_total: Type.Integer({ minimum: 0 }),
+  resources: Type.Array(selectResourceSchema),
   tasks: Type.Array(selectTaskSchema),
   projects: Type.Array(selectProjectSchema),
   areas: Type.Array(selectAreaSchema),

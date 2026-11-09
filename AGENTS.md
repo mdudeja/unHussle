@@ -101,16 +101,25 @@ Both frontend and sidecar share these aliases.
   runs migrations, and marks the DB ready. There are no prepared statements.
   Reads go through `database/repositories/*`.
 - **Repositories** (`IRepository`: `getAll`, `getPaginated`, `getById`,
-  `search`, plus `getByIds` / `getByQuery` where needed) return hydrated rows:
+  `search`, plus `getByIds` / `getByMembership` where needed) return hydrated rows:
   relations, tags, URLs, time entries and resources are unwrapped from the junctions.
-  A collection's `getById` includes tasks that reach it through goals and
-  projects. Nested lists, and `resources` everywhere, stay direct-only: edit
-  forms are filled from these rows, so merged items would be saved as links.
+  Every collection read resolves tasks through `repositories/taskMembership.ts`:
+  projects include direct tasks, goals include direct/project tasks, and areas
+  include direct tasks and descendants through projects, goals and goals' projects.
+  `withCollectionTasks` batches membership for all rows in a collection page;
+  task retrieval and counts share SQL predicates and deduplicate by task ID.
+  `count_tasks` stays direct-only; read-only `resolved_task_total` is the resolved
+  total. Nested collection lists and editable attachments remain direct-only.
+  Upward task context is separate and never copied into editable links.
+- `SupporterItemsRepository` owns `GET /tags/:id/items` and `/urls/:id/items` reads:
+  `{ tasks, projects, areas, goals, resources, resolved_task_total }`. Tasks include
+  direct attachments and descendants of attached collections; the other arrays
+  are direct attachments only. Resource backlinks do not discover tasks.
 - `routeGenerator` (`src-db-server/routes/routegenerator.ts`) provides
   `GET /`, `GET /paginated/:page/:pageSize`, `GET /:id`, `GET /search/:term`
   (leading `#` stripped, limit `VITE_SEARCH_RESULTS_COUNT`), `POST /`,
   `PATCH /:id`, `DELETE /:id` and `DELETE /all` (`{ deleted: n }`). Extra routes
-  are chained onto the generated plugin (e.g. `GET /tags/:id/items` in `tags.ts`,
+  are chained onto the generated plugin (e.g. `GET /tags/:id/items` and `/urls/:id/items`,
   `GET|PUT /resources/:id/content`, `GET /tasks/:id/context`). Errors: `NOT_FOUND`
   → 404, unique-title conflicts → 409, `VaultConflict` → 409, `VaultError` → 400.
 - Mutating routes do not write directly: they execute backend commands
@@ -402,7 +411,7 @@ like the scheduler):
     once. Put kind-specific behaviour on kind events.
 - Reads go through the query coordinator (`queries.ts`, `useWorkflowQuery`):
   - keys look like `list:<kind>:<page>`, `detail:<kind>:<id>`,
-    `search:<kind>:<term>`, `related:<kind>:<id>`, `tagged:tags:<id>`,
+    `search:<kind>:<term>`, `related:<kind>:<id>`, `tagged:<tags|urls>:<id>`,
     `schedule:day:<tz>:<date>`, `schedule:week:<tz>:<date>`, `schedule:settings`,
     `content:resources:<id>` (refetched on every mount), `context:tasks:<id>`,
     `vault:info`. Each one declares `dependencies` (`EntryKind` or `schedule` /

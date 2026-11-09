@@ -1,5 +1,6 @@
 import { dependencies } from '@/workflows/runtime'
 import type { HydratedTask } from '@c/types/Hydrated'
+import { UrlsService } from '@/services/database/UrlsService'
 import { TagsService } from '@/services/database/TagsService'
 import { useWorkflowQuery, useWorkflowRuntime } from '@/workflows/hooks'
 
@@ -18,10 +19,22 @@ export function useRelatedTasks(
   })
 }
 
-export function useTaggedItems(id: string) {
+export function useSupporterItems(kind: 'tags' | 'urls', id: string) {
   return useWorkflowQuery({
-    key: `tagged:tags:${id}`,
-    dependencies: ['tags', 'urls', 'tasks', 'projects', 'areas', 'goals'],
-    load: () => TagsService.getInstance().fetchItems(id),
+    key: `tagged:${kind}:${id}`,
+    dependencies: [
+      'tags',
+      'urls',
+      'tasks',
+      'projects',
+      'areas',
+      'goals',
+      'resources',
+    ],
+    load: () =>
+      (kind === 'tags'
+        ? TagsService.getInstance()
+        : UrlsService.getInstance()
+      ).fetchItems(id),
   })
 }

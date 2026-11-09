@@ -66,60 +66,6 @@ export const unwrapJunctions = <T extends object>(entity: T): Unwrapped<T> => {
   return result as Unwrapped<T>
 }
 
-// Nested `with` config that loads a linked collection's own tasks.
-// Resources stay direct-only: forms are filled from these rows, so merged
-// resources would be saved as direct links.
-export const withMembers = { with: { tasks: true } } as const
-
-type Members = { tasks?: { id: string }[] }
-type WithoutMembers<V> = V extends readonly (infer Row)[]
-  ? Omit<Row, keyof Members>[]
-  : V extends object
-    ? Omit<V, keyof Members>
-    : V
-
-type Merged<T, K extends keyof T> = Omit<T, K> & {
-  [P in K]: WithoutMembers<T[P]>
-}
-
-const byId = <T extends { id: string }>(rows: T[]) => [
-  ...new Map(rows.map((row) => [row.id, row])).values(),
-]
-
-const withoutMembers = (row: Members) => {
-  const { tasks: _tasks, ...rest } = row
-  return rest
-}
-
-// Folds the tasks of linked collections (loaded with `withMembers`) into the
-// entity's own list, de-duplicated by id, and strips them from the collection
-// rows so they keep their base shape.
-export const mergeCollectionMembers = <
-  T extends Members,
-  K extends keyof T & string,
->(
-  entity: T,
-  collections: K[],
-): Merged<T, K> => {
-  const result = { ...entity } as Record<string, unknown>
-  const tasks = [...(entity.tasks ?? [])]
-
-  for (const key of collections) {
-    const value = entity[key] as Members | Members[] | null | undefined
-    if (!value) continue
-    const rows = Array.isArray(value) ? value : [value]
-    for (const row of rows) {
-      tasks.push(...(row.tasks ?? []))
-    }
-    result[key] = Array.isArray(value)
-      ? value.map(withoutMembers)
-      : withoutMembers(value)
-  }
-
-  result.tasks = byId(tasks)
-  return result as Merged<T, K>
-}
-
 type ResourceLinkRow = {
   task?: { id: string; title: string } | null
   project?: { id: string; title: string } | null

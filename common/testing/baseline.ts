@@ -161,15 +161,18 @@ try {
     ['tags', `${fixture.tag.id}/items`],
   ] as const) {
     requests = []
-    const row = await request<{ tasks: EntryRecord[]; count_tasks?: number }>(
-      `/${kind}/${id}`,
-    )
+    const row = await request<{
+      tasks: EntryRecord[]
+      count_tasks?: number
+      resolved_task_total?: number
+    }>(`/${kind}/${id}`)
     relationships.push({
       kind,
       taskNames: row.tasks.map((task) => labels.get(task.id)),
       unique:
         new Set(row.tasks.map((task) => task.id)).size === row.tasks.length,
       count_tasks: row.count_tasks,
+      resolved_task_total: row.resolved_task_total,
       responseBytes: requests[0].bytes,
     })
   }

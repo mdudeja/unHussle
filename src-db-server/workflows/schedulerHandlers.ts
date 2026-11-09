@@ -21,6 +21,9 @@ export const schedulerHandlerRegistry: Record<
     'savePlan',
   ],
   'scheduler.settings.change': ['saveSettings'],
-  'occurrence.transition': ['transitionOccurrence', 'trackOccurrenceInterval'],
-  'tracking.stop': ['stopTracking'],
+  'scheduler.occurrence.transition': [
+    'transitionOccurrence',
+    'trackOccurrenceInterval',
+  ],
+  'scheduler.tracking.stop': ['stopTracking'],
 }

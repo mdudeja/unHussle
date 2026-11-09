@@ -13,7 +13,7 @@ import {
 } from '@/components/pages/EntityListPage'
 import { RelatedEntityTable } from '@/components/app'
 import { useResourceActions, useTaskActions } from '@/lib/entityActions'
-import { useRelatedTasks, useTaggedItems } from '@/lib/hooks/useRelatedItems'
+import { useRelatedTasks, useSupporterItems } from '@/lib/hooks/useRelatedItems'
 import {
   dateColumn,
   dateTimeColumn,
@@ -147,6 +147,11 @@ const tasksConfig: EntityListPageConfig<HydratedTask> = {
 const urlsConfig: EntityListPageConfig<Url['Read']> = {
   kind: 'urls',
   title: 'URLs',
+  related: {
+    label: 'items',
+    icon: Tags,
+    render: (item) => <SupporterItems key={item.id} kind="urls" id={item.id} />,
+  },
   selectSlice: (state) => state.urls,
   columns: [
     textColumn('title', 'Title', (row) => row.title),
@@ -185,7 +190,7 @@ const tagsConfig: EntityListPageConfig<Tag['Read']> = {
   related: {
     label: 'items',
     icon: Tags,
-    render: (item) => <TaggedItems key={item.id} id={item.id} />,
+    render: (item) => <SupporterItems key={item.id} kind="tags" id={item.id} />,
   },
   columns: [
     titleColumn(Hash),
@@ -216,18 +221,34 @@ const RelatedTasks = ({
   )
 }
 
-const TaggedItems = ({ id }: { id: string }) => {
-  const { data, isLoading } = useTaggedItems(id)
+const SupporterItems = ({
+  kind,
+  id,
+}: {
+  kind: 'tags' | 'urls'
+  id: string
+}) => {
+  const { data, isLoading } = useSupporterItems(kind, id)
   if (!data) {
     return isLoading ? null : (
       <p className="text-sm text-muted-foreground">Could not load items.</p>
     )
   }
   const tables = [
+    data.resources.length > 0 && (
+      <RelatedEntityTable
+        key="resources"
+        title="Resources"
+        kind="resources"
+        data={data.resources}
+        columns={resourcesConfig.columns}
+        hiddenColumns={resourcesConfig.hiddenColumns}
+      />
+    ),
     data.tasks.length > 0 && (
       <RelatedEntityTable
         key="tasks"
-        title="Tasks"
+        title={`Tasks (${data.resolved_task_total})`}
         kind="tasks"
         data={data.tasks}
         columns={tasksConfig.columns}

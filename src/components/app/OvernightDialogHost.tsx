@@ -88,7 +88,7 @@ const OvernightDialog = ({ prompt }: { prompt: OvernightPrompt }) => {
             onStopped={(at) =>
               run(async () => {
                 // Stopping the interval already pauses the task.
-                await runtime.commands.execute('tracking.stop', {
+                await runtime.commands.execute('scheduler.tracking.stop', {
                   taskId: prompt.taskId,
                   occurrenceId: null,
                   at,

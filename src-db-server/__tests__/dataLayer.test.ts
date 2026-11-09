@@ -687,28 +687,26 @@ describe('Data Layer Tests', () => {
       expect(area?.goals?.[0]).not.toHaveProperty('projects')
     })
 
-    test('goal reaches tasks through its projects and area', async () => {
+    test('goal reaches its own and project tasks without parent area tasks', async () => {
       const goal = await new GoalsRepository(
         UnHussleDB.getInstance(testDbPath),
       ).getById(ids.goal)
 
-      expect(taskIds(goal)).toEqual(
-        sorted(ids.goalTask, ids.goalProjectTask, ids.areaTask, ids.sharedTask),
-      )
+      expect(taskIds(goal)).toEqual(sorted(ids.goalTask, ids.goalProjectTask))
       expect(goal?.area).not.toHaveProperty('tasks')
     })
 
-    test('project reaches tasks through its goal and area, once each', async () => {
+    test('project includes direct tasks without parent or sibling tasks', async () => {
       const projects = new ProjectsRepository(
         UnHussleDB.getInstance(testDbPath),
       )
 
       expect(taskIds(await projects.getById(ids.goalProject))).toEqual(
-        sorted(ids.goalProjectTask, ids.goalTask),
+        sorted(ids.goalProjectTask),
       )
-      // sharedTask is both the project's own and its area's
+      // A task with multiple paths still appears only once in its project.
       expect(taskIds(await projects.getById(ids.areaProject))).toEqual(
-        sorted(ids.sharedTask, ids.areaTask),
+        sorted(ids.sharedTask),
       )
     })
   })

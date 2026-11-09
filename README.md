@@ -138,8 +138,12 @@ button.
 
 When you select a row, an action bar appears with **Edit** and **Delete**. Tasks
 also have **Start**, **Pause**, **Complete** and **Cancel**. Projects, areas and
-goals can show their **related tasks**, including tasks that reach them through
-a project or goal. Tags show everything tagged with them.
+goals can show their **related tasks**. Projects include directly assigned tasks;
+goals also include their projects' tasks; areas include tasks through their
+projects, goals and those goals' projects. Tags and URLs show directly attached
+items plus tasks from attached collections and their descendants. Duplicate
+task paths appear once. A resource attachment returns that resource without
+following its links backward to tasks.
 
 ### Resources and links
 
@@ -404,7 +408,7 @@ database/
   seed/              default areas, goals and tags
 routes/
   routegenerator.ts  generic CRUD routes per kind; mutations execute commands
-  <kind>.ts          one routeGenerator call per kind; tags.ts adds GET /tags/:id/items
+  <kind>.ts          one routeGenerator call per kind; tags/urls add GET /:id/items
   scheduler.ts       /scheduler reads + commands
   events.ts          SSE forwarder (numbered frames, replay buffer, resync)
   telemetry.ts       http spans, x-operation-id header, GET /telemetry
@@ -434,6 +438,15 @@ domain/
 (`{ deleted: n }`). Reads call the repository directly. Writes call
 `${commandHeadForKind[kind]}.add|change|delete|deleteAll` and return the
 hydrated row.
+
+**Membership reads.** `database/repositories/taskMembership.ts` defines the
+fixed SQL containment predicates used by task retrieval and resolved totals.
+All collection read methods use them, with one batched membership query per
+collection page. `SupporterItemsRepository` shares tag/URL read orchestration.
+`count_tasks` remains a direct-assignment/attachment count;
+`resolved_task_total` is the deduplicated task total returned by collection
+reads and tag/URL items reads. Editable collections, resources, tags and URLs
+remain direct-only; upward task context is a separate read.
 
 **Contracts.** Public commands/events are in `common/workflows/contracts.ts`.
 Backend execution types live in `src-db-server/workflows/contracts.ts`. Runtime

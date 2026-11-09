@@ -26,8 +26,8 @@ const paths: Record<keyof SchedulerCommands, string> = {
   'scheduler.adjust': 'adjust',
   'scheduler.mode.change': 'mode',
   'scheduler.settings.change': 'settings',
-  'occurrence.transition': 'occurrence',
-  'tracking.stop': 'tracking/stop',
+  'scheduler.occurrence.transition': 'occurrence',
+  'scheduler.tracking.stop': 'tracking/stop',
 }
 const url = (path: string) =>
   `http://localhost:${import.meta.env.VITE_DB_SERVER_PORT || '3456'}/scheduler/${path}`

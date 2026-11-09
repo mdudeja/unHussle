@@ -1,12 +1,11 @@
+import { withCollectionTasks } from './taskMembership'
 import { Project, projects } from '../schemas'
 import { UnHussleDB } from '../UnHussleDB'
 import { IRepository } from './IRepository.interface'
 import { BaseRepository } from './BaseRepository'
 import {
-  mergeCollectionMembers,
   taggedIds,
   unwrapJunctions,
-  withMembers,
   withTags,
   withUrls,
   withResources,
@@ -22,7 +21,6 @@ export class ProjectsRepository
   private readonly relations = {
     area: true,
     goal: true,
-    tasks: true,
     resources: withResources,
     tags: withTags,
     urls: withUrls,
@@ -39,7 +37,7 @@ export class ProjectsRepository
     const projects = await db.query.projects.findMany({
       with: this.relations,
     })
-    return projects.map(unwrapJunctions)
+    return withCollectionTasks(db, 'projects', projects.map(unwrapJunctions))
   }
 
   async getPaginated(
@@ -54,7 +52,7 @@ export class ProjectsRepository
       limit: pageSize,
       offset: page * pageSize,
     })
-    return projects.map(unwrapJunctions)
+    return withCollectionTasks(db, 'projects', projects.map(unwrapJunctions))
   }
 
   async getById(id: string): Promise<HydratedProject | null> {
@@ -63,15 +61,10 @@ export class ProjectsRepository
 
     const project = await db.query.projects.findFirst({
       where: (projects, { eq }) => eq(projects.id, id),
-      with: {
-        ...this.relations,
-        area: withMembers,
-        goal: withMembers,
-      },
+      with: this.relations,
     })
     if (!project) return null
-
-    return mergeCollectionMembers(unwrapJunctions(project), ['area', 'goal'])
+    return withCollectionTasks(db, 'projects', [unwrapJunctions(project)])[0]
   }
 
   async search(query: string, limit: number): Promise<HydratedProject[]> {
@@ -88,7 +81,7 @@ export class ProjectsRepository
       limit,
       with: this.relations,
     })
-    return projects.map(unwrapJunctions)
+    return withCollectionTasks(db, 'projects', projects.map(unwrapJunctions))
   }
 
   async getByIds(ids: string[]): Promise<HydratedProject[]> {
@@ -99,6 +92,6 @@ export class ProjectsRepository
       where: (projects, { inArray }) => inArray(projects.id, ids),
       with: this.relations,
     })
-    return projects.map(unwrapJunctions)
+    return withCollectionTasks(db, 'projects', projects.map(unwrapJunctions))
   }
 }

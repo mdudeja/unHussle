@@ -1,12 +1,11 @@
+import { withCollectionTasks } from './taskMembership'
 import { Area, areas } from '../schemas'
 import { UnHussleDB } from '../UnHussleDB'
 import { IRepository } from './IRepository.interface'
 import { BaseRepository } from './BaseRepository'
 import {
-  mergeCollectionMembers,
   taggedIds,
   unwrapJunctions,
-  withMembers,
   withTags,
   withUrls,
   withResources,
@@ -20,7 +19,6 @@ export class AreasRepository
   implements IRepository<Area>
 {
   private readonly relations = {
-    tasks: true,
     goals: true,
     resources: withResources,
     projects: true,
@@ -39,7 +37,7 @@ export class AreasRepository
     const areas = await db.query.areas.findMany({
       with: this.relations,
     })
-    return areas.map(unwrapJunctions)
+    return withCollectionTasks(db, 'areas', areas.map(unwrapJunctions))
   }
 
   async getPaginated(page: number, pageSize: number): Promise<HydratedArea[]> {
@@ -51,7 +49,7 @@ export class AreasRepository
       limit: pageSize,
       offset: page * pageSize,
     })
-    return areas.map(unwrapJunctions)
+    return withCollectionTasks(db, 'areas', areas.map(unwrapJunctions))
   }
 
   async getById(id: string): Promise<HydratedArea | null> {
@@ -60,27 +58,10 @@ export class AreasRepository
 
     const area = await db.query.areas.findFirst({
       where: (areas, { eq }) => eq(areas.id, id),
-      with: {
-        ...this.relations,
-        projects: withMembers,
-        goals: { with: { ...withMembers.with, projects: withMembers } },
-      },
+      with: this.relations,
     })
     if (!area) return null
-
-    // A project can reach the area only through one of its goals, so fold
-    // each goal's projects into the goal before folding goals into the area.
-    const goals = area.goals.map((goal) => {
-      const { projects: _projects, ...rest } = mergeCollectionMembers(goal, [
-        'projects',
-      ])
-      return rest
-    })
-
-    return mergeCollectionMembers(unwrapJunctions({ ...area, goals }), [
-      'projects',
-      'goals',
-    ])
+    return withCollectionTasks(db, 'areas', [unwrapJunctions(area)])[0]
   }
 
   async search(query: string, limit: number): Promise<HydratedArea[]> {
@@ -97,7 +78,7 @@ export class AreasRepository
       limit,
       with: this.relations,
     })
-    return areas.map(unwrapJunctions)
+    return withCollectionTasks(db, 'areas', areas.map(unwrapJunctions))
   }
 
   async getByIds(ids: string[]): Promise<HydratedArea[]> {
@@ -108,6 +89,6 @@ export class AreasRepository
       where: (areas, { inArray }) => inArray(areas.id, ids),
       with: this.relations,
     })
-    return areas.map(unwrapJunctions)
+    return withCollectionTasks(db, 'areas', areas.map(unwrapJunctions))
   }
 }

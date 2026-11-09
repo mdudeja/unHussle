@@ -1,12 +1,11 @@
+import { withCollectionTasks } from './taskMembership'
 import { Goal, goals } from '../schemas'
 import { UnHussleDB } from '../UnHussleDB'
 import { IRepository } from './IRepository.interface'
 import { BaseRepository } from './BaseRepository'
 import {
-  mergeCollectionMembers,
   taggedIds,
   unwrapJunctions,
-  withMembers,
   withTags,
   withUrls,
   withResources,
@@ -21,7 +20,6 @@ export class GoalsRepository
 {
   private readonly relations = {
     area: true,
-    tasks: true,
     resources: withResources,
     projects: true,
     tags: withTags,
@@ -39,7 +37,7 @@ export class GoalsRepository
     const goals = await db.query.goals.findMany({
       with: this.relations,
     })
-    return goals.map(unwrapJunctions)
+    return withCollectionTasks(db, 'goals', goals.map(unwrapJunctions))
   }
 
   async getPaginated(page: number, pageSize: number): Promise<HydratedGoal[]> {
@@ -51,7 +49,7 @@ export class GoalsRepository
       limit: pageSize,
       offset: page * pageSize,
     })
-    return goals.map(unwrapJunctions)
+    return withCollectionTasks(db, 'goals', goals.map(unwrapJunctions))
   }
 
   async getById(id: string): Promise<HydratedGoal | null> {
@@ -60,15 +58,10 @@ export class GoalsRepository
 
     const goal = await db.query.goals.findFirst({
       where: (goals, { eq }) => eq(goals.id, id),
-      with: {
-        ...this.relations,
-        area: withMembers,
-        projects: withMembers,
-      },
+      with: this.relations,
     })
     if (!goal) return null
-
-    return mergeCollectionMembers(unwrapJunctions(goal), ['area', 'projects'])
+    return withCollectionTasks(db, 'goals', [unwrapJunctions(goal)])[0]
   }
 
   async search(query: string, limit: number): Promise<HydratedGoal[]> {
@@ -85,7 +78,7 @@ export class GoalsRepository
       limit,
       with: this.relations,
     })
-    return goals.map(unwrapJunctions)
+    return withCollectionTasks(db, 'goals', goals.map(unwrapJunctions))
   }
 
   async getByIds(ids: string[]): Promise<HydratedGoal[]> {
@@ -96,6 +89,6 @@ export class GoalsRepository
       where: (goals, { inArray }) => inArray(goals.id, ids),
       with: this.relations,
     })
-    return goals.map(unwrapJunctions)
+    return withCollectionTasks(db, 'goals', goals.map(unwrapJunctions))
   }
 }

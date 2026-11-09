@@ -166,7 +166,7 @@ export function createSchedulerRoutes(
         Value.Parse(
           selectOccurrenceSchema,
           await runtime.commands.execute(
-            'occurrence.transition',
+            'scheduler.occurrence.transition',
             { ...body, operationId: headers[operationIdHeader] },
             traceOf(request),
           ),
@@ -180,7 +180,7 @@ export function createSchedulerRoutes(
         Value.Parse(
           selectTimeEntriesSchema,
           await runtime.commands.execute(
-            'tracking.stop',
+            'scheduler.tracking.stop',
             { ...body, operationId: headers[operationIdHeader] },
             traceOf(request),
           ),

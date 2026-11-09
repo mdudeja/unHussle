@@ -10,7 +10,8 @@ import {
   withUrls,
   withResources,
 } from './helpers'
-import { AnySQLiteColumn } from 'drizzle-orm/sqlite-core'
+import { inArray } from 'drizzle-orm'
+import { taskMembershipIds, type TaskContainer } from './taskMembership'
 
 import type { HydratedTask } from '@c/types/Hydrated'
 export type { HydratedTask } from '@c/types/Hydrated'
@@ -95,33 +96,13 @@ export class TasksRepository
     return tasks.map(unwrapJunctions)
   }
 
-  async getByQuery(
-    query: Partial<{
-      [K in keyof Task['Read']]: Task['Read'][K] | Task['Read'][K][]
-    }>,
-  ): Promise<HydratedTask[]> {
+  async getByMembership(container: TaskContainer): Promise<HydratedTask[]> {
     const db = await this.getDb()
     if (!db) return []
-
-    const tasks = await db.query.tasks.findMany({
-      where: (tasks, { or, eq, inArray }) =>
-        or(
-          ...Object.entries(query).map(([key, value]) => {
-            if (Array.isArray(value)) {
-              return inArray(
-                tasks[key as keyof typeof tasks] as AnySQLiteColumn,
-                value,
-              )
-            }
-
-            return eq(
-              tasks[key as keyof typeof tasks] as AnySQLiteColumn,
-              value,
-            )
-          }),
-        ),
+    const rows = await db.query.tasks.findMany({
+      where: inArray(tasks.id, taskMembershipIds(db, container)),
       with: this.relations,
     })
-    return tasks.map(unwrapJunctions)
+    return rows.map(unwrapJunctions)
   }
 }

@@ -30,6 +30,7 @@ function toRowValues(kind: EntryKind, changes: Record<string, unknown>) {
     count_tasks: _count_tasks,
     count_resources: _count_resources,
     count_pga: _count_pga,
+    resolved_task_total: _resolved_task_total,
     missing: _missing,
     content: _content,
     file_path: _file_path,
