@@ -371,9 +371,12 @@ export function createCompositionRegistry<C>() {
   }
 }
 
-/** Represents a workflow execution failure that captures where execution stopped, what commands completed beforehand, and the underlying cause. */
+/** Represents a workflow execution failure that captures where execution
+ * stopped, what commands completed beforehand, and the underlying cause. */
 export class WorkflowFailure extends Error {
-  /** Creates a workflow failure that captures the step where execution stopped, the commands completed before the failure, and the underlying cause. */
+  /** Creates a workflow failure that captures the step where execution
+   * stopped, the commands completed before the failure, and the underlying
+   * cause. */
   constructor(
     public readonly completed: { id: string; result: unknown }[],
     public readonly failedStep: string,
