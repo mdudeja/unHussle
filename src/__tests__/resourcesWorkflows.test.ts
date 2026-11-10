@@ -1,3 +1,4 @@
+import { queryRows } from '@c/testing/frontendReads'
 import { describe, expect, test } from 'bun:test'
 import { createStore } from 'zustand/vanilla'
 import { createFrontendRuntime, type EntryTransport } from '@/workflows/runtime'
@@ -115,6 +116,9 @@ function fixture({ emit = true } = {}) {
     },
     telemetry: createTelemetry({ side: 'frontend' }),
   })
+  for (const kind of ['resources', 'areas'] as const)
+    runtime.queries.activate(runtime.defineList(kind))
+
   /** Provides a namespaced key for identifying content resources. */
   const contentKey = (id: string) => `content:resources:${id}`
   /** Watches content so that it is loaded and made available through the runtime’s query system. */
@@ -157,10 +161,8 @@ describe('resource workflows', () => {
     expect(f.saves).toEqual([
       { id: 'r1', content: '# Changed', baseHash: 'h1' },
     ])
-    expect(f.fetched).toContain('resources:r1')
-    expect(
-      (f.store.getState().resources.data as EntryRecord[])[0].content_hash,
-    ).toBe('h2')
+    expect(f.fetched).not.toContain('resources:r1')
+    expect(queryRows(f.runtime, 'resources')[0].content_hash).toBe('h2')
     f.runtime.dispose()
   })
 
@@ -196,12 +198,12 @@ describe('resource workflows', () => {
   test('a rescan reloads the resource list', async () => {
     const f = fixture()
     await f.runtime.ensureList('resources')
-    expect(f.store.getState().resources.data).toEqual([])
+    expect(queryRows(f.runtime, 'resources')).toEqual([])
 
     await f.runtime.commands.execute('vault.rescan', {})
-    expect(
-      (f.store.getState().resources.data as EntryRecord[]).map((r) => r.id),
-    ).toEqual(['imported'])
+    expect(queryRows(f.runtime, 'resources').map((r) => r.id)).toEqual([
+      'imported',
+    ])
     f.runtime.dispose()
   })
 
@@ -217,9 +219,8 @@ describe('resource workflows', () => {
       attachedIds: ['a1'],
       operationId: 'elsewhere',
     })
-    expect(
-      (f.store.getState().areas.data as EntryRecord[])[0].count_resources,
-    ).toBe(1)
+    await new Promise((resolve) => setTimeout(resolve, 35))
+    expect(queryRows(f.runtime, 'areas')[0].count_resources).toBe(1)
     f.runtime.dispose()
   })
 })

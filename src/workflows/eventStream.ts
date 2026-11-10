@@ -1,3 +1,4 @@
+import { apiAddress } from '@/lib/apiAddress'
 import { Logger } from '@c/Logger'
 import type { Telemetry } from '@c/workflows/telemetry'
 
@@ -57,8 +58,7 @@ const deferred = () => {
 }
 
 /** Provides the default URL for the local events endpoint. */
-const defaultUrl = () =>
-  `http://localhost:${import.meta.env.VITE_DB_SERVER_PORT}/events`
+const defaultUrl = () => apiAddress('events')
 
 /** A frame's data: the backend event name and its payload. */
 type WireEvent = { name: string; payload: unknown }
@@ -74,7 +74,9 @@ const dispatch = async (handlers: EventHandlers, data: string) => {
  * Picks the client for the runtime: `EventSource` where it exists (the
  * webview), `fetch` under Bun, which has no `EventSource`.
  */
-export const createEventTransport = (options: { telemetry?: Telemetry } = {}) =>
+export const createEventTransport = (
+  options: { telemetry?: Telemetry } = {},
+) =>
   typeof EventSource === 'undefined'
     ? createSseTransport(options)
     : createEventSourceTransport(options)

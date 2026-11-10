@@ -1,16 +1,13 @@
+import { entityServices } from '@/workflows/services'
 import { describe, test, expect, beforeAll, afterAll } from 'bun:test'
-import { TagsService } from '@/services/database/TagsService'
-import { TasksService } from '@/services/database/TasksService'
-import { ProjectsService } from '@/services/database/ProjectsService'
-import { AreasService } from '@/services/database/AreasService'
 
 // Uses the services directly and removes everything it creates, so the
 // store tests that count rows aren't affected.
 describe('GET /tags/:id/items', () => {
-  const tags = TagsService.getInstance()
-  const tasks = TasksService.getInstance()
-  const projects = ProjectsService.getInstance()
-  const areas = AreasService.getInstance()
+  const tags = entityServices.tags
+  const tasks = entityServices.tasks
+  const projects = entityServices.projects
+  const areas = entityServices.areas
 
   const created = {
     tasks: [] as string[],

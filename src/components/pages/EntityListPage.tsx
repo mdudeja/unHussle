@@ -1,4 +1,4 @@
-import { useEntryList, useEntrySearch } from '@/workflows/hooks'
+import { useEntryList, useEntrySearch, useEntryDetail } from '@/workflows/hooks'
 import { ReactNode } from 'react'
 import { useSearchParams } from 'react-router'
 import { LucideIcon } from 'lucide-react'
@@ -12,7 +12,6 @@ import {
   DataTable,
   DataTableFilter,
 } from '@/components/ui/custom/table/DataTable'
-import { StoreState, useStore } from '@/store'
 import { entitySearchParams } from '@/lib/entityRoutes'
 import {
   EntityAction,
@@ -21,32 +20,14 @@ import {
   useCommonActions,
 } from '@/lib/entityActions'
 import { useDebouncedValue } from '@/lib/hooks/useDebouncedValue'
-import {
-  CreateAreaButtonComponent,
-  CreateGoalButtonComponent,
-  CreateProjectButtonComponent,
-  CreateTagButtonComponent,
-  CreateTaskButtonComponent,
-  CreateUrlButtonComponent,
-  CreateResourceButtonComponent,
-  EntityActionBar,
-} from '../app'
+import { CreateEntityButton, EntityActionBar } from '../app'
 
 const SEARCH_DEBOUNCE_MS = 300
-
-type EntitySliceState<TData> = {
-  data: TData[]
-  isLoading: boolean
-  fetch: (pageNumber?: number) => Promise<void>
-  search: (query: string) => Promise<TData[]>
-  getById: (id?: string | null) => TData | null
-}
 
 export type EntityListPageConfig<TData extends { id: string }> = {
   kind: EntityKind
   title: string
   description?: string
-  selectSlice: (state: StoreState) => EntitySliceState<TData>
   columns: ColumnDef<TData, unknown>[]
   filters?: DataTableFilter[]
   hiddenColumns?: string[]
@@ -63,21 +44,10 @@ export type EntityListPageConfig<TData extends { id: string }> = {
   }
 }
 
-const createButtons: Record<EntityKind, ReactNode> = {
-  projects: <CreateProjectButtonComponent />,
-  areas: <CreateAreaButtonComponent />,
-  goals: <CreateGoalButtonComponent />,
-  tasks: <CreateTaskButtonComponent />,
-  urls: <CreateUrlButtonComponent />,
-  tags: <CreateTagButtonComponent />,
-  resources: <CreateResourceButtonComponent />,
-}
-
 // Generic list page for an entity. Search (`q`), column filters (keyed by
 // column id), the selected item (`id`) and whether its related items are
 // shown (`related`) all live in the URL query string.
-// Without a search term the table shows the items already loaded in the
-// store; with one, it shows the server's search results instead.
+// Lists and searches consume independent query results.
 export function EntityListPage<TData extends { id: string }>({
   config,
 }: {
@@ -87,7 +57,6 @@ export function EntityListPage<TData extends { id: string }>({
     kind,
     title,
     description,
-    selectSlice,
     columns,
     filters = [],
     hiddenColumns,
@@ -96,7 +65,6 @@ export function EntityListPage<TData extends { id: string }>({
     related,
   } = config
 
-  const slice = useStore(selectSlice)
   const [searchParams, setSearchParams] = useSearchParams()
 
   const listQuery = useEntryList(kind)
@@ -111,10 +79,17 @@ export function EntityListPage<TData extends { id: string }>({
   const isSearching =
     isSearchActive &&
     (searchTerm !== searchValue.trim() || searchQuery.isLoading)
-  const tableData = isSearchActive ? (searchQuery.data ?? []) : slice.data
+  const tableData = isSearchActive
+    ? (searchQuery.data ?? [])
+    : ((listQuery.data ?? []) as unknown as TData[])
+  const selectedDetail = useEntryDetail(
+    kind,
+    selectedId ?? '',
+    Boolean(selectedId) && !tableData.some((row) => row.id === selectedId),
+  )
   const selectedItem = selectedId
     ? (tableData.find((row) => row.id === selectedId) ??
-      slice.getById(selectedId))
+      (selectedDetail.data as TData | null))
     : null
 
   const columnFilters: ColumnFiltersState = filters.flatMap((filter) => {
@@ -207,7 +182,7 @@ export function EntityListPage<TData extends { id: string }>({
             <p className="text-sm text-muted-foreground">{description}</p>
           )}
         </div>
-        {createButtons[kind]}
+        <CreateEntityButton kind={kind} />
       </div>
       <DataTable
         columns={columns}
@@ -223,9 +198,7 @@ export function EntityListPage<TData extends { id: string }>({
         initialSorting={initialSorting}
         selectedId={selectedId}
         onRowClick={handleRowClick}
-        isLoading={
-          isSearchActive ? isSearching : listQuery.isLoading || slice.isLoading
-        }
+        isLoading={isSearchActive ? isSearching : listQuery.isLoading}
         selectionBar={
           selectedItem && (
             <EntityActionBar

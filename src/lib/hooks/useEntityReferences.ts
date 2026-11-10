@@ -1,7 +1,10 @@
+import type { EntityReference } from '@c/types/readModels'
 import { useWorkflowQuery } from '@/workflows/hooks'
 import { dependencies } from '@/workflows/runtime'
 import { fetchAllReferences } from '@/services/readModels'
 import type { EntryKind } from '@c/workflows/contracts'
+
+const emptyReferences: EntityReference[] = []
 
 /** Provides a query for retrieving all entity references of a given kind and exposes an empty list when no reference data is available. */
 export function useEntityReferences(kind: EntryKind, enabled = true) {
@@ -13,5 +16,5 @@ export function useEntityReferences(kind: EntryKind, enabled = true) {
     },
     enabled,
   )
-  return { ...query, data: query.data ?? [] }
+  return { ...query, data: query.data ?? emptyReferences }
 }

@@ -1,3 +1,4 @@
+import { readList } from '@c/testing/frontendReads'
 import { describe, test, expect, beforeEach } from 'bun:test'
 import { useStore } from '@/store'
 
@@ -6,16 +7,15 @@ describe('Goals Store', () => {
     useStore.setState((state) => ({
       goals: {
         ...state.goals,
-        data: [],
         isLoading: false,
         error: null,
       },
     }))
   })
 
-  test('initialize with default state', () => {
+  test('initialize with default state', async () => {
     const state = useStore.getState()
-    expect(state.goals.data).toEqual([])
+    expect('data' in state.goals).toBe(false)
   })
 
   test('create a new goal', async () => {
@@ -24,11 +24,14 @@ describe('Goals Store', () => {
       title: 'New Goal',
     }
     await add(newGoalData)
-    const state = useStore.getState()
-    const newGoal = state.goals.data.find((g) => g.title === 'New Goal')
+    const newGoal = (await readList('goals')).find(
+      (g) => g.title === 'New Goal',
+    )
 
     expect(newGoal).toBeDefined()
-    expect(state.goals.data).toHaveLength(1)
+    expect(
+      (await readList('goals')).filter((row) => row.title === 'New Goal'),
+    ).toHaveLength(1)
   })
 
   test('throw error when creating goal with missing fields', async () => {
@@ -37,12 +40,15 @@ describe('Goals Store', () => {
   })
 
   test('fetch goals', async () => {
-    const { fetch } = useStore.getState().goals
+    /** Fetches the list of goals. */
+    const fetch = () => readList('goals')
     await fetch()
 
     const state = useStore.getState()
-    expect(state.goals.data).toHaveLength(8) // seed data has 7 goals
-    expect(state.goals.data[state.goals.data.length - 1].title).toBe('New Goal')
+    expect(await readList('goals')).toHaveLength(8) // seed data has 7 goals
+    expect(
+      (await readList('goals'))[(await readList('goals')).length - 1].title,
+    ).toBe('New Goal')
     expect(state.goals.isLoading).toBe(false)
   })
 
@@ -53,16 +59,16 @@ describe('Goals Store', () => {
     }
     await add(newGoalData)
 
-    let state = useStore.getState()
-    const goalToUpdate = state.goals.data.find(
+    const goalToUpdate = (await readList('goals')).find(
       (g) => g.title === 'Goal to Update',
     )
     expect(goalToUpdate).toBeDefined()
 
     await update(goalToUpdate!.id, { title: 'Updated Goal Title' })
 
-    state = useStore.getState()
-    const updatedGoal = state.goals.data.find((g) => g.id === goalToUpdate!.id)
+    const updatedGoal = (await readList('goals')).find(
+      (g) => g.id === goalToUpdate!.id,
+    )
     expect(updatedGoal!.title).toBe('Updated Goal Title')
   })
 
@@ -78,16 +84,16 @@ describe('Goals Store', () => {
     }
     await add(newGoalData)
 
-    let state = useStore.getState()
-    const goalToDelete = state.goals.data.find(
+    const goalToDelete = (await readList('goals')).find(
       (g) => g.title === 'Goal to Delete',
     )
     expect(goalToDelete).toBeDefined()
 
     await deleteGoal(goalToDelete!.id)
 
-    state = useStore.getState()
-    const deletedGoal = state.goals.data.find((g) => g.id === goalToDelete!.id)
+    const deletedGoal = (await readList('goals')).find(
+      (g) => g.id === goalToDelete!.id,
+    )
     expect(deletedGoal).toBeUndefined()
   })
 

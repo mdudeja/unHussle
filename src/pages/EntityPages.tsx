@@ -66,7 +66,6 @@ const updatedAtColumn = <TData extends { updated_at: number }>() =>
 const projectsConfig: EntityListPageConfig<HydratedProject> = {
   kind: 'projects',
   title: 'Projects',
-  selectSlice: (state) => state.projects,
   related: {
     label: 'tasks',
     icon: ListTodo,
@@ -91,7 +90,6 @@ const projectsConfig: EntityListPageConfig<HydratedProject> = {
 const areasConfig: EntityListPageConfig<HydratedArea> = {
   kind: 'areas',
   title: 'Areas',
-  selectSlice: (state) => state.areas,
   related: {
     label: 'tasks',
     icon: ListTodo,
@@ -110,7 +108,6 @@ const areasConfig: EntityListPageConfig<HydratedArea> = {
 const goalsConfig: EntityListPageConfig<HydratedGoal> = {
   kind: 'goals',
   title: 'Goals',
-  selectSlice: (state) => state.goals,
   related: {
     label: 'tasks',
     icon: ListTodo,
@@ -132,7 +129,6 @@ const goalsConfig: EntityListPageConfig<HydratedGoal> = {
 const tasksConfig: EntityListPageConfig<HydratedTask> = {
   kind: 'tasks',
   title: 'Tasks',
-  selectSlice: (state) => state.tasks,
   useActions: useTaskActions,
   columns: [
     textColumn('title', 'Title', (row) => row.title),
@@ -159,7 +155,6 @@ const urlsConfig: EntityListPageConfig<Url['Read']> = {
     icon: Tags,
     render: (item) => <SupporterItems key={item.id} kind="urls" id={item.id} />,
   },
-  selectSlice: (state) => state.urls,
   columns: [
     textColumn('title', 'Title', (row) => row.title),
     urlColumn('url', 'URL', (row) => row.url),
@@ -173,7 +168,6 @@ const resourcesConfig: EntityListPageConfig<HydratedResource> = {
   kind: 'resources',
   title: 'Resources',
   description: 'Markdown notes in your vault, linked to tasks and collections.',
-  selectSlice: (state) => state.resources,
   useActions: useResourceActions,
   columns: [
     titleColumn(FileText),
@@ -193,7 +187,6 @@ const resourcesConfig: EntityListPageConfig<HydratedResource> = {
 const tagsConfig: EntityListPageConfig<Tag['Read']> = {
   kind: 'tags',
   title: 'Tags',
-  selectSlice: (state) => state.tags,
   related: {
     label: 'items',
     icon: Tags,

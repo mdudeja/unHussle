@@ -1,3 +1,4 @@
+import { apiAddress } from '@/lib/apiAddress'
 import { makeJSONRequest } from '@/lib/server'
 import { DbEntityTypes, WithSupporters } from '@c/types/index'
 import { parentSpanHeader, traceIdHeader } from '@c/workflows/telemetry'
@@ -26,90 +27,87 @@ export const mutationHeaders = ({
 }
 
 /** Provides client-side access to a typed database endpoint for retrieving, searching, creating, updating, and deleting records. */
-export class DbService<T extends DbEntityTypes> {
-  dbUrl: string
-  baseEndpoint: string
+export function createDbService<
+  T extends DbEntityTypes,
+  Read extends T['Read'] = T['Read'],
+>(baseEndpoint: string) {
+  const endpoint = apiAddress(baseEndpoint)
+  return {
+    /** Fetches a paginated collection of records. */
+    async fetchPaginated(page: number, pageSize: number) {
+      const pageNum = page > 0 ? page : 1
+      const pageSizeNum = pageSize > 0 ? pageSize : 10
 
-  /** Initializes the service with the database server URL and base endpoint. */
-  constructor(baseEndpoint: string) {
-    this.dbUrl = `http://localhost:${import.meta.env.VITE_DB_SERVER_PORT}`
-    this.baseEndpoint = baseEndpoint
-  }
+      return makeJSONRequest<Read[]>({
+        url: `${endpoint}/paginated/${pageNum}/${pageSizeNum}`,
+        method: 'GET',
+      })
+    },
 
-  /** Fetches a paginated collection of records. */
-  async fetchPaginated(page: number, pageSize: number) {
-    const pageNum = page > 0 ? page : 1
-    const pageSizeNum = pageSize > 0 ? pageSize : 10
+    /** Fetches all records from the configured endpoint. */
+    async fetchAll() {
+      return makeJSONRequest<Read[]>({
+        url: `${endpoint}`,
+        method: 'GET',
+      })
+    },
 
-    return makeJSONRequest<T['Read'][]>({
-      url: `${this.dbUrl}/${this.baseEndpoint}/paginated/${pageNum}/${pageSizeNum}`,
-      method: 'GET',
-    })
-  }
+    /** Searches for records matching the specified query. */
+    async search(query: string) {
+      return makeJSONRequest<Read[]>({
+        url: `${endpoint}/search/${encodeURIComponent(query)}`,
+        method: 'GET',
+      })
+    },
 
-  /** Fetches all records from the configured endpoint. */
-  async fetchAll() {
-    return makeJSONRequest<T['Read'][]>({
-      url: `${this.dbUrl}/${this.baseEndpoint}`,
-      method: 'GET',
-    })
-  }
+    /** Fetches a single record identified by its ID. */
+    async fetchById(id: string) {
+      return makeJSONRequest<Read>({
+        url: `${endpoint}/${id}`,
+        method: 'GET',
+      })
+    },
 
-  /** Searches for records matching the specified query. */
-  async search(query: string) {
-    return makeJSONRequest<T['Read'][]>({
-      url: `${this.dbUrl}/${this.baseEndpoint}/search/${encodeURIComponent(query)}`,
-      method: 'GET',
-    })
-  }
+    /** Creates a new record in the database. */
+    async create(data: WithSupporters<T['Write']>, options?: MutationOptions) {
+      return makeJSONRequest<Read>({
+        url: `${endpoint}`,
+        method: 'POST',
+        body: data,
+        headers: mutationHeaders(options),
+      })
+    },
 
-  /** Fetches a single record identified by its ID. */
-  async fetchById(id: string) {
-    return makeJSONRequest<T['Read']>({
-      url: `${this.dbUrl}/${this.baseEndpoint}/${id}`,
-      method: 'GET',
-    })
-  }
+    /** Update an existing record and return its updated representation. */
+    async update(
+      id: string,
+      data: WithSupporters<T['Update']>,
+      options?: MutationOptions,
+    ) {
+      return makeJSONRequest<Read>({
+        url: `${endpoint}/${id}`,
+        method: 'PATCH',
+        body: data,
+        headers: mutationHeaders(options),
+      })
+    },
 
-  /** Creates a new record in the database. */
-  async create(data: WithSupporters<T['Write']>, options?: MutationOptions) {
-    return makeJSONRequest<T['Read']>({
-      url: `${this.dbUrl}/${this.baseEndpoint}`,
-      method: 'POST',
-      body: data,
-      headers: mutationHeaders(options),
-    })
-  }
+    /** Deletes the specified resource from the database. */
+    async delete(id: string, options?: MutationOptions) {
+      return makeJSONRequest<Read>({
+        url: `${endpoint}/${id}`,
+        method: 'DELETE',
+        headers: mutationHeaders(options),
+      })
+    },
 
-  /** Update an existing record and return its updated representation. */
-  async update(
-    id: string,
-    data: WithSupporters<T['Update']>,
-    options?: MutationOptions,
-  ) {
-    return makeJSONRequest<T['Read']>({
-      url: `${this.dbUrl}/${this.baseEndpoint}/${id}`,
-      method: 'PATCH',
-      body: data,
-      headers: mutationHeaders(options),
-    })
-  }
-
-  /** Deletes the specified resource from the database. */
-  async delete(id: string, options?: MutationOptions) {
-    return makeJSONRequest<T['Read']>({
-      url: `${this.dbUrl}/${this.baseEndpoint}/${id}`,
-      method: 'DELETE',
-      headers: mutationHeaders(options),
-    })
-  }
-
-  /** Deletes all existing data, resetting the database to an empty state. */
-  async reset(options?: MutationOptions) {
-    return makeJSONRequest<{ deleted: number }>({
-      url: `${this.dbUrl}/${this.baseEndpoint}/all`,
-      method: 'DELETE',
-      headers: mutationHeaders(options),
-    })
+    /** Deletes all existing data, resetting the database to an empty state. */
+    async reset(options?: MutationOptions) {
+      return makeJSONRequest<{ deleted: number }>({
+        url: `${endpoint}/all`,
+        method: 'DELETE',
+        headers: mutationHeaders(options),
+      })
+    },
   }
 }

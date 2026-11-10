@@ -1,21 +1,38 @@
-import { TasksService } from '@/services/database/TasksService'
-import { ProjectsService } from '@/services/database/ProjectsService'
-import { AreasService } from '@/services/database/AreasService'
-import { GoalsService } from '@/services/database/GoalsService'
-import { ResourcesService } from '@/services/database/ResourcesService'
-import { TagsService } from '@/services/database/TagsService'
-import { UrlsService } from '@/services/database/UrlsService'
-import { TimeEntriesService } from '@/services/database/TimeEntriesService'
+import { fetchSupporterItems } from '@/services/readModels'
+import type {
+  HydratedTask,
+  HydratedProject,
+  HydratedArea,
+  HydratedGoal,
+  HydratedResource,
+} from '@c/types/Hydrated'
+import { createDbService } from '@/services/database/DbService'
+import type {
+  Task,
+  Project,
+  Area,
+  Goal,
+  Resource,
+  Tag,
+  EntityUrl,
+  TimeEntry,
+} from '@c/types'
 
 export const entityServices = {
-  tasks: TasksService.getInstance(),
-  projects: ProjectsService.getInstance(),
-  areas: AreasService.getInstance(),
-  goals: GoalsService.getInstance(),
-  resources: ResourcesService.getInstance(),
-  tags: TagsService.getInstance(),
-  urls: UrlsService.getInstance(),
-  time_entries: TimeEntriesService.getInstance(),
+  tasks: createDbService<Task, HydratedTask>('tasks'),
+  projects: createDbService<Project, HydratedProject>('projects'),
+  areas: createDbService<Area, HydratedArea>('areas'),
+  goals: createDbService<Goal, HydratedGoal>('goals'),
+  resources: createDbService<Resource, HydratedResource>('resources'),
+  tags: {
+    ...createDbService<Tag>('tags'),
+    fetchItems: (id: string) => fetchSupporterItems('tags', id),
+  },
+  urls: {
+    ...createDbService<EntityUrl>('urls'),
+    fetchItems: (id: string) => fetchSupporterItems('urls', id),
+  },
+  time_entries: createDbService<TimeEntry>('time_entries'),
 }
 export const fetchLimits: Record<keyof typeof entityServices, number> = {
   areas: +(import.meta.env.VITE_FETCH_LIMIT_AREAS || '50'),
@@ -27,3 +44,7 @@ export const fetchLimits: Record<keyof typeof entityServices, number> = {
   time_entries: +(import.meta.env.VITE_FETCH_LIMIT_TIME_ENTRIES || '100'),
   urls: +(import.meta.env.VITE_FETCH_LIMIT_URLS || '100'),
 }
+
+export type EntityRead<K extends keyof typeof entityServices> = Awaited<
+  ReturnType<(typeof entityServices)[K]['fetchById']>
+>

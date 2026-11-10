@@ -1,3 +1,4 @@
+import { readList } from '@c/testing/frontendReads'
 import { describe, test, expect, beforeEach } from 'bun:test'
 import { useStore } from '@/store'
 
@@ -6,16 +7,15 @@ describe('Tasks Store', () => {
     useStore.setState((state) => ({
       tasks: {
         ...state.tasks,
-        data: [],
         isLoading: false,
         error: null,
       },
     }))
   })
 
-  test('initialize with default state', () => {
+  test('initialize with default state', async () => {
     const state = useStore.getState()
-    expect(state.tasks.data).toEqual([])
+    expect('data' in state.tasks).toBe(false)
   })
 
   test('add a task', async () => {
@@ -24,11 +24,9 @@ describe('Tasks Store', () => {
       title: 'New Task',
     })
 
-    const state = useStore.getState()
-
     // Check if task was added
-    expect(state.tasks.data).toHaveLength(1)
-    expect(state.tasks.data[0].title).toBe('New Task')
+    expect(await readList('tasks')).toHaveLength(1)
+    expect((await readList('tasks'))[0].title).toBe('New Task')
   })
 
   test('throw error when adding task with missing fields', async () => {
@@ -37,26 +35,29 @@ describe('Tasks Store', () => {
   })
 
   test('fetch tasks', async () => {
-    const { fetch } = useStore.getState().tasks
+    /** Fetches the list of tasks. */
+    const fetch = () => readList('tasks')
     await fetch()
 
     const state = useStore.getState()
-    expect(state.tasks.data).toHaveLength(1)
-    expect(state.tasks.data[0].title).toBe('New Task')
+    expect(await readList('tasks')).toHaveLength(1)
+    expect((await readList('tasks'))[0].title).toBe('New Task')
     expect(state.tasks.isLoading).toBe(false)
   })
 
   test('update an existing task', async () => {
-    const { fetch, update } = useStore.getState().tasks
+    const { update } = useStore.getState().tasks
+    /** Fetches the list of tasks. */
+    const fetch = () => readList('tasks')
     await fetch()
 
-    let state = useStore.getState()
-    const taskToUpdate = state.tasks.data[0]
+    const taskToUpdate = (await readList('tasks'))[0]
 
     await update(taskToUpdate.id, { title: 'Updated Task Title' })
 
-    state = useStore.getState()
-    const updatedTask = state.tasks.data.find((t) => t.id === taskToUpdate.id)
+    const updatedTask = (await readList('tasks')).find(
+      (t) => t.id === taskToUpdate.id,
+    )
 
     expect(updatedTask).toBeDefined()
     expect(updatedTask!.title).toBe('Updated Task Title')
@@ -70,19 +71,20 @@ describe('Tasks Store', () => {
   })
 
   test('delete a task', async () => {
-    const { fetch, remove: deleteTask } = useStore.getState().tasks
+    const { remove: deleteTask } = useStore.getState().tasks
+    /** Fetches the list of tasks. */
+    const fetch = () => readList('tasks')
     await fetch()
 
-    let state = useStore.getState()
-    const taskToDelete = state.tasks.data[0]
+    const taskToDelete = (await readList('tasks'))[0]
 
     await deleteTask(taskToDelete.id)
 
-    state = useStore.getState()
-    const deletedTask = state.tasks.data.find((t) => t.id === taskToDelete.id)
+    const deletedTask = (await readList('tasks')).find(
+      (t) => t.id === taskToDelete.id,
+    )
 
     expect(deletedTask).toBeUndefined()
-    expect(state.tasks.data).toHaveLength(0)
   })
 
   test('throw error when deleting non-existent task', async () => {

@@ -1,3 +1,4 @@
+import { readList } from '@c/testing/frontendReads'
 import { describe, test, expect, beforeEach } from 'bun:test'
 import { useStore } from '@/store'
 
@@ -6,16 +7,15 @@ describe('Tags Store', () => {
     useStore.setState((state) => ({
       tags: {
         ...state.tags,
-        data: [],
         isLoading: false,
         error: null,
       },
     }))
   })
 
-  test('initialize with default state', () => {
+  test('initialize with default state', async () => {
     const state = useStore.getState()
-    expect(state.tags.data).toEqual([])
+    expect('data' in state.tags).toBe(false)
   })
 
   // Tag titles are normalized (trimmed, `#` stripped, lowercased) on write.
@@ -25,12 +25,13 @@ describe('Tags Store', () => {
       title: 'New Entity Tag',
     }
     await add(newEntityTagData)
-    const state = useStore.getState()
-    const newEntityTag = state.tags.data.find(
+    const newEntityTag = (await readList('tags')).find(
       (et) => et.title === 'new entity tag',
     )
     expect(newEntityTag).toBeDefined()
-    expect(state.tags.data).toHaveLength(1)
+    expect(
+      (await readList('tags')).filter((row) => row.title === 'new entity tag'),
+    ).toHaveLength(1)
   })
 
   test('throw error when creating tag with missing fields', async () => {
@@ -39,12 +40,13 @@ describe('Tags Store', () => {
   })
 
   test('fetch tags', async () => {
-    const { fetch } = useStore.getState().tags
+    /** Retrieves the list of tags. */
+    const fetch = () => readList('tags')
     await fetch()
 
     const state = useStore.getState()
-    expect(state.tags.data).toHaveLength(25) // adds 24 tags during seed
-    expect(state.tags.data[0].title).toBe('health')
+    expect(await readList('tags')).toHaveLength(25) // adds 24 tags during seed
+    expect((await readList('tags'))[0].title).toBe('health')
     expect(state.tags.isLoading).toBe(false)
   })
 
@@ -55,16 +57,14 @@ describe('Tags Store', () => {
     }
     await add(newEntityTagData)
 
-    let state = useStore.getState()
-    const entityTagToUpdate = state.tags.data.find(
+    const entityTagToUpdate = (await readList('tags')).find(
       (et) => et.title === 'entity tag to update',
     )
     expect(entityTagToUpdate).toBeDefined()
 
     await update(entityTagToUpdate!.id, { title: 'Updated Entity Tag Title' })
 
-    state = useStore.getState()
-    const updatedEntityTag = state.tags.data.find(
+    const updatedEntityTag = (await readList('tags')).find(
       (et) => et.id === entityTagToUpdate!.id,
     )
     expect(updatedEntityTag!.title).toBe('updated entity tag title')
@@ -77,20 +77,17 @@ describe('Tags Store', () => {
     }
     await add(newEntityTagData)
 
-    let state = useStore.getState()
-    const entityTagToDelete = state.tags.data.find(
+    const entityTagToDelete = (await readList('tags')).find(
       (et) => et.title === 'entity tag to delete',
     )
     expect(entityTagToDelete).toBeDefined()
 
     await deleteEntityTag(entityTagToDelete!.id)
 
-    state = useStore.getState()
-    const deletedEntityTag = state.tags.data.find(
+    const deletedEntityTag = (await readList('tags')).find(
       (et) => et.id === entityTagToDelete!.id,
     )
     expect(deletedEntityTag).toBeUndefined()
-    expect(state.tags.data).toHaveLength(0)
   })
 
   test('throw error when deleting non-existent tag', async () => {

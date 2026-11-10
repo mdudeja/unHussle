@@ -1,3 +1,4 @@
+import { apiAddress } from '@/lib/apiAddress'
 import type {
   ResourceContent,
   VaultCommands,
@@ -20,7 +21,7 @@ export type VaultTransport = {
   ): Promise<VaultCommands[K]['result']>
 }
 
-const base = `http://localhost:${import.meta.env.VITE_DB_SERVER_PORT || '3456'}`
+const base = apiAddress()
 
 export const vaultService: VaultTransport = {
   info: () => makeJSONRequest({ url: `${base}/vault`, method: 'GET' }),

@@ -249,7 +249,7 @@ Environment variables (see `.env.template`):
 │  React 19 webview (src/, Vite :1420)                                                │
 │   components ─▶ store slices / hooks ─▶ frontend runtime ──── HTTP + x-operation-id ─┐│
 │        ▲              ▲                     ▲                                       ││
-│        │         Zustand store ◀── reactions ◀── local event bus ◀── SSE /events ──┐ ││
+│        │         Query cache   ◀── reactions ◀── local event bus ◀── SSE /events ──┐ ││
 │        └──── query coordinator (reads, dedupe, invalidation) ◀── HTTP GET ───────┐ │ ││
 │                                                                                  │ │ ││
 │  Elysia/Bun sidecar (src-db-server/, :3456)                                      │ │ ││
@@ -319,16 +319,17 @@ markPlansStale → syncPlanMembership`. Each action returns a synchronous unit
 6. **SSE.** The event forwarder numbers each event and streams it on
    `GET /events`. It keeps a 500-frame replay buffer for `Last-Event-ID`.
 7. **Reactions.** The frontend republishes each event on its local bus.
-   `reactionRegistry.ts` runs `upsertRows`, which reloads the hydrated row by id
-   into the Zustand store, and `invalidateDependents`, which refreshes mounted
-   queries that depend on `tasks`.
+   `reactionRegistry.ts` collects affected query dependencies from announcements
+   and refreshes mounted queries once at operation completion. Lists, details,
+   searches, related items and task context all live in the query coordinator.
 8. **Settle.** Once both expected events are handled, the command resolves and
-   the caller sees the updated store. If the events don't arrive within 3s, the
-   runtime reloads the list instead. If a follow-up refresh fails, a warning
+   the caller sees refreshed mounted queries. If the events don't arrive within
+   3s, the runtime invalidates the command's dependencies instead. If a follow-up refresh fails, a warning
    appears with a **Retry** that repeats only the read.
 
-The store changes **only** in reaction to events. A write from this window,
-another window or the backend itself all update the UI the same way.
+Committed events drive query invalidation whether a write comes from this
+window, another window or the backend. Zustand owns UI state, mutation
+loading/errors and local session presentation; it has no entity arrays.
 
 ### A read
 
@@ -342,10 +343,21 @@ keyed like `list:tasks:1`, `detail:areas:<id>`, `search:tags:<term>` or
   are cached until invalidated.
 - Every invalidation bumps a generation, so a slow, outdated response can never
   overwrite a newer one.
-- Only list queries write into the store (`onData`). Detail, search and
-  related queries never change list membership.
+- Each query owns its result. Pages, searches, details and related queries
+  never overwrite another query's membership.
 - Queries refetch on invalidation only while a component has them mounted.
   Unmounted queries are just marked stale.
+
+Frontend writes share `commandTransport.ts`: expected events are registered
+before HTTP, then readiness, tracing, settlement, timeout recovery and cleanup
+follow one path. Lifecycle commands still serialize together, and resource saves
+retain their own per-resource queues. Every client uses `lib/apiAddress.ts`,
+with port **3456** as the default.
+
+Creation and editing share registry field builders and `useEntitySubmission`.
+`CreateEntityButton` handles all kinds; creation defaults are separate from edit
+fallbacks. Selector queries mount only with their dialogs. Form drafts survive
+background reads, and submissions include configured direct fields only.
 
 ### Scheduler flow
 
@@ -563,9 +575,9 @@ lib/
   inputParsers/            brain dump parsing: hashtags, URLs, estimates, due dates
   hooks/                   autocomplete, related items, debounce
 services/
-  database/                DbService per kind: HTTP client for the CRUD routes (adds mutation headers)
+  database/                configured CRUD service instances (adds mutation headers)
   scheduler.ts             HTTP client for /scheduler
-store/                     Zustand store; one generic DbSlice per kind + UI slice
+store/                     Zustand UI state and mutation command facades; no server-derived rows
 workflows/
   runtime.ts               createFrontendRuntime / getFrontendRuntime
   commandRegistry.ts       verb → service call (add→create, change→update, …)
@@ -595,10 +607,10 @@ commands, the frontend has two workflows of its own:
 - `brainDump.submit`: creates the task (filling in the Brain Dump area when it
   has no collection) or the standalone URLs. It returns `failedUrls`.
 
-**Reactions.** Generic store reactions hang off **family** events, so each
-mutation is handled once. Kind-specific behaviour hangs off **kind** events:
-`tasks.delete` stops tracking a deleted task, and `<kind>.change`
-announcements reload the members that are already loaded. `syncTracking`
+**Reactions.** Family completion events flush query invalidations accumulated
+from the operation's announcements. Kind-specific behaviour hangs off **kind**
+events: `tasks.delete` stops tracking a deleted task, and `<kind>.change`
+announcements contribute their affected dependencies. `syncTracking`
 reconciles local timer presentation against committed task state. Failed starts
 preserve the existing session; failed timer reads offer a retry that only reads.
 

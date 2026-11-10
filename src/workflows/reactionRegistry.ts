@@ -1,11 +1,9 @@
 import type { ReactionRegistry } from './contracts'
 
-const upserted = ['upsertRows', 'invalidateDependents'] as const
-const deleted = ['removeRows', 'invalidateDependents'] as const
-const cleared = ['clearRows', 'invalidateDependents'] as const
+// Query invalidation belongs on family completions; kind events retain only
+// tracking behavior and dependent-change announcements.
+const changed = ['invalidateDependents'] as const
 
-// Generic store reactions hang off the command-family events so each mutation
-// is handled once; kind events (`tasks.delete`) carry kind-specific behaviour.
 export const reactionRegistry: ReactionRegistry = {
   'scheduler.changed': ['refreshSchedule'],
   'scheduler.mode.changed': ['refreshSchedule', 'syncTracking'],
@@ -14,18 +12,18 @@ export const reactionRegistry: ReactionRegistry = {
   'scheduler.tracking.stopped': ['refreshSchedule', 'syncTracking'],
   'resource.content.changed': ['refreshVault'],
   'vault.changed': ['refreshVault'],
-  'entity.add': [...upserted],
-  'entity.change': [...upserted],
-  'entity.delete': [...deleted],
-  'entity.deleteAll': [...cleared],
-  'entityCollection.add': [...upserted],
-  'entityCollection.change': [...upserted],
-  'entityCollection.delete': [...deleted],
-  'entityCollection.deleteAll': [...cleared],
-  'entitySupporter.add': [...upserted],
-  'entitySupporter.change': [...upserted],
-  'entitySupporter.delete': [...deleted],
-  'entitySupporter.deleteAll': [...cleared],
+  'entity.add': [...changed],
+  'entity.change': [...changed],
+  'entity.delete': [...changed],
+  'entity.deleteAll': [...changed],
+  'entityCollection.add': [...changed],
+  'entityCollection.change': [...changed],
+  'entityCollection.delete': [...changed],
+  'entityCollection.deleteAll': [...changed],
+  'entitySupporter.add': [...changed],
+  'entitySupporter.change': [...changed],
+  'entitySupporter.delete': [...changed],
+  'entitySupporter.deleteAll': [...changed],
 
   'tasks.delete': ['stopTrackingIfDeleted'],
   'tasks.deleteAll': ['stopTracking'],

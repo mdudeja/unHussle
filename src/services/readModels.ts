@@ -1,3 +1,4 @@
+import { apiAddress } from '@/lib/apiAddress'
 import { makeJSONRequest } from '@/lib/server'
 import type { EntryKind } from '@c/workflows/contracts'
 import type {
@@ -8,7 +9,7 @@ import type {
   TaskPageOptions,
 } from '@c/types/readModels'
 
-const address = `http://localhost:${import.meta.env.VITE_DB_SERVER_PORT || 3456}`
+const address = apiAddress()
 
 /** Serializes an options object into a URL-encoded query string, omitting undefined values. */
 const params = (options: object) =>
@@ -50,3 +51,10 @@ export async function fetchAllReferences(kind: EntryKind) {
   } while (cursor)
   return items
 }
+
+/** Supporter aliases retain their existing HTTP paths. */
+export const fetchSupporterItems = (kind: 'tags' | 'urls', id: string) =>
+  makeJSONRequest<ContainerDetail>({
+    url: apiAddress(`${kind}/${encodeURIComponent(id)}/items`),
+    method: 'GET',
+  })

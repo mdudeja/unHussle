@@ -1,3 +1,4 @@
+import { readList } from '@c/testing/frontendReads'
 import {
   describe,
   test,
@@ -23,7 +24,6 @@ describe('Time Entries Store', () => {
     useStore.setState((state) => ({
       time_entries: {
         ...state.time_entries,
-        data: [],
         isLoading: false,
         error: null,
       },
@@ -36,9 +36,9 @@ describe('Time Entries Store', () => {
     await remove('task-1')
   })
 
-  test('initialize with default state', () => {
+  test('initialize with default state', async () => {
     const state = useStore.getState()
-    expect(state.time_entries.data).toEqual([])
+    expect('data' in state.time_entries).toBe(false)
   })
 
   test('create a new time entry', async () => {
@@ -49,12 +49,11 @@ describe('Time Entries Store', () => {
       start_time: getNowMillis(),
     }
     await add(newTimeEntryData)
-    const state = useStore.getState()
-    const newTimeEntry = state.time_entries.data.find(
+    const newTimeEntry = (await readList('time_entries')).find(
       (te) => te.description === 'New Time Entry',
     )
     expect(newTimeEntry).toBeDefined()
-    expect(state.time_entries.data).toHaveLength(1)
+    expect(await readList('time_entries')).toHaveLength(1)
   })
 
   test('throw error when creating time entry with missing fields', async () => {
@@ -63,12 +62,15 @@ describe('Time Entries Store', () => {
   })
 
   test('fetch time entries', async () => {
-    const { fetch } = useStore.getState().time_entries
+    /** Fetches the list of time entries. */
+    const fetch = () => readList('time_entries')
     await fetch()
 
     const state = useStore.getState()
-    expect(state.time_entries.data).toHaveLength(1)
-    expect(state.time_entries.data[0].description).toBe('New Time Entry')
+    expect(await readList('time_entries')).toHaveLength(1)
+    expect((await readList('time_entries'))[0].description).toBe(
+      'New Time Entry',
+    )
     expect(state.time_entries.isLoading).toBe(false)
   })
 
@@ -81,8 +83,7 @@ describe('Time Entries Store', () => {
     }
     await add(newTimeEntryData)
 
-    let state = useStore.getState()
-    const timeEntryToUpdate = state.time_entries.data.find(
+    const timeEntryToUpdate = (await readList('time_entries')).find(
       (te) => te.description === 'Time Entry to Update',
     )
 
@@ -90,8 +91,7 @@ describe('Time Entries Store', () => {
       description: 'Updated Time Entry Description',
     })
 
-    state = useStore.getState()
-    const updatedTimeEntry = state.time_entries.data.find(
+    const updatedTimeEntry = (await readList('time_entries')).find(
       (te) => te.id === timeEntryToUpdate!.id,
     )
     expect(updatedTimeEntry!.description).toBe('Updated Time Entry Description')
@@ -106,20 +106,17 @@ describe('Time Entries Store', () => {
     }
     await add(newTimeEntryData)
 
-    let state = useStore.getState()
-    const timeEntryToDelete = state.time_entries.data.find(
+    const timeEntryToDelete = (await readList('time_entries')).find(
       (te) => te.description === 'Time Entry to Delete',
     )
     expect(timeEntryToDelete).toBeDefined()
 
     await deleteTimeEntry(timeEntryToDelete!.id)
 
-    state = useStore.getState()
-    const deletedTimeEntry = state.time_entries.data.find(
+    const deletedTimeEntry = (await readList('time_entries')).find(
       (te) => te.id === timeEntryToDelete!.id,
     )
     expect(deletedTimeEntry).toBeUndefined()
-    expect(state.time_entries.data).toHaveLength(0)
   })
 
   test('throw error when deleting non-existent time entry', async () => {

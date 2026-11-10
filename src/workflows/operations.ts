@@ -24,6 +24,7 @@ export function createOperationTracker() {
         },
       }
     },
+    has: (operationId: string) => pending.has(operationId),
     /** Marks one event of an operation as handled. */
     handled(operationId: string | undefined, eventName: string) {
       if (!operationId) return

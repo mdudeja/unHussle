@@ -1,8 +1,10 @@
+import { queryRows } from '@c/testing/frontendReads'
 import { describe, expect, mock, test } from 'bun:test'
 import { createStore } from 'zustand/vanilla'
 import {
   createFrontendRuntime,
   getFrontendRuntime,
+  dependencies,
   type EntryTransport,
 } from '@/workflows/runtime'
 import type { EventHandlers, EventTransport } from '@/workflows/eventStream'
@@ -11,7 +13,6 @@ import { useStore, type StoreState } from '@/store'
 import { ProgressStatus } from '@c/types/enums'
 import {
   commandHeadForKind,
-  type EntityKind,
   type EntryKind,
   type EntryRecord,
   type MutationEvent,
@@ -190,15 +191,7 @@ function fixture({
   ) as Record<EntryKind, EntryTransport>
 
   const initial = useStore.getInitialState()
-  const store = createStore<StoreState>(() => ({
-    ...initial,
-    ...Object.fromEntries(
-      Object.keys(services).map((kind) => [
-        kind,
-        { ...initial[kind as EntityKind], data: [] },
-      ]),
-    ),
-  }))
+  const store = createStore<StoreState>(() => initial)
   const saved = new Map<string, string>()
   if (initialStorage) saved.set('active_tracking_task', initialStorage)
   const storage = {
@@ -219,6 +212,7 @@ function fixture({
     telemetry,
     now: () => 61001,
   })
+  for (const kind of kinds) runtime.queries.activate(runtime.defineList(kind))
   return { runtime, store, services, rows, saved, stream, telemetry }
 }
 
@@ -240,7 +234,9 @@ describe('Frontend workflows', () => {
         .getState()
         .tasks.add({ title: 'Workflow integration' })
       expect(
-        useStore.getState().tasks.data.some((row) => row.id === task.id),
+        (await getFrontendRuntime(useStore).ensureList('tasks')).some(
+          (row) => row.id === task.id,
+        ),
       ).toBe(true)
       await useStore.getState().tasks.remove(task.id)
       expect(seen).toEqual(['entity.add:create', 'entity.delete:delete'])
@@ -260,23 +256,23 @@ describe('Frontend workflows', () => {
     expect(getFrontendRuntime(api)).toBe(getFrontendRuntime(useStore))
   })
 
-  test('a command resolves once its events have put the hydrated row in the store', async () => {
+  test('a command resolves after mounted query results refresh', async () => {
     const { runtime, store } = fixture()
     const result = (await runtime.commands.execute('entity.add', {
       kind: 'tasks',
       action: 'create',
       changes: { title: 'Hydrated' },
     })) as EntryRecord
-    expect(store.getState().tasks.data).toHaveLength(1)
-    expect(store.getState().tasks.data[0]).toMatchObject({
+    expect(store.getState().tasks).not.toHaveProperty('data')
+    expect(queryRows(runtime, 'tasks')).toHaveLength(1)
+    expect(queryRows(runtime, 'tasks')[0]).toMatchObject({
       id: result.id,
-      hydrated: true,
     })
     runtime.dispose()
   })
 
-  test('events from another window update the store without a local command', async () => {
-    const { runtime, store, rows, stream } = fixture()
+  test('events from another window refresh queries without a local command', async () => {
+    const { runtime, rows, stream } = fixture()
     rows.get('projects')!.set('remote', { id: 'remote', title: 'Remote' })
     const event = {
       kind: 'projects',
@@ -284,20 +280,22 @@ describe('Frontend workflows', () => {
       result: { id: 'remote', title: 'Remote' },
     }
     await stream.emit('entityCollection.add', { ...event, action: 'create' })
-    expect(store.getState().projects.data.map((row) => row.id)).toEqual([
+    expect(queryRows(runtime, 'projects').map((row) => row.id)).toEqual([
       'remote',
     ])
+    rows.get('projects')!.delete('remote')
     await stream.emit('entityCollection.delete', {
       ...event,
+      operationId: 'elsewhere-delete',
       action: 'delete',
       id: 'remote',
     })
-    expect(store.getState().projects.data).toEqual([])
+    expect(queryRows(runtime, 'projects')).toEqual([])
     runtime.dispose()
   })
 
   test('attachment refresh failure warns without failing save; retry performs no write', async () => {
-    const { runtime, store, services } = fixture()
+    const { runtime, services } = fixture()
     services.tags.fetchPaginated = mock(async () => {
       throw new Error('Read failed')
     })
@@ -309,7 +307,7 @@ describe('Frontend workflows', () => {
         tags: [],
       },
     })) as EntryRecord
-    expect(store.getState().tasks.data[0].id).toBe(result.id)
+    expect(queryRows(runtime, 'tasks')[0].id).toBe(result.id)
     expect(runtime.ui.getState().warnings).toHaveLength(1)
     services.tags.fetchPaginated = mock(async () => [])
     await runtime.ui.getState().warnings[0].retry()
@@ -451,11 +449,11 @@ describe('Frontend workflows', () => {
     runtime.dispose()
   })
 
-  test('announced member changes reload those rows', async () => {
-    const { runtime, store, rows, stream } = fixture()
+  test('announced member changes invalidate query membership', async () => {
+    const { runtime, rows, stream } = fixture()
     rows.get('tasks')!.set('one', { id: 'one', title: 'One', project_id: 'p' })
     await runtime.fetchList('tasks')
-    expect(store.getState().tasks.data[0].project_id).toBe('p')
+    expect(queryRows(runtime, 'tasks')[0].project_id).toBe('p')
 
     rows.get('tasks')!.set('one', { id: 'one', title: 'One', project_id: null })
     await stream.emit('tasks.change', {
@@ -465,17 +463,17 @@ describe('Frontend workflows', () => {
       operationId: 'project-deleted',
       result: undefined,
     })
-    expect(store.getState().tasks.data).toHaveLength(1)
-    expect(store.getState().tasks.data[0]).toMatchObject({
+    await new Promise((resolve) => setTimeout(resolve, 35))
+    expect(queryRows(runtime, 'tasks')).toHaveLength(1)
+    expect(queryRows(runtime, 'tasks')[0]).toMatchObject({
       id: 'one',
       project_id: null,
-      hydrated: true,
     })
     runtime.dispose()
   })
 
   test('missing events time out into a reload instead of hanging', async () => {
-    const { runtime, store, services } = fixture({
+    const { runtime, services } = fixture({
       emitEvents: false,
       eventTimeoutMs: 20,
     })
@@ -485,14 +483,14 @@ describe('Frontend workflows', () => {
       changes: { title: 'Event lost' },
     })) as EntryRecord
     expect(services.tasks.fetchPaginated).toHaveBeenCalledTimes(1)
-    expect(store.getState().tasks.data.map((row) => row.id)).toEqual([
+    expect(queryRows(runtime, 'tasks').map((row) => row.id)).toEqual([
       result.id,
     ])
     runtime.dispose()
   })
 
   test('resync reloads active queries and loaded lists', async () => {
-    const { runtime, store, rows, stream } = fixture()
+    const { runtime, rows, stream } = fixture()
     rows.get('tasks')!.set('one', { id: 'one', title: 'Match' })
     await runtime.fetchList('tasks')
     await runtime.search('tasks', 'Match')
@@ -504,7 +502,7 @@ describe('Frontend workflows', () => {
       (runtime.queries.snapshot('search:tasks:Match').data as EntryRecord[])
         .length,
     ).toBe(2)
-    expect(store.getState().tasks.data).toHaveLength(2)
+    expect(queryRows(runtime, 'tasks')).toHaveLength(2)
     off()
     runtime.dispose()
   })
@@ -563,7 +561,7 @@ describe('Frontend workflows', () => {
       ['brain', undefined],
       [undefined, 'project'],
     ])
-    expect(services.areas.fetchPaginated).toHaveBeenCalledTimes(1)
+    expect(services.areas.fetchPaginated).toHaveBeenCalledTimes(3)
     runtime.dispose()
   })
 
@@ -610,6 +608,83 @@ describe('Frontend workflows', () => {
     runtime.dispose()
   })
 
+  test('announcements and family completion refresh each affected query once', async () => {
+    const { runtime, rows, services, stream } = fixture()
+    rows.get('tasks')!.set('one', { id: 'one', title: 'Task', project_id: 'p' })
+    await runtime.ensureList('tasks')
+    const load = mock(async () => [...rows.get('tasks')!.values()])
+    runtime.queries.define({
+      key: 'related:projects:p',
+      dependencies: ['tasks', 'projects'],
+      load,
+    })
+    runtime.queries.activate('related:projects:p')
+    await runtime.queries.ensure('related:projects:p')
+    rows
+      .get('tasks')!
+      .set('one', { id: 'one', title: 'Task', project_id: null })
+    const operationId = 'collection-delete'
+    await stream.emit('tasks.change', {
+      kind: 'tasks',
+      action: 'update',
+      attachedIds: ['one'],
+      operationId,
+    })
+    await stream.emit('projects.change', {
+      kind: 'projects',
+      action: 'update',
+      attachedIds: ['p'],
+      operationId,
+    })
+    await stream.emit('entityCollection.delete', {
+      kind: 'projects',
+      action: 'delete',
+      result: { id: 'p' },
+      operationId,
+    })
+    await stream.emit('projects.delete', {
+      kind: 'projects',
+      action: 'delete',
+      result: { id: 'p' },
+      operationId,
+    })
+    expect(services.tasks.fetchPaginated).toHaveBeenCalledTimes(2)
+    expect(load).toHaveBeenCalledTimes(2)
+    expect(queryRows(runtime, 'tasks')[0].project_id).toBeNull()
+    runtime.dispose()
+  })
+
+  test('moving projects refreshes mounted supporter membership and context while dormant reads stay stale', async () => {
+    const { runtime, rows } = fixture()
+    rows.get('projects')!.set('p', { id: 'p', goal_id: 'old' })
+    const membership = mock(async () => rows.get('projects')!.get('p')!.goal_id)
+    const context = mock(async () => rows.get('projects')!.get('p')!.goal_id)
+    const dormant = mock(async () => rows.get('projects')!.get('p')!.goal_id)
+    for (const [key, load, kinds] of [
+      ['related:tags:tag', membership, dependencies('tags')],
+      ['context:tasks:one', context, dependencies('tasks')],
+      ['related:urls:link', dormant, dependencies('urls')],
+    ] as const) {
+      runtime.queries.define({ key, load, dependencies: kinds })
+      if (key !== 'related:urls:link') runtime.queries.activate(key)
+      await runtime.queries.ensure(key)
+    }
+    await runtime.commands.execute('entityCollection.change', {
+      kind: 'projects',
+      action: 'update',
+      id: 'p',
+      changes: { goal_id: 'new' },
+    })
+    expect(runtime.queries.snapshot('related:tags:tag').data).toBe('new')
+    expect(runtime.queries.snapshot('context:tasks:one').data).toBe('new')
+    expect(membership).toHaveBeenCalledTimes(2)
+    expect(context).toHaveBeenCalledTimes(2)
+    expect(dormant).toHaveBeenCalledTimes(1)
+    expect(runtime.queries.snapshot('related:urls:link').stale).toBe(true)
+    expect(await runtime.queries.ensure('related:urls:link')).toBe('new')
+    runtime.dispose()
+  })
+
   describe('telemetry', () => {
     /** Finds the span with the given name. */
     const named = (spans: Span[], name: string) =>
@@ -650,7 +725,7 @@ describe('Frontend workflows', () => {
           .filter((span) => span.kind === 'reaction')
           .filter((span) => span.parentId === listener.spanId)
           .map((span) => span.name),
-      ).toEqual(['upsertRows', 'invalidateDependents'])
+      ).toEqual(['invalidateDependents'])
       expect(spans.filter((span) => span.status === 'error')).toEqual([])
       runtime.dispose()
     })

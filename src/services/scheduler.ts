@@ -1,3 +1,4 @@
+import { apiAddress } from '@/lib/apiAddress'
 import type {
   DayPlan,
   SchedulerCommands,
@@ -30,8 +31,8 @@ const paths: Record<keyof SchedulerCommands, string> = {
   'scheduler.tracking.stop': 'tracking/stop',
 }
 /** Builds a URL for a scheduler endpoint on the local database server. */
-const url = (path: string) =>
-  `http://localhost:${import.meta.env.VITE_DB_SERVER_PORT || '3456'}/scheduler/${path}`
+const url = (path: string) => apiAddress(`scheduler/${path}`)
+
 /** Reads JSON data from a specified source, optionally for a given timezone. */
 const read = <T>(path: string, timezone?: string) =>
   makeJSONRequest<T>({

@@ -3,7 +3,7 @@ import { Button } from '@/components/ui/button'
 import { Loader2 } from 'lucide-react'
 import { cn } from '@/lib/utils'
 import type { FieldConfig } from './types'
-import { isBlank } from './utils'
+import { isBlank, submittedFormValues } from './utils'
 import { FormField } from './FormField'
 
 export interface GenericFormProps<T extends object> {
@@ -94,12 +94,7 @@ export function GenericForm<T extends object>({
     event.preventDefault()
     if (readOnly || isSubmitting) return
     if (!validate()) return
-    // Hidden fields are reset to null so that edits clear any stale value.
-    const submitted: Record<string, unknown> = { ...values }
-    for (const field of fields) {
-      if (!visibleFields.includes(field)) submitted[field.name] = null
-    }
-    const finalValues = submitted as Partial<T>
+    const finalValues = submittedFormValues(values, fields)
     await onSubmit(transformValues ? transformValues(finalValues) : finalValues)
   }
 

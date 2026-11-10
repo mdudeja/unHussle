@@ -1,3 +1,4 @@
+import { apiAddress } from '@/lib/apiAddress'
 import {
   Fragment,
   useCallback,
@@ -47,7 +48,7 @@ import {
   type TraceSummary,
 } from './inspectorModel'
 
-const serverUrl = `http://localhost:${import.meta.env.VITE_DB_SERVER_PORT}`
+const serverUrl = apiAddress()
 const kindOptions = ['command', 'reaction', 'query', 'signal', 'error', 'all']
 const kindColors: Record<string, string> = {
   command: 'bg-blue-500',

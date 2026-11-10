@@ -1,3 +1,4 @@
+import { readDetail } from '@c/testing/frontendReads'
 import { describe, test, expect, beforeAll, afterAll } from 'bun:test'
 import { useStore } from '@/store'
 import { getFrontendRuntime } from '@/workflows/runtime'
@@ -28,7 +29,7 @@ if (!('localStorage' in globalThis)) {
 
 describe('Task lifecycle', () => {
   /** Retrieves a task by its identifier from the store. */
-  const getTask = (id: string) => useStore.getState().tasks.getById(id)!
+  const getTask = (id: string) => readDetail('tasks', id)
   let firstId: string
   let secondId: string
 
@@ -46,55 +47,55 @@ describe('Task lifecycle', () => {
   test('start marks the task in progress and tracks it', async () => {
     await startTask(firstId)
 
-    const task = getTask(firstId)
+    const task = await getTask(firstId)
     expect(task.status).toBe(ProgressStatus.IN_PROGRESS)
     expect(task.started_at).toBeNumber()
     expect(timeTrackingService.getActiveTracking()?.taskId).toBe(firstId)
   })
 
   test('starting another task pauses the tracked one', async () => {
-    const firstStartedAt = getTask(firstId).started_at
+    const firstStartedAt = (await getTask(firstId)).started_at
     await startTask(secondId)
 
-    expect(getTask(firstId).status).toBe(ProgressStatus.PAUSED)
-    expect(getTask(firstId).started_at).toBe(firstStartedAt)
+    expect((await getTask(firstId)).status).toBe(ProgressStatus.PAUSED)
+    expect((await getTask(firstId)).started_at).toBe(firstStartedAt)
     // Stopping the timer saved at least a minute (sessions round up).
-    expect(getTask(firstId).spent_minutes).toBeGreaterThanOrEqual(1)
-    expect(getTask(secondId).status).toBe(ProgressStatus.IN_PROGRESS)
+    expect((await getTask(firstId)).spent_minutes).toBeGreaterThanOrEqual(1)
+    expect((await getTask(secondId)).status).toBe(ProgressStatus.IN_PROGRESS)
     expect(timeTrackingService.getActiveTracking()?.taskId).toBe(secondId)
   })
 
   test('restarting keeps the original started_at', async () => {
-    const startedAt = getTask(firstId).started_at
+    const startedAt = (await getTask(firstId)).started_at
     await startTask(firstId)
-    expect(getTask(firstId).started_at).toBe(startedAt)
+    expect((await getTask(firstId)).started_at).toBe(startedAt)
   })
 
   test('pause stops tracking', async () => {
     await pauseTask(firstId)
 
-    expect(getTask(firstId).status).toBe(ProgressStatus.PAUSED)
+    expect((await getTask(firstId)).status).toBe(ProgressStatus.PAUSED)
     expect(timeTrackingService.getActiveTracking()).toBeNull()
   })
 
   test('complete sets completed_at', async () => {
     await completeTask(firstId)
 
-    const task = getTask(firstId)
+    const task = await getTask(firstId)
     expect(task.status).toBe(ProgressStatus.COMPLETED)
     expect(task.completed_at).toBeNumber()
   })
 
   test('cancel marks the task cancelled', async () => {
     await cancelTask(secondId)
-    expect(getTask(secondId).status).toBe(ProgressStatus.CANCELLED)
+    expect((await getTask(secondId)).status).toBe(ProgressStatus.CANCELLED)
   })
 
   test('deleting the tracked task drops the session', async () => {
     await startTask(secondId)
     await deleteTask(secondId)
 
-    expect(useStore.getState().tasks.getById(secondId)).toBeNull()
+    await expect(getTask(secondId)).rejects.toThrow()
     expect(timeTrackingService.getActiveTracking()).toBeNull()
     secondId = (await useStore.getState().tasks.add({ title: 'Placeholder' }))
       .id

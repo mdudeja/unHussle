@@ -22,7 +22,6 @@ import {
   SidebarMenuItem,
 } from '@/components/ui/sidebar'
 import { IconResolver } from '@/components/ui/utils/IconResolver'
-import { useStore } from '@/store'
 import {
   EntityRouteKey,
   entityRoutes,
@@ -111,14 +110,6 @@ const SidebarRecentGroup = ({
 )
 
 export const AppSidebarComponent = () => {
-  const projects = useStore((state) => state.projects)
-  const areas = useStore((state) => state.areas)
-  const goals = useStore((state) => state.goals)
-  const tasks = useStore((state) => state.tasks)
-  const urls = useStore((state) => state.urls)
-  const tags = useStore((state) => state.tags)
-  const resources = useStore((state) => state.resources)
-
   const projectsQuery = useEntryList('projects')
   const areasQuery = useEntryList('areas')
   const goalsQuery = useEntryList('goals')
@@ -132,8 +123,8 @@ export const AppSidebarComponent = () => {
       label: 'Projects',
       route: 'projects' as const,
       fallbackIcon: FolderKanban,
-      isLoading: projects.isLoading || projectsQuery.isLoading,
-      items: getRecent(projects.data).map((p) => ({
+      isLoading: projectsQuery.isLoading,
+      items: getRecent(projectsQuery.data ?? []).map((p) => ({
         id: p.id,
         label: p.title,
         icon: p.icon,
@@ -144,8 +135,8 @@ export const AppSidebarComponent = () => {
       label: 'Areas',
       route: 'areas' as const,
       fallbackIcon: GitGraph,
-      isLoading: areas.isLoading || areasQuery.isLoading,
-      items: getRecent(areas.data).map((a) => ({
+      isLoading: areasQuery.isLoading,
+      items: getRecent(areasQuery.data ?? []).map((a) => ({
         id: a.id,
         label: a.title,
         icon: a.icon,
@@ -156,8 +147,8 @@ export const AppSidebarComponent = () => {
       label: 'Goals',
       route: 'goals' as const,
       fallbackIcon: Goal,
-      isLoading: goals.isLoading || goalsQuery.isLoading,
-      items: getRecent(goals.data).map((g) => ({
+      isLoading: goalsQuery.isLoading,
+      items: getRecent(goalsQuery.data ?? []).map((g) => ({
         id: g.id,
         label: g.title,
         icon: g.icon,
@@ -168,8 +159,8 @@ export const AppSidebarComponent = () => {
       label: 'Tasks',
       route: 'tasks' as const,
       fallbackIcon: ListTodo,
-      isLoading: tasks.isLoading || tasksQuery.isLoading,
-      items: getRecent(tasks.data).map((t) => ({
+      isLoading: tasksQuery.isLoading,
+      items: getRecent(tasksQuery.data ?? []).map((t) => ({
         id: t.id,
         label: t.title,
       })),
@@ -178,8 +169,8 @@ export const AppSidebarComponent = () => {
       label: 'Resources',
       route: 'resources' as const,
       fallbackIcon: FileText,
-      isLoading: resources.isLoading || resourcesQuery.isLoading,
-      items: getRecent(resources.data).map((r) => ({
+      isLoading: resourcesQuery.isLoading,
+      items: getRecent(resourcesQuery.data ?? []).map((r) => ({
         id: r.id,
         label: r.title,
       })),
@@ -188,8 +179,8 @@ export const AppSidebarComponent = () => {
       label: 'URLs',
       route: 'urls' as const,
       fallbackIcon: LinkIcon,
-      isLoading: urls.isLoading || urlsQuery.isLoading,
-      items: getRecent(urls.data).map((u) => ({
+      isLoading: urlsQuery.isLoading,
+      items: getRecent(urlsQuery.data ?? []).map((u) => ({
         id: u.id,
         label: u.title || u.parts?.hostname || u.url,
       })),
@@ -198,8 +189,8 @@ export const AppSidebarComponent = () => {
       label: 'Tags',
       route: 'tags' as const,
       fallbackIcon: Hash,
-      isLoading: tags.isLoading || tagsQuery.isLoading,
-      items: getRecent(tags.data).map((t) => ({
+      isLoading: tagsQuery.isLoading,
+      items: getRecent(tagsQuery.data ?? []).map((t) => ({
         id: t.id,
         label: t.title,
         color: t.color,

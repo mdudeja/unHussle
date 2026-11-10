@@ -57,9 +57,6 @@ export type EntryTransport = {
 export type ReactionName =
   | 'refreshSchedule'
   | 'refreshVault'
-  | 'upsertRows'
-  | 'removeRows'
-  | 'clearRows'
   | 'invalidateDependents'
   | 'refreshAnnounced'
   | 'stopTrackingIfDeleted'

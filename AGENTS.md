@@ -48,8 +48,8 @@ src/                  React frontend
   components/         ui/* (shadcn + ui/custom), app/*, pages/* (EntityListPage), dev/* (WorkflowInspector)
   lib/                router, entityRoutes, entityActions/ (per-kind actions + form registry),
                       inputParsers/ (brain dump), hooks/, server fetch
-  services/           database/ DbService per kind (HTTP clients), scheduler.ts (/scheduler client)
-  store/              Zustand store; generic DbSlice per kind (createDbConnectedStoreSlice) + UI slice
+  services/           database/ configured CRUD service instances (HTTP clients), scheduler.ts (/scheduler client)
+  store/              Zustand UI state; mutation command facades per kind + UI slice
   workflows/          frontend runtime: commands, SSE client, operations, reactions, queries, hooks, tracking, telemetry
   __tests__/          frontend/store tests
 src-db-server/        Elysia sidecar API
@@ -366,12 +366,14 @@ like the scheduler):
 
 **Frontend** (`src/workflows/`)
 
-- Store state changes **only in response to events**. Slices call commands.
-  `runtime.ts` sends the HTTP request with `x-operation-id` (after waiting up to
-  1s for the stream to be ready), then waits (via `operations.ts`) until that
-  operation's family and kind events (or its scheduler event) have been
-  handled. If the events don't arrive within 3s, it reloads the list (or
-  invalidates the scheduler dependencies) instead.
+- The query coordinator owns all server-derived data. Zustand owns UI state,
+  mutation loading/errors and local session presentation; entity slices expose
+  mutation commands without row arrays or synchronous getters.
+- `commandTransport.ts` shares operation registration, readiness, HTTP tracing,
+  settlement, timeout invalidation and cleanup for CRUD, scheduler and vault.
+  Expected events are registered before the request. The existing lifecycle
+  queue and per-resource vault queues remain outside transport. All API clients
+  use `lib/apiAddress.ts` with the port `3456` default.
 - Frontend commands (`FrontendCommands` in `src/workflows/contracts.ts`): the
   three mutation families (`commandRegistry.ts` maps verbs to `EntryTransport`
   calls), the scheduler commands (`services/scheduler.ts`), plus:
@@ -406,18 +408,17 @@ like the scheduler):
   invalidates every kind plus `schedule`, `occurrences` and `schedulerSettings`.
 - `reactionRegistry.ts` maps events to reaction names; `reactions.ts` implements
   them:
-  - family events → `upsertRows` (reloads hydrated rows by id) /
-    `removeRows` / `clearRows`, then `invalidateDependents`;
+  - family events → `invalidateDependents`, which flushes the union of
+    dependencies accumulated for the operation by `invalidation.ts`;
   - `tasks.delete` → `stopTrackingIfDeleted`, `tasks.deleteAll` → `stopTracking`;
   - `tasks|resources|projects|goals.change` → `refreshAnnounced` (only
-    announcements: `attachedIds` and no `result`; reloads members already in
-    the store);
+    announcements: `attachedIds` and no `result`; queues query dependencies);
   - `scheduler.changed`, `scheduler.mode.changed`,
     `scheduler.settings.changed`, `scheduler.occurrence.changed` → `refreshSchedule`
     (invalidates `schedulerEventDependencies[event]`; mode changes also refresh
     tasks, occurrences and time entries, since a break pauses work).
-  - Put generic store reactions on family events, so each mutation is handled
-    once. Put kind-specific behaviour on kind events.
+  - Put generic query invalidation on family completion events, so each
+    affected query refreshes once per operation. Put kind-specific behaviour on kind events.
 - Reads go through the query coordinator (`queries.ts`, `useWorkflowQuery`):
   - keys look like `list:<kind>:<page>`, `detail:<kind>:<id>`,
     `search:<kind>:<term>`, `related:<kind>:<id>:<options>`, `references:<kind>`,
@@ -428,8 +429,8 @@ like the scheduler):
     gives the standard set for a kind;
   - requests are deduplicated and empty results are cached;
   - an obsolete response can never overwrite a newer one (generations);
-  - detail, search and related queries never change list membership. Only list
-    queries project into the store (`onData`);
+  - each result belongs only to its query; pages, searches, details and
+    related queries never project rows into Zustand or change other membership;
   - invalidation refetches only active (mounted) queries; others are marked stale;
   - related panels subscribe only while mounted.
 - `schedulerHooks.ts`: `useTodayPlan` generates and saves today's plan once per
@@ -509,8 +510,11 @@ Extending:
   `?id=` (selection), `?q=` (search), `?related=` and column filters as query params.
 - `EntityListPage` is configured per kind in `pages/EntityPages.tsx` (columns,
   filters, actions, related panel). `lib/entityActions/registry.ts` holds each
-  kind's label, slice, form fields, defaults and `transformValues` (tasks use
-  `resolveTaskSchedule`). `EntityEditDialogHost` renders edit dialogs.
+  kind's label, mutation facade, field builder, separate creation/edit defaults
+  and `transformValues` (tasks use `resolveTaskSchedule`). `CreateEntityButton`
+  and `EntityEditDialogHost` share `useEntityFields` and `useEntitySubmission`.
+  Dialogs mount selectors only while needed; local drafts survive background
+  query refreshes. Forms submit configured direct editable fields only.
 - Brain dump parsing (`lib/inputParsers/`): `#hashtag` matches a project, area
   or goal by title (underscores = spaces) or by one of its tags, otherwise it
   becomes a tag. URLs are `http(s)://`, `file://` and `www.`. The estimate is

@@ -1,3 +1,4 @@
+import { readList } from '@c/testing/frontendReads'
 import { describe, test, expect, beforeEach } from 'bun:test'
 import { useStore } from '@/store'
 
@@ -6,16 +7,15 @@ describe('Resources Store', () => {
     useStore.setState((state) => ({
       resources: {
         ...state.resources,
-        data: [],
         isLoading: false,
         error: null,
       },
     }))
   })
 
-  test('initialize with default state', () => {
+  test('initialize with default state', async () => {
     const state = useStore.getState()
-    expect(state.resources.data).toEqual([])
+    expect('data' in state.resources).toBe(false)
   })
 
   test('create a new resource', async () => {
@@ -25,13 +25,12 @@ describe('Resources Store', () => {
     }
     await add(newResourceData)
 
-    const state = useStore.getState()
-    const newResource = state.resources.data.find(
+    const newResource = (await readList('resources')).find(
       (r) => r.title === 'New Resource',
     )
 
     expect(newResource).toBeDefined()
-    expect(state.resources.data).toHaveLength(1)
+    expect(await readList('resources')).toHaveLength(1)
   })
 
   test('throw error when creating resource with missing fields', async () => {
@@ -40,26 +39,27 @@ describe('Resources Store', () => {
   })
 
   test('fetch resources', async () => {
-    const { fetch } = useStore.getState().resources
+    /** Retrieves the list of resources. */
+    const fetch = () => readList('resources')
     await fetch()
 
     const state = useStore.getState()
-    expect(state.resources.data).toHaveLength(1)
-    expect(state.resources.data[0].title).toBe('New Resource')
+    expect(await readList('resources')).toHaveLength(1)
+    expect((await readList('resources'))[0].title).toBe('New Resource')
     expect(state.resources.isLoading).toBe(false)
   })
 
   test('update an existing resource', async () => {
-    const { fetch, update } = useStore.getState().resources
+    const { update } = useStore.getState().resources
+    /** Fetches the list of resources. */
+    const fetch = () => readList('resources')
     await fetch()
 
-    let state = useStore.getState()
-    const resourceToUpdate = state.resources.data[0]
+    const resourceToUpdate = (await readList('resources'))[0]
 
     await update(resourceToUpdate.id, { title: 'Updated Resource Title' })
 
-    state = useStore.getState()
-    const updatedResource = state.resources.data.find(
+    const updatedResource = (await readList('resources')).find(
       (r) => r.id === resourceToUpdate.id,
     )
 
@@ -73,21 +73,20 @@ describe('Resources Store', () => {
   })
 
   test('delete a resource', async () => {
-    const { fetch, remove } = useStore.getState().resources
+    const { remove } = useStore.getState().resources
+    /** Fetches the list of resources. */
+    const fetch = () => readList('resources')
     await fetch()
 
-    let state = useStore.getState()
-    const resourceToDelete = state.resources.data[0]
+    const resourceToDelete = (await readList('resources'))[0]
 
     await remove(resourceToDelete.id)
 
-    state = useStore.getState()
-    const deletedResource = state.resources.data.find(
+    const deletedResource = (await readList('resources')).find(
       (r) => r.id === resourceToDelete.id,
     )
 
     expect(deletedResource).toBeUndefined()
-    expect(state.resources.data).toHaveLength(0)
   })
 
   test('throw error when deleting non-existent resource', async () => {

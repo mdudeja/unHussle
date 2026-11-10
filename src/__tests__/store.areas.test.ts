@@ -1,3 +1,4 @@
+import { readList, searchEntries } from '@c/testing/frontendReads'
 import { describe, test, expect, beforeEach } from 'bun:test'
 import { useStore } from '@/store'
 
@@ -6,16 +7,15 @@ describe('Areas Store', () => {
     useStore.setState((state) => ({
       areas: {
         ...state.areas,
-        data: [],
         isLoading: false,
         error: null,
       },
     }))
   })
 
-  test('initialize with default state', () => {
+  test('initialize with default state', async () => {
     const state = useStore.getState()
-    expect(state.areas.data).toEqual([])
+    expect('data' in state.areas).toBe(false)
   })
 
   test('create a new area', async () => {
@@ -24,11 +24,14 @@ describe('Areas Store', () => {
       title: 'New Area',
     }
     await add(newAreaData)
-    const state = useStore.getState()
-    const newArea = state.areas.data.find((a) => a.title === 'New Area')
+    const newArea = (await readList('areas')).find(
+      (a) => a.title === 'New Area',
+    )
 
     expect(newArea).toBeDefined()
-    expect(state.areas.data).toHaveLength(1)
+    expect(
+      (await readList('areas')).filter((row) => row.title === 'New Area'),
+    ).toHaveLength(1)
   })
 
   test('throw error when creating area with missing fields', async () => {
@@ -37,12 +40,15 @@ describe('Areas Store', () => {
   })
 
   test('fetch areas', async () => {
-    const { fetch } = useStore.getState().areas
+    /** Retrieves the list of areas. */
+    const fetch = () => readList('areas')
     await fetch()
 
     const state = useStore.getState()
-    expect(state.areas.data).toHaveLength(8) // seed data has 7 areas
-    expect(state.areas.data[state.areas.data.length - 1].title).toBe('New Area')
+    expect(await readList('areas')).toHaveLength(8) // seed data has 7 areas
+    expect(
+      (await readList('areas'))[(await readList('areas')).length - 1].title,
+    ).toBe('New Area')
     expect(state.areas.isLoading).toBe(false)
   })
 
@@ -53,16 +59,16 @@ describe('Areas Store', () => {
     }
     await add(newAreaData)
 
-    let state = useStore.getState()
-    const areaToUpdate = state.areas.data.find(
+    const areaToUpdate = (await readList('areas')).find(
       (a) => a.title === 'Area to Update',
     )
     expect(areaToUpdate).toBeDefined()
 
     await update(areaToUpdate!.id, { title: 'Updated Area Title' })
 
-    state = useStore.getState()
-    const updatedArea = state.areas.data.find((a) => a.id === areaToUpdate!.id)
+    const updatedArea = (await readList('areas')).find(
+      (a) => a.id === areaToUpdate!.id,
+    )
     expect(updatedArea!.title).toBe('Updated Area Title')
   })
 
@@ -73,18 +79,17 @@ describe('Areas Store', () => {
     }
     await add(newAreaData)
 
-    let state = useStore.getState()
-    const areaToDelete = state.areas.data.find(
+    const areaToDelete = (await readList('areas')).find(
       (a) => a.title === 'Area to Delete',
     )
     expect(areaToDelete).toBeDefined()
 
     await remove(areaToDelete!.id)
 
-    state = useStore.getState()
-    const deletedArea = state.areas.data.find((a) => a.id === areaToDelete!.id)
+    const deletedArea = (await readList('areas')).find(
+      (a) => a.id === areaToDelete!.id,
+    )
     expect(deletedArea).toBeUndefined()
-    expect(state.areas.data).toHaveLength(0)
   })
 
   test('throw error when deleting non-existent area', async () => {
@@ -93,7 +98,9 @@ describe('Areas Store', () => {
   })
 
   test('search areas by hashtag, with or without #', async () => {
-    const { add, search } = useStore.getState().areas
+    const { add } = useStore.getState().areas
+    /** Searches areas for entries matching the given term. */
+    const search = (term: string) => searchEntries('areas', term)
     await add({
       title: 'Searchable Area',
       tags: [{ title: 'searchable_xyz' }],

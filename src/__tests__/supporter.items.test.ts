@@ -1,23 +1,17 @@
+import { apiAddress } from '@/lib/apiAddress'
+import { entityServices } from '@/workflows/services'
 import { fetchContainerDetail, fetchReferences } from '@/services/readModels'
 import { makeJSONRequest } from '@/lib/server'
-import type { HydratedArea } from '@c/types/Hydrated'
 import { afterAll, beforeAll, describe, expect, test } from 'bun:test'
-import { AreasService } from '@/services/database/AreasService'
-import { GoalsService } from '@/services/database/GoalsService'
-import { ProjectsService } from '@/services/database/ProjectsService'
-import { TasksService } from '@/services/database/TasksService'
-import { ResourcesService } from '@/services/database/ResourcesService'
-import { TagsService } from '@/services/database/TagsService'
-import { UrlsService } from '@/services/database/UrlsService'
 
 describe('Supporter containment over HTTP', () => {
-  const areas = AreasService.getInstance()
-  const goals = GoalsService.getInstance()
-  const projects = ProjectsService.getInstance()
-  const tasks = TasksService.getInstance()
-  const resources = ResourcesService.getInstance()
-  const tags = TagsService.getInstance()
-  const urls = UrlsService.getInstance()
+  const areas = entityServices.areas
+  const goals = entityServices.goals
+  const projects = entityServices.projects
+  const tasks = entityServices.tasks
+  const resources = entityServices.resources
+  const tags = entityServices.tags
+  const urls = entityServices.urls
   const created = {
     tasks: [] as string[],
     resources: [] as string[],
@@ -161,14 +155,14 @@ describe('Supporter containment over HTTP', () => {
     ).rejects.toMatchObject({ status: 422 })
     await expect(
       makeJSONRequest({
-        url: `${tags.dbUrl}/areas/${areaId}/detail?is_fun=invalid`,
+        url: apiAddress(`areas/${areaId}/detail?is_fun=invalid`),
         method: 'GET',
       }),
     ).rejects.toMatchObject({ status: 422 })
   })
 
   test('collection totals survive response validation without merging editable resources', async () => {
-    const area = (await areas.fetchById(areaId)) as HydratedArea
+    const area = await areas.fetchById(areaId)
     expect(area.resolved_task_total).toBe(2)
     expect(area).not.toHaveProperty('tasks')
     expect(area.count_tasks).toBe(1)

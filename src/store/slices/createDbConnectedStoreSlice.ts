@@ -6,26 +6,22 @@ import { DbEntityTypes, WithSupporters } from '@c/types/index'
 import { StateCreator } from 'zustand'
 
 export interface DbSlice<T extends DbEntityTypes> {
-  data: T['Read'][]
   isLoading: boolean
   error: string | null
-  fetch: (pageNumber?: number) => Promise<void>
-  search: (query: string) => Promise<T['Read'][]>
   add: (data: WithSupporters<T['Write']>) => Promise<T['Read']>
   update: (id: string, data: WithSupporters<T['Update']>) => Promise<void>
   remove: (id: string) => Promise<void>
   reset: () => Promise<void>
-  getById: (id?: string | null) => T['Read'] | null
 }
 
-/** Creates a frontend store slice that manages a resource collection’s data and loading/error state for fetching, searching, adding, updating, removing, and resetting records. */
+/** Creates a frontend store slice that exposes mutation commands and their UI loading/error state. */
 export default function generateCreateDbConnectedStateSlice<
   T extends DbEntityTypes,
   K extends EntryKind,
 >(sliceName: K) {
   type State = { [key in K]: DbSlice<T> }
-  /** Creates a frontend store slice that manages a resource collection’s data and loading/error state for fetching, searching, adding, updating, removing, and resetting records. */
-  const creator: StateCreator<State> = (_set, get, api) => {
+  /** Creates a frontend store slice that exposes mutation commands and their UI loading/error state. */
+  const creator: StateCreator<State> = (_set, _get, api) => {
     /** Provides the frontend runtime for the current store. */
     const runtime = () =>
       getFrontendRuntime(api as unknown as StoreApi<StoreState>)
@@ -63,15 +59,8 @@ export default function generateCreateDbConnectedStateSlice<
     }
     return {
       [sliceName]: {
-        data: [] as T['Read'][],
         isLoading: false,
         error: null,
-        fetch: (page = 1) =>
-          operation(async () => {
-            await runtime().fetchList(kind, page)
-          }),
-        search: async (term: string) =>
-          runtime().search(kind, term) as Promise<T['Read'][]>,
         add: (changes: WithSupporters<T['Write']>) =>
           operation(
             async () =>
@@ -105,10 +94,6 @@ export default function generateCreateDbConnectedStateSlice<
               action: 'deleteAll',
             })
           }),
-        getById: (id?: string | null) => {
-          if (!id) return null
-          return get()[sliceName].data.find((row) => row.id === id) ?? null
-        },
       },
     } as State
   }

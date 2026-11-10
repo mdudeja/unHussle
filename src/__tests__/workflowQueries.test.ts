@@ -64,14 +64,15 @@ describe('Workflow queries', () => {
     const load = mock(() => old.promise)
       .mockImplementationOnce(() => old.promise)
       .mockImplementationOnce(() => fresh.promise)
-    const projected: string[][] = []
+    const observed: unknown[] = []
+    queries.store.subscribe(() => {
+      const data = queries.snapshot('tasks').data
+      if (data !== null) observed.push(data)
+    })
     queries.define({
       key: 'tasks',
       dependencies: ['tasks'],
       load,
-      onData: (data) => {
-        projected.push(data)
-      },
     })
     queries.activate('tasks')
     const pending = queries.ensure('tasks')
@@ -81,7 +82,8 @@ describe('Workflow queries', () => {
     fresh.resolve(['fresh'])
     expect(await pending).toEqual(['fresh'])
     await refresh
-    expect(projected).toEqual([['fresh']])
+    expect(observed).not.toContainEqual(['obsolete'])
+    expect(queries.snapshot('tasks').data).toEqual(['fresh'])
     expect(load).toHaveBeenCalledTimes(2)
     queries.dispose()
   })
@@ -114,18 +116,15 @@ describe('Workflow queries', () => {
   test('disposal prevents in-flight responses from updating projections', async () => {
     const queries = createQueryCoordinator()
     const response = deferred<string[]>()
-    const onData = mock(() => {})
     queries.define({
       key: 'tasks',
       dependencies: ['tasks'],
       load: () => response.promise,
-      onData,
     })
     const pending = queries.ensure('tasks')
     queries.dispose()
     response.resolve(['old'])
     await pending
-    expect(onData).not.toHaveBeenCalled()
     expect(queries.store.getState().entries).toEqual({})
   })
 })

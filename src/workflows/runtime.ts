@@ -1,5 +1,5 @@
 import { createStore, type StoreApi } from 'zustand/vanilla'
-import { createRuntime, type TraceMeta } from '@c/workflows/runtime'
+import { createRuntime } from '@c/workflows/runtime'
 import type { SpanScope, Telemetry } from '@c/workflows/telemetry'
 import type {
   EntryKind,
@@ -32,7 +32,8 @@ import type {
   Transition,
 } from './contracts'
 import { createEventTransport, type EventTransport } from './eventStream'
-import { createOperationTracker, settlesWithin } from './operations'
+import { createCommandTransport } from './commandTransport'
+import { createInvalidationBatcher } from './invalidation'
 import {
   createReactions,
   schedulerEventDependencies,
@@ -93,17 +94,16 @@ export function createFrontendRuntime(
   const logger = Logger.getInstance()
   const telemetry = options.telemetry ?? frontendTelemetry
   const queries = createQueryCoordinator({ telemetry })
-  const operations = createOperationTracker()
   const scheduler = options.scheduler ?? schedulerService
   const vault = options.vault ?? vaultService
   const transport = options.transport ?? createEventTransport({ telemetry })
-  // Local operations in flight, so their events join the command's trace.
-  const traces = new Map<string, TraceMeta>()
-  /** Retrieves the trace metadata associated with an operation, falling back to a minimal trace identifier when no recorded trace exists. */
-  const traceOf = (operationId: string | undefined): TraceMeta =>
-    (operationId && traces.get(operationId)) || { traceId: operationId }
-  const eventTimeoutMs = options.eventTimeoutMs ?? 3000
-  const readyTimeoutMs = options.readyTimeoutMs ?? 1000
+  const commandTransport = createCommandTransport({
+    transport,
+    telemetry,
+    eventTimeoutMs: options.eventTimeoutMs ?? 3000,
+    readyTimeoutMs: options.readyTimeoutMs ?? 1000,
+  })
+  const traceOf = commandTransport.traceOf
   const ui = createStore<WorkflowUIState>(() => ({
     tracking: null,
     warnings: [],
@@ -117,12 +117,6 @@ export function createFrontendRuntime(
   const services: Record<EntryKind, EntryTransport> =
     options.services ?? entityServices
 
-  /** Updates the application store with the latest records for the specified entry kind. */
-  const projectRecord = (kind: EntryKind, data: EntryRecord[]) => {
-    if (disposed) return
-    store.setState((state) => ({ [kind]: { ...state[kind], data } }))
-  }
-
   /** Defines the query used to load a paginated list of entries so the list can be fetched and managed consistently by the query system. */
   const defineList = (kind: EntryKind, page = 1) => {
     const key = `list:${kind}:${page}`
@@ -130,7 +124,17 @@ export function createFrontendRuntime(
       key,
       dependencies: dependencies(kind),
       load: () => services[kind].fetchPaginated(page, fetchLimits[kind]),
-      onData: (data) => projectRecord(kind, data),
+    })
+    return key
+  }
+
+  /** Defines a cached detail query for a specific entry kind and identifier, returning the key used to access that entry’s fetched details. */
+  const defineDetail = (kind: EntryKind, id: string) => {
+    const key = `detail:${kind}:${id}`
+    queries.define({
+      key,
+      dependencies: dependencies(kind),
+      load: () => services[kind].fetchById(id),
     })
     return key
   }
@@ -200,6 +204,10 @@ export function createFrontendRuntime(
       if (error) warnRefresh(operationId, key, error)
   }
 
+  const invalidations = createInvalidationBatcher(invalidate, {
+    isPending: (id) => commandTransport.pending(id),
+  })
+
   const context = {
     store,
     services,
@@ -210,6 +218,12 @@ export function createFrontendRuntime(
     logger,
     isDisposed: () => disposed,
     defineList,
+    defineDetail,
+    invalidate: (
+      operationId: string,
+      kinds: QueryDependency[],
+      complete?: boolean,
+    ) => invalidations.invalidate(operationId, kinds, complete),
     warnRefresh,
     publishTracking: () =>
       runtime.events.publish('tracking.changed', {
@@ -279,27 +293,20 @@ export function createFrontendRuntime(
             error: outcome.reason,
             traceId: meta.traceId,
           })
-      operations.handled(operationId, name)
+      commandTransport.handled(operationId, name)
     },
     onResync: async () => {
       if (disposed) return
       telemetry.signal('stream.resync')
       logger.warn('Event stream resynchronising; reloading data')
-      const loaded = allKinds.filter(
-        (kind) => store.getState()[kind].data.length,
-      )
-      await invalidate(
-        'resync',
-        [
-          ...allKinds,
-          'schedule',
-          'occurrences',
-          'schedulerSettings',
-          'resourceContent',
-          'vault',
-        ],
-        loaded.map((kind) => defineList(kind)),
-      )
+      await invalidate('resync', [
+        ...allKinds,
+        'schedule',
+        'occurrences',
+        'schedulerSettings',
+        'resourceContent',
+        'vault',
+      ])
     },
   })
 
@@ -313,63 +320,19 @@ export function createFrontendRuntime(
     trace?: SpanScope,
   ) => {
     const verb = command.slice(command.indexOf('.') + 1) as MutationVerb
-    const operationId = crypto.randomUUID()
-    const traceId = trace?.traceId ?? operationId
-    const child = { traceId, parentId: trace?.spanId }
-    trace?.setAttrs({ kind: input.kind, operationId })
-    traces.set(operationId, child)
-    const operation = operations.begin(operationId, [
-      command,
-      `${input.kind}.${verb}`,
-    ])
-    try {
-      await telemetry.span(
-        'wait',
-        'stream.ready',
-        (span) =>
-          settlesWithin(transport.ready(), readyTimeoutMs).then((ready) => {
-            span.setAttrs({ ready })
-          }),
-        child,
-      )
-      const result = await telemetry.span(
-        'http',
+    const { result } = await commandTransport.send(
+      {
         command,
-        (span) =>
-          mutationVerbs[verb](services[input.kind], input, {
-            operationId,
-            traceId,
-            parentSpanId: span.spanId,
-          }),
-        { ...child, attrs: { kind: input.kind, verb } },
-      )
-      const settled = await telemetry.span(
-        'wait',
-        'events.settle',
-        (span) =>
-          settlesWithin(operation.settled, eventTimeoutMs).then((settled) => {
-            span.setAttrs({ settled })
-            return settled
-          }),
-        child,
-      )
-      if (!settled) {
-        telemetry.signal(
-          'events.timeout',
-          { command, kind: input.kind, timeoutMs: eventTimeoutMs },
-          child,
-        )
-        logger.warn(
-          `No events received for ${command} (${operationId}); reloading ${input.kind}`,
-          { traceId },
-        )
-        await invalidate(operationId, [input.kind], [defineList(input.kind)])
-      }
-      return result
-    } finally {
-      operation.cancel()
-      traces.delete(operationId)
-    }
+        expectedEvents: [command, `${input.kind}.${verb}`],
+        request: (options) =>
+          mutationVerbs[verb](services[input.kind], input, options),
+        recover: (operationId) =>
+          invalidations.invalidate(operationId, [input.kind], true),
+        attrs: { kind: input.kind, verb },
+      },
+      trace,
+    )
+    return result
   }
 
   /** A mutation sent from inside another command, with its own command span. */
@@ -394,58 +357,43 @@ export function createFrontendRuntime(
   for (const command of schedulerCommandNames)
     runtime.commands.handle(command, (_name, input, _context, trace) =>
       serialize(async () => {
-        const operationId = crypto.randomUUID()
-        const traceId = trace?.traceId ?? operationId
         const event = schedulerCommandEvents[command]
-        const operation = operations.begin(operationId, [event])
-        traces.set(operationId, { traceId, parentId: trace?.spanId })
-        try {
-          await settlesWithin(transport.ready(), readyTimeoutMs)
-          const result = await telemetry.span(
-            'http',
+        const { result, operationId } = await commandTransport.send(
+          {
             command,
-            (span) =>
-              scheduler.execute(command, input, {
+            expectedEvents: [event],
+            request: (options) => scheduler.execute(command, input, options),
+            recover: (operationId) =>
+              invalidations.invalidate(
                 operationId,
-                traceId,
-                parentSpanId: span.spanId,
-              }),
-            { traceId, parentId: trace?.spanId },
-          )
-          if (!(await settlesWithin(operation.settled, eventTimeoutMs))) {
-            telemetry.signal(
-              'events.timeout',
-              { command, timeoutMs: eventTimeoutMs },
-              { traceId },
-            )
-            await invalidate(operationId, schedulerEventDependencies[event])
-          }
-          // Only committed scheduler work can end the local presentation session.
-          if (
-            (command === 'scheduler.occurrence.transition' &&
-              'status' in input &&
-              input.status === ProgressStatus.IN_PROGRESS) ||
-            (command === 'scheduler.mode.change' &&
-              'change' in input &&
-              input.change === 'startBreak')
-          ) {
-            await syncTrackedTask(context, operationId)
-          }
-          // A corrected one-off interval has stopped, so its session ends too.
-          if (
-            command === 'scheduler.tracking.stop' &&
-            'taskId' in input &&
-            !input.occurrenceId &&
-            tracking.getActiveTracking()?.taskId === input.taskId
-          ) {
-            tracking.clear()
-            await context.publishTracking()
-          }
-          return result
-        } finally {
-          operation.cancel()
-          traces.delete(operationId)
+                schedulerEventDependencies[event],
+                true,
+              ),
+          },
+          trace,
+        )
+        // Only committed scheduler work can end the local presentation session.
+        if (
+          (command === 'scheduler.occurrence.transition' &&
+            'status' in input &&
+            input.status === ProgressStatus.IN_PROGRESS) ||
+          (command === 'scheduler.mode.change' &&
+            'change' in input &&
+            input.change === 'startBreak')
+        ) {
+          await syncTrackedTask(context, operationId)
         }
+        // A corrected one-off interval has stopped, so its session ends too.
+        if (
+          command === 'scheduler.tracking.stop' &&
+          'taskId' in input &&
+          !input.occurrenceId &&
+          tracking.getActiveTracking()?.taskId === input.taskId
+        ) {
+          tracking.clear()
+          await context.publishTracking()
+        }
+        return result
       }),
     )
 
@@ -470,41 +418,22 @@ export function createFrontendRuntime(
           ? `content:${(input as { id: string }).id}`
           : 'vault',
         async () => {
-          const operationId = crypto.randomUUID()
-          const traceId = trace?.traceId ?? operationId
           const event = vaultCommandEvents[command]
-          const operation = operations.begin(operationId, [event])
-          traces.set(operationId, { traceId, parentId: trace?.spanId })
-          try {
-            await settlesWithin(transport.ready(), readyTimeoutMs)
-            const result = await telemetry.span(
-              'http',
+          const { result } = await commandTransport.send(
+            {
               command,
-              (span) =>
-                vault.execute(command, input, {
+              expectedEvents: [event],
+              request: (options) => vault.execute(command, input, options),
+              recover: (operationId) =>
+                invalidations.invalidate(
                   operationId,
-                  traceId,
-                  parentSpanId: span.spanId,
-                }),
-              { traceId, parentId: trace?.spanId },
-            )
-            if (!(await settlesWithin(operation.settled, eventTimeoutMs))) {
-              telemetry.signal(
-                'events.timeout',
-                { command, timeoutMs: eventTimeoutMs },
-                { traceId },
-              )
-              await invalidate(
-                operationId,
-                vaultEventDependencies[event],
-                event === 'vault.changed' ? [defineList('resources')] : [],
-              )
-            }
-            return result
-          } finally {
-            operation.cancel()
-            traces.delete(operationId)
-          }
+                  vaultEventDependencies[event],
+                  true,
+                ),
+            },
+            trace,
+          )
+          return result
         },
       ),
     )
@@ -651,7 +580,8 @@ export function createFrontendRuntime(
   const dispose = () => {
     disposed = true
     transport.close()
-    operations.dispose()
+    commandTransport.dispose()
+    invalidations.dispose()
     runtime.dispose()
     queries.dispose()
     ui.setState({ tracking: null, warnings: [] })
@@ -666,6 +596,7 @@ export function createFrontendRuntime(
     scheduler,
     vault,
     defineList,
+    defineDetail,
     ensureList,
     dismissWarning,
     fetchList,
@@ -687,7 +618,9 @@ export function dependencies(kind: EntryKind): EntryKind[] {
     ? [...hydrated, 'tags', 'urls', 'time_entries']
     : hydrated.includes(kind)
       ? [...hydrated, 'tags', 'urls']
-      : [kind]
+      : kind === 'time_entries'
+        ? ['time_entries', 'tasks']
+        : [...hydrated, 'tags', 'urls']
 }
 
 export type FrontendRuntime = ReturnType<typeof createFrontendRuntime>

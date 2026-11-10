@@ -25,7 +25,6 @@ export type QueryDefinition<T> = {
   key: string
   dependencies: QueryDependency[]
   load: () => Promise<T>
-  onData?: (data: T) => void
 }
 type Registration = QueryDefinition<unknown> & {
   active: number
@@ -70,7 +69,7 @@ export function createQueryCoordinator({
         active: 0,
         generation: 0,
         joined: 0,
-      } as Registration)
+      })
   }
 
   /** Ensures a registered query has fresh data, reusing in-flight loads and preventing outdated results from overwriting newer state. */
@@ -97,7 +96,6 @@ export function createQueryCoordinator({
             obsolete++
             continue
           }
-          registration.onData?.(data)
           patch(key, { data, stale: false, isLoading: false, error: null })
           return data
         } catch (error) {

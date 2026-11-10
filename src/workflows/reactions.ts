@@ -1,9 +1,5 @@
 import type { StoreApi } from 'zustand/vanilla'
-import type {
-  EntryKind,
-  EntryRecord,
-  MutationEvent,
-} from '@c/workflows/contracts'
+import type { EntryKind, MutationEvent } from '@c/workflows/contracts'
 import type { Handler } from '@c/workflows/runtime'
 import type { Logger } from '@c/Logger'
 import type { StoreState } from '@/store'
@@ -23,6 +19,12 @@ export type ReactionContext = {
   logger: Logger
   isDisposed: () => boolean
   defineList: (kind: EntryKind, page?: number) => string
+  defineDetail: (kind: EntryKind, id: string) => string
+  invalidate: (
+    operationId: string,
+    dependencies: QueryDependency[],
+    complete?: boolean,
+  ) => Promise<void>
   warnRefresh: (
     operationId: string,
     key: string,
@@ -67,21 +69,9 @@ export const vaultEventDependencies: Record<
   keyof VaultEvents,
   QueryDependency[]
 > = {
-  'resource.content.changed': ['resourceContent'],
+  'resource.content.changed': ['resources', 'resourceContent'],
   // A rescan imports rows and a folder move changes every path.
   'vault.changed': ['resources', 'resourceContent', 'vault'],
-}
-
-/** Safely updates the stores row data for an entry kind, ignoring updates after disposal. */
-const setRows = (
-  { store, isDisposed }: ReactionContext,
-  kind: EntryKind,
-  update: (rows: EntryRecord[]) => EntryRecord[],
-) => {
-  if (isDisposed()) return
-  store.setState((state) => ({
-    [kind]: { ...state[kind], data: update(state[kind].data) },
-  }))
 }
 
 /** Extracts the identifiers of records affected by a mutation event. */
@@ -93,31 +83,6 @@ const resultIds = ({ result, id }: MutationEvent) =>
       : id
         ? [id]
         : []
-
-/** Reloads rows so the store holds hydrated records (events carry raw rows). */
-const loadAndUpsert = async (
-  context: ReactionContext,
-  kind: EntryKind,
-  ids: string[],
-) => {
-  const rows = await Promise.all(
-    ids.map((id) =>
-      context.services[kind].fetchById(id).catch((error: unknown) => {
-        context.logger.warn(`Could not reload ${kind} ${id}`, { error })
-        return null
-      }),
-    ),
-  )
-  const loaded = rows.filter((row): row is EntryRecord => row !== null)
-  if (loaded.length === 0) return
-  setRows(context, kind, (current) => {
-    const byId = new Map(loaded.map((row) => [row.id, row]))
-    const next = current.map((row) => byId.get(row.id) ?? row)
-    for (const row of loaded)
-      if (!current.some((existing) => existing.id === row.id)) next.push(row)
-    return next
-  })
-}
 
 /** Stops tracking and publishes the cleared tracking state. */
 const stopTracking = async ({ tracking, publishTracking }: ReactionContext) => {
@@ -134,7 +99,12 @@ export async function syncTrackedTask(
   if (!session) return
   /** Refreshes tracking for the current task, stopping it if the task is no longer in progress. */
   const refresh = async () => {
-    const task = await context.services.tasks.fetchById(session.taskId)
+    const key = context.defineDetail('tasks', session.taskId)
+    context.queries.markStale(key)
+    const task =
+      await context.queries.ensure<
+        import('@c/workflows/contracts').EntryRecord
+      >(key)
     if (
       task.status !== ProgressStatus.IN_PROGRESS &&
       context.tracking.getActiveTracking() === session
@@ -170,81 +140,27 @@ export function createReactions<Context extends ReactionContext>() {
       await syncTrackedTask(context, event.operationId)
     },
     refreshSchedule: async (name, event, context) => {
-      const outcomes = await context.queries.invalidate(
+      await context.invalidate(
+        event.operationId,
         schedulerEventDependencies[name as keyof SchedulerEvents] ?? [
           'schedule',
         ],
+        true,
       )
-      for (const { key, error } of outcomes)
-        if (error) context.warnRefresh(event.operationId, key, error)
     },
-    // Content events only carry the resource id; its row (hash, updated_at)
-    // is reloaded if the store holds it.
     refreshVault: async (name, event, context) => {
-      const { id } = event as unknown as { id?: string }
-      if (
-        id &&
-        context.store.getState().resources.data.some((row) => row.id === id)
-      )
-        await loadAndUpsert(context, 'resources', [id])
-      const outcomes = await context.queries.invalidate(
+      await context.invalidate(
+        event.operationId,
         vaultEventDependencies[name as keyof VaultEvents] ?? ['vault'],
-        name === 'vault.changed' ? [context.defineList('resources')] : [],
-      )
-      for (const { key, error } of outcomes)
-        if (error) context.warnRefresh(event.operationId, key, error)
-    },
-
-    upsertRows: async (_name, event, context) => {
-      await loadAndUpsert(context, event.kind, resultIds(event))
-    },
-
-    removeRows: (_name, event, context) => {
-      const ids = new Set(resultIds(event))
-      setRows(context, event.kind, (rows) =>
-        rows.filter((row) => !ids.has(row.id)),
+        true,
       )
     },
-
-    clearRows: (_name, event, context) => {
-      const ids = Array.isArray(event.result)
-        ? new Set(event.result.map((row) => row.id))
-        : undefined
-      setRows(context, event.kind, (rows) =>
-        ids ? rows.filter((row) => !ids.has(row.id)) : [],
-      )
-    },
-
     invalidateDependents: async (_name, event, context) => {
-      const extra: string[] = []
-      if (event.action === 'create' || event.action === 'update') {
-        for (const kind of ['tags', 'urls', 'resources'] as const) {
-          if (event.changes?.[kind] !== undefined)
-            extra.push(context.defineList(kind))
-        }
-      }
-      const outcomes = await context.queries.invalidate([event.kind], extra)
-      for (const { key, error } of outcomes)
-        if (error) context.warnRefresh(event.operationId, key, error)
+      await context.invalidate(event.operationId, [event.kind], true)
     },
-
-    // Announcements carry `attachedIds` and no result; direct changes are
-    // already handled by the command-family reactions.
     refreshAnnounced: async (_name, event, context) => {
       if (event.result !== undefined || !event.attachedIds?.length) return
-      const known = new Set(
-        (context.store.getState()[event.kind].data as EntryRecord[]).map(
-          (row) => row.id,
-        ),
-      )
-      await loadAndUpsert(
-        context,
-        event.kind,
-        event.attachedIds.filter((id) => known.has(id)),
-      )
-      const outcomes = await context.queries.invalidate([event.kind])
-      for (const { key, error } of outcomes)
-        if (error) context.warnRefresh(event.operationId, key, error)
+      await context.invalidate(event.operationId, [event.kind])
     },
 
     stopTrackingIfDeleted: async (_name, event, context) => {

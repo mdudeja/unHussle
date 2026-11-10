@@ -1,3 +1,4 @@
+import { apiAddress } from '@/lib/apiAddress'
 import { makeTextRequest } from '@/lib/server'
 import { EntityRouteKey } from '@/lib/entityRoutes'
 import { StateCreator } from 'zustand'
@@ -32,15 +33,7 @@ export const createUISlice: StateCreator<UISlice> = (set) => ({
     const maxRetries = 10
     const retryDelay = 2000 // 2 seconds
 
-    const dbServerPort = import.meta.env.VITE_DB_SERVER_PORT
-      ? parseInt(import.meta.env.VITE_DB_SERVER_PORT, 10)
-      : null
-
-    if (!dbServerPort) {
-      throw new Error('VITE_DB_SERVER_PORT is not defined')
-    }
-
-    const dbServerUrl = `http://localhost:${dbServerPort}/health`
+    const dbServerUrl = apiAddress('health')
 
     for (let attempt = 1; attempt <= maxRetries; attempt++) {
       try {

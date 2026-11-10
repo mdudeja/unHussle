@@ -1,3 +1,4 @@
+import { readList, searchEntries } from '@c/testing/frontendReads'
 import { describe, test, expect, beforeEach } from 'bun:test'
 import { useStore } from '@/store'
 
@@ -6,16 +7,15 @@ describe('Urls Store', () => {
     useStore.setState((state) => ({
       urls: {
         ...state.urls,
-        data: [],
         isLoading: false,
         error: null,
       },
     }))
   })
 
-  test('initialize with default state', () => {
+  test('initialize with default state', async () => {
     const state = useStore.getState()
-    expect(state.urls.data).toEqual([])
+    expect('data' in state.urls).toBe(false)
   })
 
   test('create a new url', async () => {
@@ -24,10 +24,11 @@ describe('Urls Store', () => {
       url: 'https://example.com',
     }
     await add(newUrlData)
-    const state = useStore.getState()
-    const newUrl = state.urls.data.find((u) => u.url === 'https://example.com')
+    const newUrl = (await readList('urls')).find(
+      (u) => u.url === 'https://example.com',
+    )
     expect(newUrl).toBeDefined()
-    expect(state.urls.data).toHaveLength(1)
+    expect(await readList('urls')).toHaveLength(1)
   })
 
   test('throw error when creating url with missing fields', async () => {
@@ -36,12 +37,13 @@ describe('Urls Store', () => {
   })
 
   test('fetch urls', async () => {
-    const { fetch } = useStore.getState().urls
+    /** Fetches the list of URLs. */
+    const fetch = () => readList('urls')
     await fetch()
 
     const state = useStore.getState()
-    expect(state.urls.data).toHaveLength(1)
-    expect(state.urls.data[0].url).toBe('https://example.com')
+    expect(await readList('urls')).toHaveLength(1)
+    expect((await readList('urls'))[0].url).toBe('https://example.com')
     expect(state.urls.isLoading).toBe(false)
   })
 
@@ -52,8 +54,7 @@ describe('Urls Store', () => {
     }
     await add(newUrlData)
 
-    let state = useStore.getState()
-    const urlToUpdate = state.urls.data.find(
+    const urlToUpdate = (await readList('urls')).find(
       (u) => u.url === 'https://url-to-update.com',
     )
 
@@ -61,8 +62,9 @@ describe('Urls Store', () => {
       url: 'https://updated-url.com',
     })
 
-    state = useStore.getState()
-    const updatedUrl = state.urls.data.find((u) => u.id === urlToUpdate!.id)
+    const updatedUrl = (await readList('urls')).find(
+      (u) => u.id === urlToUpdate!.id,
+    )
     expect(updatedUrl!.url).toBe('https://updated-url.com')
   })
 
@@ -73,18 +75,17 @@ describe('Urls Store', () => {
     }
     await add(newUrlData)
 
-    let state = useStore.getState()
-    const urlToDelete = state.urls.data.find(
+    const urlToDelete = (await readList('urls')).find(
       (u) => u.url === 'https://url-to-delete.com',
     )
     expect(urlToDelete).toBeDefined()
 
     await deleteUrl(urlToDelete!.id)
 
-    state = useStore.getState()
-    const deletedUrl = state.urls.data.find((u) => u.id === urlToDelete!.id)
+    const deletedUrl = (await readList('urls')).find(
+      (u) => u.id === urlToDelete!.id,
+    )
     expect(deletedUrl).toBeUndefined()
-    expect(state.urls.data).toHaveLength(0)
   })
 
   test('throw error when deleting non-existent url', async () => {
@@ -93,7 +94,9 @@ describe('Urls Store', () => {
   })
 
   test('search urls by url as well as title', async () => {
-    const { add, search } = useStore.getState().urls
+    const { add } = useStore.getState().urls
+    /** Searches URL entries for a matching term. */
+    const search = (term: string) => searchEntries('urls', term)
     await add({ url: 'https://searchable-host.dev/docs', title: 'Reference' })
 
     const byUrl = await search('searchable-host')

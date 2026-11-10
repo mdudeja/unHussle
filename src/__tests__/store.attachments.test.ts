@@ -1,3 +1,4 @@
+import { readList, readDetail } from '@c/testing/frontendReads'
 import { describe, test, expect, afterAll } from 'bun:test'
 import { useStore } from '@/store'
 
@@ -8,17 +9,15 @@ describe('Entity tags and URLs', () => {
   afterAll(async () => {
     const state = useStore.getState()
     for (const slice of slices) {
-      for (const entity of state[slice].data) {
+      for (const entity of await readList(slice)) {
         await state[slice].remove(entity.id)
       }
     }
     // Remove the tags/urls created along the way
-    await state.tags.fetch()
-    for (const tag of useStore.getState().tags.data) {
+    for (const tag of await readList('tags')) {
       if (tag.title.startsWith('attach_')) await state.tags.remove(tag.id)
     }
-    await state.urls.fetch()
-    for (const url of useStore.getState().urls.data) {
+    for (const url of await readList('urls')) {
       if (url.url.startsWith('https://attach.example')) {
         await state.urls.remove(url.id)
       }
@@ -47,23 +46,16 @@ describe('Entity tags and URLs', () => {
       ])
       // Catalog refresh is owned by the workflow, not by the form that saved.
       expect(
-        useStore
-          .getState()
-          .tags.data.some((tag) => tag.title === `attach_${slice}`),
+        (await readList('tags')).some((tag) => tag.title === `attach_${slice}`),
       ).toBe(true)
       expect(
-        useStore
-          .getState()
-          .urls.data.some(
-            (url) => url.url === `https://attach.example/${slice}`,
-          ),
+        (await readList('urls')).some(
+          (url) => url.url === `https://attach.example/${slice}`,
+        ),
       ).toBe(true)
 
       await update(added.id, { tags: [] })
-      const updated = useStore
-        .getState()
-        [slice].data.find((entity) => entity.id === added.id) as
-        { tags?: unknown[]; urls?: unknown[] } | undefined
+      const updated = await readDetail(slice, added.id)
       expect(updated?.tags).toEqual([])
       expect(updated?.urls).toHaveLength(1)
     })

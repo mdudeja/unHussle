@@ -1,3 +1,4 @@
+import { readList } from '@c/testing/frontendReads'
 import { describe, test, expect, beforeEach } from 'bun:test'
 import { useStore } from '@/store'
 
@@ -6,16 +7,15 @@ describe('Projects Store', () => {
     useStore.setState((state) => ({
       projects: {
         ...state.projects,
-        data: [],
         isLoading: false,
         error: null,
       },
     }))
   })
 
-  test('initialize with default state', () => {
+  test('initialize with default state', async () => {
     const state = useStore.getState()
-    expect(state.projects.data).toEqual([])
+    expect('data' in state.projects).toBe(false)
   })
 
   test('create a new project', async () => {
@@ -25,13 +25,12 @@ describe('Projects Store', () => {
     }
     await add(newProjectData)
 
-    const state = useStore.getState()
-    const newProject = state.projects.data.find(
+    const newProject = (await readList('projects')).find(
       (p) => p.title === 'New Project',
     )
 
     expect(newProject).toBeDefined()
-    expect(state.projects.data).toHaveLength(1)
+    expect(await readList('projects')).toHaveLength(1)
   })
 
   test('throw error when creating project with missing fields', async () => {
@@ -40,26 +39,27 @@ describe('Projects Store', () => {
   })
 
   test('fetch projects', async () => {
-    const { fetch } = useStore.getState().projects
+    /** Fetches the list of projects. */
+    const fetch = () => readList('projects')
     await fetch()
 
     const state = useStore.getState()
-    expect(state.projects.data).toHaveLength(1)
-    expect(state.projects.data[0].title).toBe('New Project')
+    expect(await readList('projects')).toHaveLength(1)
+    expect((await readList('projects'))[0].title).toBe('New Project')
     expect(state.projects.isLoading).toBe(false)
   })
 
   test('update an existing project', async () => {
-    const { fetch, update } = useStore.getState().projects
+    const { update } = useStore.getState().projects
+    /** Retrieves the list of projects. */
+    const fetch = () => readList('projects')
     await fetch()
 
-    let state = useStore.getState()
-    const projectToUpdate = state.projects.data[0]
+    const projectToUpdate = (await readList('projects'))[0]
 
     await update(projectToUpdate.id, { title: 'Updated Project Title' })
 
-    state = useStore.getState()
-    const updatedProject = state.projects.data.find(
+    const updatedProject = (await readList('projects')).find(
       (p) => p.id === projectToUpdate.id,
     )
 
@@ -73,20 +73,19 @@ describe('Projects Store', () => {
   })
 
   test('delete a project', async () => {
-    const { fetch, remove: deleteProject } = useStore.getState().projects
+    const { remove: deleteProject } = useStore.getState().projects
+    /** Fetches the projects list. */
+    const fetch = () => readList('projects')
     await fetch()
 
-    let state = useStore.getState()
-    const projectToDelete = state.projects.data[0]
+    const projectToDelete = (await readList('projects'))[0]
     await deleteProject(projectToDelete.id)
 
-    state = useStore.getState()
-    const deletedProject = state.projects.data.find(
+    const deletedProject = (await readList('projects')).find(
       (p) => p.id === projectToDelete.id,
     )
 
     expect(deletedProject).toBeUndefined()
-    expect(state.projects.data).toHaveLength(0)
   })
 
   test('throw error when deleting non-existent project', async () => {
