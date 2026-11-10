@@ -1,6 +1,7 @@
 import { Priority, ProgressStatus } from '@c/types/enums'
 import type { FieldOption } from './types'
 
+/** Determines whether a value is blank, such as null, undefined, an empty or whitespace-only string, or an empty array. */
 export const isBlank = (value: unknown): boolean =>
   value === undefined ||
   value === null ||

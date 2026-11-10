@@ -22,6 +22,7 @@ const monthsRegexMonthFirst = new RegExp(
 )
 const ddmmyyyyRegex = /due\s+(\d{1,2})\/(\d{1,2})\/?(\d{4})?/i
 
+/** Provides the start-of-day timestamp for the next occurrence of the given month and day relative to a reference date, or undefined if the month/day combination is invalid. */
 const getDateFromMonthAndDay = (
   month: number,
   day: number,
@@ -47,6 +48,7 @@ const getDateFromMonthAndDay = (
   }
 }
 
+/** Parses human-readable due-date expressions to determine when a task is due. */
 export const parseDueDate = (input: string): number | undefined => {
   const now = Temporal.Now.plainDateISO()
   const lowerInput = input.toLowerCase().trim()

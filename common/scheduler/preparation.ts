@@ -12,6 +12,7 @@ import type {
   PlanEntry,
 } from './contracts'
 
+/** Generates a stable identifier that uniquely represents a specific occurrence of a task. */
 export const occurrenceId = (taskId: string, date: string, slot: number) =>
   `${taskId}:${date}:${slot}`
 
@@ -38,6 +39,7 @@ export function occursOn(
   if (task.scheduled_start !== null && task.scheduled_start >= end) return false
   const day = parseCalendarDate(date)
   const data = task.recurrance_rule.data
+  /** Determines whether a value is permitted by an optional list of allowed values, allowing all values when no list is provided. */
   const allows = (values: number[] | undefined, value: number) =>
     !values?.length || values.includes(value)
   return (
@@ -47,6 +49,7 @@ export function occursOn(
   )
 }
 
+/** Determines the duration in minutes to allocate to a scheduler task, using its own estimate when available or a settings-based default otherwise. */
 const estimateOf = (task: SchedulerTask, settings: SchedulerSettings) =>
   task.estimated_minutes && task.estimated_minutes > 0
     ? task.estimated_minutes

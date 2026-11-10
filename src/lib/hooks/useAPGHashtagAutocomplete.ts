@@ -18,6 +18,7 @@ export interface APGSuggestion extends AutocompleteOption {
 
 type AnyAPG = EntityReference
 
+/** Provides the first tag title associated with an entity for use in non-tag suggestions. */
 const tagForEntity = (
   entity: AnyAPG,
   kind: Exclude<APGSuggestionKind, 'tag'>,
@@ -32,6 +33,7 @@ const tagForEntity = (
   }
 }
 
+/** Creates a suggestion representation of an entity for use in suggestion or autocomplete interfaces. */
 const toSuggestion = (
   entity: AnyAPG,
   kind: Exclude<APGSuggestionKind, 'tag'>,
@@ -45,6 +47,7 @@ const toSuggestion = (
   additionalInfo: `#${tagForEntity(entity, kind)}`,
 })
 
+/** Creates an autocomplete suggestion that represents the given tag entity. */
 const toTagSuggestion = (tag: EntityReference): APGSuggestion => ({
   id: `tag:${tag.id}`,
   label: `#${tag.title}`,

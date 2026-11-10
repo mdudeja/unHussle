@@ -43,16 +43,19 @@ export function createResourceAutosave({
   let inFlight: Promise<void> | undefined
   let disposed = false
 
+  /** Updates the autosave state with the given changes and notifies listeners when autosave is active. */
   const set = (next: Partial<AutosaveState>) => {
     state = { ...state, ...next }
     if (!disposed) onChange(state)
   }
 
+  /** Cancels the currently active timer, if one exists. */
   const cancelTimer = () => {
     if (timer !== undefined) clearTimer(timer)
     timer = undefined
   }
 
+  /** Schedules a flush to occur after the configured delay, replacing any previously scheduled flush. */
   const schedule = () => {
     cancelTimer()
     timer = setTimer(() => {
@@ -61,6 +64,7 @@ export function createResourceAutosave({
     }, delayMs)
   }
 
+  /** Persists pending content, ensuring concurrent save requests are handled in order and unsaved content is preserved if saving fails. */
   const send = async (force: boolean): Promise<void> => {
     if (inFlight) {
       await inFlight
@@ -96,6 +100,7 @@ export function createResourceAutosave({
     return inFlight
   }
 
+  /** Flushes pending changes immediately, waiting for any conflict resolution to complete first. */
   const flush = () => {
     cancelTimer()
     if (state.status === 'conflict') return inFlight ?? Promise.resolve()
@@ -103,9 +108,11 @@ export function createResourceAutosave({
   }
 
   return {
+    /** Provides access to the current state. */
     get state() {
       return state
     },
+    /** Indicates whether there are unsaved changes that are pending or currently in progress. */
     get hasUnsaved() {
       return pending !== undefined || inFlight !== undefined
     },
@@ -131,6 +138,7 @@ export function createResourceAutosave({
       pending = undefined
       set({ status: 'idle', baseHash, error: undefined })
     },
+    /** Releases the objects resources and marks it as disposed so it is no longer used. */
     dispose() {
       cancelTimer()
       disposed = true

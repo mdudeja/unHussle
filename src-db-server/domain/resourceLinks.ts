@@ -20,8 +20,10 @@ export const linkOwnerTables = { tasks, projects, areas, goals } as const
 
 const linkOwnerKinds = Object.keys(linkOwnerTables) as ResourceLinkKind[]
 
+/** Removes duplicate IDs from a list while preserving their original order. */
 const unique = (ids: string[]) => [...new Set(ids)]
 
+/** Computes the difference between two collections by excluding the specified values from the original collection. */
 const difference = (from: string[], without: string[]) => {
   const excluded = new Set(without)
   return from.filter((id) => !excluded.has(id))
@@ -167,6 +169,7 @@ export function resourcesOfOwners(tx: SyncTx, ownerIds: string[]) {
   )
 }
 
+/** Synchronizes a resource’s associated resources and links according to requested changes and announces the resulting updates. */
 export function updateResourceLinks(
   tx: SyncTx,
   input: MutationInput,
@@ -206,6 +209,7 @@ export function updateResourceLinks(
   }
 }
 
+/** Publishes change notifications for resource links affected by an entity mutation so dependent owners and resources can update their link state. */
 export function announceResourceLinks(
   tx: SyncTx,
   input: MutationInput,

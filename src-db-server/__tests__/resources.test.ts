@@ -1,4 +1,3 @@
-import type { CommandHandlers } from '@d/workflows/contracts'
 import { afterAll, describe, expect, test } from 'bun:test'
 import {
   existsSync,
@@ -14,7 +13,6 @@ import { join } from 'node:path'
 import { eq } from 'drizzle-orm'
 import { UnHussleDB } from '@d/database/UnHussleDB'
 import { createBackendRuntime } from '@d/workflows/runtime'
-import { commandHandlerRegistry } from '@d/workflows/commandHandlers'
 import { junctionResources, projects, resources } from '@d/database/schemas'
 import { ResourcesRepository } from '@d/database/repositories/resources'
 import { ProjectsRepository } from '@d/database/repositories/projects'
@@ -27,6 +25,7 @@ import { createTelemetry } from '@c/workflows/telemetry'
 import { slugify } from '@c/slug'
 
 const tempDirs: string[] = []
+/** Creates a temporary directory and records it for later cleanup. */
 const tempDir = (prefix: string) => {
   const dir = mkdtempSync(join(tmpdir(), prefix))
   tempDirs.push(dir)
@@ -42,19 +41,29 @@ afterAll(() => {
  * resources, so the transaction fails after the file was written or moved.
  */
 async function failingAfterFiles(
-  command: keyof CommandHandlers,
+  runtime: ReturnType<typeof createBackendRuntime>,
+  command: string,
   work: () => Promise<unknown>,
 ) {
-  const original = commandHandlerRegistry[command]
-  // `announceAffectedEntities` rejects any kind that isn't a collection.
-  commandHandlerRegistry[command] = [
-    ...(original ?? []),
-    'announceAffectedEntities',
-  ]
+  const original = runtime.compositions.definition(command)
+  const rowStep = original.steps.find((step) =>
+    /\.(createRow|updateRow|deleteRow|deleteAllRows)$/.test(step.action ?? ''),
+  )!
+  runtime.compositions.replaceCommand({
+    ...original,
+    steps: [
+      ...original.steps,
+      {
+        id: 'failAfterFiles',
+        action: 'kernel.mutation.announceAffectedEntities',
+        input: { from: 'step', step: rowStep.id, path: ['input'] },
+      },
+    ],
+  })
   try {
     await expect(work()).rejects.toThrow('only supported for collections')
   } finally {
-    commandHandlerRegistry[command] = original
+    runtime.compositions.replaceCommand(original)
   }
 }
 
@@ -69,15 +78,19 @@ async function setup() {
   runtime.events.onAny((name, payload) => {
     events.push([name, payload])
   })
+  /** Retrieves a resource record by its unique identifier. */
   const row = (id: string) =>
     db.select().from(resources).where(eq(resources.id, id)).get()
+  /** Resolves a path relative to the vault directory. */
   const file = (rel: string) => join(vaultDir, rel)
+  /** Adds a new resource entity using the provided changes. */
   const addResource = async (changes: Record<string, unknown>) =>
     (await runtime.commands.execute('entity.add', {
       kind: 'resources',
       action: 'create',
       changes,
     })) as EntryRecord
+  /** Adds a new project to the project collection. */
   const addProject = async (title: string) =>
     (await runtime.commands.execute('entityCollection.add', {
       kind: 'projects',
@@ -147,7 +160,7 @@ describe('Resource files', () => {
 
   test('a failed create removes the file it wrote', async () => {
     const f = await setup()
-    await failingAfterFiles('entity.add', () =>
+    await failingAfterFiles(f.runtime, 'entity.add', () =>
       f.addResource({ title: 'Rolled back' }),
     )
     expect(f.db.select().from(resources).all()).toEqual([])
@@ -170,7 +183,7 @@ describe('Resource files', () => {
     expect(readFileSync(f.file('final-copy.md'), 'utf8')).toBe('# Draft')
     expect(existsSync(f.file('draft.md'))).toBe(false)
 
-    await failingAfterFiles('entity.change', () =>
+    await failingAfterFiles(f.runtime, 'entity.change', () =>
       f.runtime.commands.execute('entity.change', {
         kind: 'resources',
         action: 'update',
@@ -190,7 +203,7 @@ describe('Resource files', () => {
   test('a failed delete restores the trashed file', async () => {
     const f = await setup()
     const resource = await f.addResource({ title: 'Restored' })
-    await failingAfterFiles('entity.delete', () =>
+    await failingAfterFiles(f.runtime, 'entity.delete', () =>
       f.runtime.commands.execute('entity.delete', {
         kind: 'resources',
         action: 'delete',
@@ -306,6 +319,7 @@ describe('Resource content', () => {
     const baseHash = hashContent('')
     writeFileSync(f.file('shared.md'), 'edited in another editor')
 
+    /** Saves the current resource content. */
     const save = (force?: boolean) =>
       f.runtime.commands.execute('resource.content.save', {
         id: resource.id,
@@ -445,6 +459,7 @@ describe('Vault folder', () => {
     await f.addResource({ title: 'Stay put' })
     const busy = tempDir('vault-busy-')
     writeFileSync(join(busy, 'other.txt'), 'x')
+    /** Changes the vault settings to the specified path. */
     const change = (path: string) =>
       f.runtime.commands.execute('vault.settings.change', { path })
 
@@ -469,6 +484,7 @@ describe('Resource links', () => {
       changes: { title: 'Linked task' },
     })) as EntryRecord
     const resource = await f.addResource({ title: 'Shared doc' })
+    /** Identifies change events that announce newly attached IDs. */
     const announced = () =>
       f.events
         .filter(
@@ -587,6 +603,7 @@ describe('Resource links', () => {
 describe('Task context', () => {
   test('a task inherits resources, links and tags from its whole chain', async () => {
     const f = await setup()
+    /** Creates a new entry of the specified kind using the runtime command system. */
     const add = async (
       command: 'entity.add' | 'entityCollection.add',
       kind: 'tasks' | 'projects' | 'areas' | 'goals' | 'resources',

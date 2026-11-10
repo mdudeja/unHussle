@@ -28,12 +28,14 @@ import {
   type Vault,
 } from '@d/vault/vault'
 
+/** Retrieves the input associated with the specified vault command from the current vault state, ensuring the state corresponds to that command. */
 function inputOf<K extends VaultCommand>(state: VaultState, command: K) {
   if (state.command !== command)
     throw new Error(`${state.command} is not ${command}`)
   return state.input as VaultCommands[K]['input']
 }
 
+/** Retrieves the currently loaded resource, failing if no resource has been loaded yet. */
 function loadedResource(state: VaultState) {
   if (!state.resource)
     throw new Error('loadResource must run before this action')
@@ -55,11 +57,13 @@ export function vaultInfo(db: Pick<SyncTx, 'select'>, vault: Vault): VaultInfo {
   }
 }
 
+/** Determines whether a child path is located inside a parent path. */
 const isInside = (parent: string, child: string) => {
   const rel = relative(parent, child)
   return rel !== '' && !rel.startsWith('..') && !isAbsolute(rel)
 }
 
+/** Loads the requested resource into the current vault state. */
 export function loadResource(state: VaultState, tx: SyncTx) {
   const { id } = inputOf(state, 'resource.content.save')
   const row = tx.select().from(resources).where(eq(resources.id, id)).get()
@@ -108,6 +112,7 @@ export function writeContent(state: VaultState, tx: SyncTx) {
   state.result = { id: row.id, content_hash, updated_at: row.updated_at }
 }
 
+/** Identifies which files in the vault are not yet indexed in the database. */
 export function listVaultFiles(state: VaultState, tx: SyncTx) {
   const stored = new Set(
     tx
@@ -243,6 +248,7 @@ export function copyVault(state: VaultState) {
   })
 }
 
+/** Persists the changed vault directory setting as the default application setting and refreshes the current vault information. */
 export function saveVaultSetting(state: VaultState, tx: SyncTx) {
   const target = resolve(inputOf(state, 'vault.settings.change').path)
   const saved = tx

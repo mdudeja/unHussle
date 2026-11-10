@@ -2,9 +2,11 @@ import { AnchorType } from '@c/types/enums'
 import type { PlanEntry } from './contracts'
 import { isPending } from './status'
 
+/** Determines whether a plan entry is anchored before the reference point, including any-before anchors. */
 export const isBeforeAnchor = (item: PlanEntry) =>
   item.anchorType === AnchorType.before ||
   item.anchorType === AnchorType.any_before
+/** Determines whether a plan entry is positioned immediately before or after another entry. */
 const isAdjacent = (item: PlanEntry) =>
   item.anchorType === AnchorType.before || item.anchorType === AnchorType.after
 
@@ -90,12 +92,14 @@ export function resolveAnchors(items: PlanEntry[]) {
   const adjacentGroups = components(pending, adjacentNeighbours)
 
   const blocked = new Set<string>()
+  /** Records a blocking error for a group and marks all of its associated items as blocked. */
   const block = (id: string, message: string) => {
     errors.set(id, message)
     for (const item of groups.get(id) ?? []) blocked.add(item.id)
   }
   for (const [id, message] of errors) block(id, message)
 
+  /** Detects and reports scheduling violations where pending plan entries conflict with or fail to satisfy their anchor constraints. */
   const violations = (ordered: PlanEntry[]) => {
     const positions = new Map(ordered.map((item, index) => [item.id, index]))
     const messages: string[] = []
@@ -197,6 +201,7 @@ export function resolveAnchors(items: PlanEntry[]) {
       .sort((a, b) => blockRank[b] - blockRank[a])
     const ordered: PlanEntry[] = []
     const visited = new Set<number>()
+    /** Adds the given index to the ready queue while preserving priority order by block rank. */
     const enqueue = (index: number) => {
       let low = 0,
         high = ready.length
@@ -235,5 +240,6 @@ export function resolveAnchors(items: PlanEntry[]) {
   }
 }
 
+/** Identifies anchor violations among plan entries. */
 export const anchorViolations = (items: PlanEntry[]) =>
   resolveAnchors(items).violations(items)

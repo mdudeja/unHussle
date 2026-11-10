@@ -13,17 +13,20 @@ import { ProgressStatus } from '@c/types/enums'
 import { getDateTimeMillis } from '@c/datetimeUtils'
 import type { EntryRecord, MutationEvent } from '@c/workflows/contracts'
 
+/** Creates an isolated in-memory backend fixture for testing task workflows with controllable time and helpers for adding and transitioning tasks. */
 async function fixture() {
   const database = new UnHussleDB(':memory:')
   const db = await database.getDb()
   let now = getDateTimeMillis('2026-11-02', '09:00', 'UTC')
   const runtime = createBackendRuntime(database, { now: () => now })
+  /** Adds a new task. */
   const add = async (title: string, changes: Record<string, unknown> = {}) =>
     (await runtime.commands.execute('entity.add', {
       kind: 'tasks',
       action: 'create',
       changes: { title, estimated_minutes: 15, ...changes },
     })) as EntryRecord
+  /** Transitions a task to the specified progress status while applying any additional changes. */
   const transition = (
     id: string,
     status: ProgressStatus,

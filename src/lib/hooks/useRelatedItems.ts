@@ -3,6 +3,7 @@ import { useWorkflowQuery, useWorkflowRuntime } from '@/workflows/hooks'
 import { fetchContainerDetail } from '@/services/readModels'
 import type { ReadContainerKind, TaskPageOptions } from '@c/types/readModels'
 
+/** Provides a retryable query for loading the detailed view of a workflow container identified by its kind and ID. */
 export function useContainerDetail(
   kind: ReadContainerKind,
   id: string,

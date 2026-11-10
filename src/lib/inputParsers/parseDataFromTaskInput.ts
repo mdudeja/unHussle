@@ -18,6 +18,7 @@ const dueDateRegex = /\bdue\s+(.*)$/i
 const estimatedTimeRegex =
   /\b(?:est|et):\s*(\d+(?:\.\d+)?)\s*(hours?|h|minutes?|mins?|m)(?:\s*(\d+(?:\.\d+)?)\s*(minutes?|mins?|m))?/gi
 
+/** Converts a time value expressed in hours or minutes into minutes. */
 const toMinutes = (value: number, unit: string): number => {
   const normalized = unit.toLowerCase()
   if (normalized.startsWith('h')) {
@@ -29,6 +30,7 @@ const toMinutes = (value: number, unit: string): number => {
   return 0
 }
 
+/** Parses free-form task input into structured task data, extracting relevant metadata such as tags, URLs, linked entities, estimated time, and due date. */
 export const parseDataFromTaskInput = ({
   input,
   projects,

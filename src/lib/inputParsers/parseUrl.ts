@@ -15,6 +15,7 @@ const trailingPunctuationRegex = /[.,;:!?)\]}>'"]+$/
 export const normalizeUrl = (url: string): string =>
   /^www\./i.test(url) ? `https://${url}` : url
 
+/** Extracts URLs from a text input and separates them from the remaining non-URL text. */
 export const parseUrl = (inputText: string): UrlParseResult => {
   const matches = (inputText.match(urlRegex) ?? []).map((raw) =>
     raw.replace(trailingPunctuationRegex, ''),

@@ -12,6 +12,7 @@ import { Area, WithSupporters } from '@c/types/index'
 import type { FieldConfig } from '../types'
 import { priorityOptions } from '../utils'
 
+/** Creates the field configurations used to capture and edit an area’s core details, appearance, organization, and related resources. */
 export const createAreaFields = (): FieldConfig<
   WithSupporters<Area['Write']>
 >[] => [

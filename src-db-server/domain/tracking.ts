@@ -31,6 +31,7 @@ export function trackInterval(
     .where(isNull(timeEntries.end_time))
     .all()
 
+  /** Determines whether the given entry belongs to the current task and occurrence. */
   const own = (entry: (typeof open)[number]) =>
     entry.task_id === taskId && entry.occurrence_id === occurrenceId
 

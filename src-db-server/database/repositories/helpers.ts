@@ -101,6 +101,7 @@ export const taggedIds = (db: NonNullable<UnHussleDB['db']>, pattern: string) =>
     .innerJoin(tags, eq(junctionTags.refId, tags.id))
     .where(like(tags.title, pattern))
 
+/** Provides a structured breakdown of a URL for easier inspection and use. */
 export const toUrlParts = (url: string) => {
   const parsed = new URL(url)
   return {

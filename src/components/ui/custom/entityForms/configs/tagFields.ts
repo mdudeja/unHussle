@@ -2,6 +2,7 @@ import { AlignLeft, Palette, Tag as TagIcon } from 'lucide-react'
 import { Tag } from '@c/types/index'
 import type { FieldConfig } from '../types'
 
+/** Defines the form fields used to create or edit a tag, including its name, color, and description. */
 export const createTagFields = (): FieldConfig<Tag['Write']>[] => [
   {
     name: 'title',

@@ -2,6 +2,7 @@ import { AlignLeft, Link, Type } from 'lucide-react'
 import { EntityUrl } from '@c/types/index'
 import type { FieldConfig } from '../types'
 
+/** Checks whether a value represents a valid URL. */
 const isValidUrl = (value: unknown): boolean => {
   if (typeof value !== 'string') return false
   try {
@@ -12,6 +13,7 @@ const isValidUrl = (value: unknown): boolean => {
   }
 }
 
+/** Creates the field configuration for capturing a URL along with an optional title and description. */
 export const createUrlFields = (): FieldConfig<EntityUrl['Write']>[] => [
   {
     name: 'url',

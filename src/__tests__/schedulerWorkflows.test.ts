@@ -18,6 +18,7 @@ import { ProgressStatus } from '@c/types/enums'
 import { type TimeEntry } from '@c/types'
 import { overnightStart, suggestedStop } from '@/workflows/schedulerHooks'
 
+/** Creates a reusable test fixture for exercising scheduler frontend runtime behavior, including mock data services, query activation, command handling, failure modes, event delivery, and teardown. */
 function fixture({
   emit = true,
   failRefresh = false,
@@ -314,7 +315,9 @@ describe('Scheduler frontend workflows', () => {
 })
 
 describe('Work running since an earlier day', () => {
+  /** Gets the millisecond timestamp for a given day and time in UTC. */
   const at = (day: string, time: string) => getDateTimeMillis(day, time, 'UTC')
+  /** Creates a new time entry with default values, optionally customized by the provided changes. */
   const entry = (
     start_time: number,
     changes: Partial<TimeEntry['Read']> = {},
@@ -334,6 +337,7 @@ describe('Work running since an earlier day', () => {
     updated_at: 0,
     ...changes,
   })
+  /** Creates an in-progress essay record with an initial time entry. */
   const running = (
     start: number,
     changes: Partial<TimeEntry['Read']> = {},

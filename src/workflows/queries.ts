@@ -48,9 +48,11 @@ export function createQueryCoordinator({
   const registrations = new Map<string, Registration>()
   let disposed = false
 
+  /** Captures the current query state for an entry, falling back to an empty query state when none exists. */
   const snapshot = <T>(key: string) =>
     (store.getState().entries[key] ?? emptyQuery) as QueryState<T>
 
+  /** Applies a partial update to the query state associated with a key, unless the store has been disposed. */
   const patch = (key: string, values: Partial<QueryState>) => {
     if (disposed) return
     store.setState(({ entries }) => ({
@@ -58,6 +60,7 @@ export function createQueryCoordinator({
     }))
   }
 
+  /** Registers or updates a query definition for later use. */
   const define = <T>(definition: QueryDefinition<T>) => {
     const existing = registrations.get(definition.key)
     if (existing) Object.assign(existing, definition)
@@ -70,6 +73,7 @@ export function createQueryCoordinator({
       } as Registration)
   }
 
+  /** Ensures a registered query has fresh data, reusing in-flight loads and preventing outdated results from overwriting newer state. */
   const ensure = async <T>(key: string): Promise<T> => {
     const registration = registrations.get(key)
     if (!registration) throw new Error(`Unregistered query: ${key}`)
@@ -80,6 +84,7 @@ export function createQueryCoordinator({
     const current = snapshot<T>(key)
     if (!current.stale && current.data !== null) return current.data
     let obsolete = 0
+    /** Loads and commits the latest registration data, ensuring invalidated requests never overwrite newer state. */
     const work = async () => {
       // Invalidated requests may finish, but may never replace newer state.
       for (;;) {
@@ -122,6 +127,7 @@ export function createQueryCoordinator({
     return registration.pending as Promise<T>
   }
 
+  /** Activates a registered query by tracking its active usage until it is deactivated. */
   const activate = (key: string) => {
     const registration = registrations.get(key)
     if (!registration) throw new Error(`Unregistered query: ${key}`)
@@ -131,12 +137,14 @@ export function createQueryCoordinator({
     }
   }
 
+  /** Marks an entry as stale and invalidates its existing registration. */
   const markStale = (key: string) => {
     const registration = registrations.get(key)
     if (registration) registration.generation++
     patch(key, { stale: true })
   }
 
+  /** Invalidates registered queries affected by the specified dependency kinds or keys, marking them stale and refreshing the active ones. */
   const invalidate = async (
     kinds: QueryDependency[],
     extraKeys: string[] = [],
@@ -164,11 +172,13 @@ export function createQueryCoordinator({
     )
   }
 
+  /** Clears all stored entries and invalidates existing registrations. */
   const clear = () => {
     for (const registration of registrations.values()) registration.generation++
     store.setState({ entries: {} })
   }
 
+  /** Marks the current instance as disposed and clears all registered resources and stored entries. */
   const dispose = () => {
     disposed = true
     registrations.clear()

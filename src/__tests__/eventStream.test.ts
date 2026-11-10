@@ -5,17 +5,21 @@ import {
   type EventHandlers,
 } from '@/workflows/eventStream'
 
+/** Builds a server-sent event frame containing an identifier and JSON-encoded event data. */
 const frame = (id: number, name: string, payload: unknown = {}) =>
   `id: ${id}\ndata: ${JSON.stringify({ name, payload })}\n\n`
 
+/** Records events as they occur, capturing the start and end of named events and any resynchronization events. */
 const recorder = (delayMs = 0) => {
   const seen: string[] = []
   const handlers: EventHandlers = {
+    /** Records the start and end of a named event. */
     async onEvent(name) {
       seen.push(`start ${name}`)
       if (delayMs) await new Promise((done) => setTimeout(done, delayMs))
       seen.push(`end ${name}`)
     },
+    /** Records that a resynchronization event has occurred. */
     onResync() {
       seen.push('resync')
     },
@@ -23,19 +27,24 @@ const recorder = (delayMs = 0) => {
   return { seen, handlers }
 }
 
+/** Waits briefly before resolving, allowing pending asynchronous work to settle. */
 const settle = () => new Promise((done) => setTimeout(done, 20))
 
+/** A fake source that simulates a server-sent events connection for testing event handlers and connection state. */
 class FakeSource {
   readyState = 0
   onopen: ((event: Event) => void) | null = null
   onmessage: ((event: MessageEvent<string>) => void) | null = null
   onerror: ((event: Event) => void) | null = null
   closed = false
+  /** Creates a fake source instance associated with the specified URL. */
   constructor(readonly url: string) {}
+  /** Opens the connection and notifies listeners that it is ready. */
   open() {
     this.readyState = 1
     this.onopen?.(new Event('open'))
   }
+  /** Emits a message event to notify the registered message handler with the supplied message details. */
   emit(id: number, name: string, payload: unknown = {}) {
     this.onmessage?.(
       new MessageEvent('message', {
@@ -44,10 +53,12 @@ class FakeSource {
       }),
     )
   }
+  /** Marks the operation as failed with the specified ready state and notifies any error handler. */
   fail(readyState: number) {
     this.readyState = readyState
     this.onerror?.(new Event('error'))
   }
+  /** Marks the connection as closed and updates its status accordingly. */
   close() {
     this.closed = true
     this.readyState = 2
@@ -55,6 +66,7 @@ class FakeSource {
 }
 
 describe('EventSource transport', () => {
+  /** Sets up a fake event source transport and tracks the sources it creates for testing. */
   const setup = () => {
     const sources: FakeSource[] = []
     const transport = createEventSourceTransport({
@@ -131,6 +143,7 @@ describe('fetch transport', () => {
     const fetchImpl = (async () =>
       new Response(
         new ReadableStream({
+          /** Starts the stream by enqueueing the text split at the configured cut position. */
           start(controller) {
             controller.enqueue(encoder.encode(text.slice(0, cut)))
             controller.enqueue(encoder.encode(text.slice(cut)))

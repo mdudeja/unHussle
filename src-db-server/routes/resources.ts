@@ -19,6 +19,7 @@ import { operationIdHeader, traceOf } from '@d/routes/telemetry'
 
 const uDB = UnHussleDB.getInstance()
 const db = await uDB.getDb()
+/** Returns the root location of the vault. */
 const vaultRoot = () => backendRuntime.vault.root(db)
 
 export const resourcesRoutes = routeGenerator({

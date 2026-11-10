@@ -1,6 +1,7 @@
 import { describe, expect, mock, test } from 'bun:test'
 import { createQueryCoordinator } from '@/workflows/queries'
 
+/** Creates a promise together with its resolve and reject functions so that it can be settled externally. */
 function deferred<T>() {
   let resolve!: (value: T) => void
   let reject!: (reason: unknown) => void

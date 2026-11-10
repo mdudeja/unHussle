@@ -15,6 +15,7 @@ import {
 import type { HydratedProject } from '@c/types/Hydrated'
 export type { HydratedProject } from '@c/types/Hydrated'
 
+/** A repository responsible for managing project data and providing access to project records with related information, search, pagination, and collection totals. */
 export class ProjectsRepository
   extends BaseRepository<typeof projects>
   implements IRepository<Project>
@@ -33,10 +34,12 @@ export class ProjectsRepository
     goal: { columns: referenceColumns },
   } as const
 
+  /** Initializes a repository for managing project data using the application database. */
   constructor(dbInstance: UnHussleDB) {
     super(dbInstance, projects)
   }
 
+  /** Retrieves all projects with their related data and collection totals. */
   async getAll(): Promise<HydratedProject[]> {
     const db = await this.getDb()
     if (!db) return []
@@ -47,6 +50,7 @@ export class ProjectsRepository
     return withCollectionTotals(db, 'projects', projects.map(unwrapJunctions))
   }
 
+  /** Retrieves a paginated slice of projects with their related data and collection totals. */
   async getPaginated(
     page: number,
     pageSize: number,
@@ -62,6 +66,7 @@ export class ProjectsRepository
     return withCollectionTotals(db, 'projects', projects.map(unwrapJunctions))
   }
 
+  /** Retrieves a hydrated project by its identifier, returning null if no matching project exists. */
   async getById(id: string): Promise<HydratedProject | null> {
     const db = await this.getDb()
     if (!db) return null
@@ -74,6 +79,7 @@ export class ProjectsRepository
     return withCollectionTotals(db, 'projects', [unwrapJunctions(project)])[0]
   }
 
+  /** Searches for projects whose title or tags match the query. */
   async search(query: string, limit: number): Promise<HydratedProject[]> {
     const db = await this.getDb()
     if (!db) return []
@@ -91,6 +97,7 @@ export class ProjectsRepository
     return withCollectionTotals(db, 'projects', projects.map(unwrapJunctions))
   }
 
+  /** Retrieves hydrated projects by their IDs, including related list data and collection totals. */
   async getByIds(ids: string[]): Promise<HydratedProject[]> {
     const db = await this.getDb()
     if (!db || ids.length === 0) return []

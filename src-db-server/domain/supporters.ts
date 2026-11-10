@@ -21,6 +21,7 @@ import type {
   UrlInput,
 } from '@c/types'
 
+/** Normalizes a tag title into a consistent form for reliable comparison and storage. */
 export const normalizeTagTitle = (title: string) =>
   title.trim().replace(/^#/, '').toLowerCase()
 
@@ -35,6 +36,7 @@ export const supporterCapabilities: Partial<
   resources: { tags: true, urls: false, time_entries: false, resources: false },
 }
 
+/** Removes supporter junction records associated with the specified entities. */
 export function removeEntityOwnedSupporterJunctions(tx: SyncTx, ids: string[]) {
   if (!ids.length) return
   tx.delete(junctionTags).where(inArray(junctionTags.attachedToId, ids)).run()
@@ -47,6 +49,7 @@ export function removeEntityOwnedSupporterJunctions(tx: SyncTx, ids: string[]) {
     .run()
 }
 
+/** Removes junction records that associate supporter references with entities for the given supporter kind and IDs. */
 export function removeReferenceSupporterJunctions(
   tx: SyncTx,
   kind: EntitySupporterKind,
@@ -222,6 +225,7 @@ export const syncSupporters = (
   }
 }
 
+/** Applies supported changes to supporter data, including tags, URLs, and time entries, based on the supporter kind and action. */
 export function updateSupporters(tx: SyncTx, input: MutationInput) {
   if (!input.id) throw new Error('Invalid input for updateSupporters action')
   const { kind, action, id, changes = {} } = input
@@ -249,6 +253,7 @@ export function updateSupporters(tx: SyncTx, input: MutationInput) {
   )
 }
 
+/** Deletes supporter junction records that link supporters to entities or collections, either by their owning entities or by the supporter references being removed. */
 export function deleteSupporterJunctions(tx: SyncTx, input: MutationInput) {
   if (!input || (!input.ids && !input.attachedIds)) {
     throw new Error('Invalid input for deleteJunctions action')

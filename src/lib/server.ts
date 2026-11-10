@@ -1,6 +1,7 @@
 /** A non-2xx response; `status` lets callers tell a conflict (409) from other failures. */
 export class HttpError extends Error {
   name = 'HttpError'
+  /** Creates an HTTP error that carries a message and status code. */
   constructor(
     message: string,
     readonly status: number,
@@ -9,6 +10,7 @@ export class HttpError extends Error {
   }
 }
 
+/** Sends a JSON-based HTTP request and parses the JSON response, throwing an error when the request fails. */
 export const makeJSONRequest = async <T>({
   url,
   method,
@@ -47,6 +49,7 @@ export const makeJSONRequest = async <T>({
   return (await res.json()) as T
 }
 
+/** Sends an HTTP request and retrieves the response body as text, throwing an error if the request is unsuccessful. */
 export const makeTextRequest = async ({
   url,
   method,

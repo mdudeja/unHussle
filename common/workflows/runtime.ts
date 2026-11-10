@@ -17,6 +17,7 @@ type Listener<C> = {
   label: string
 }
 
+/** Retrieves an operation identifier from a value when it is available and valid. */
 const operationIdOf = (input: unknown) => {
   const value = (input as { operationId?: unknown } | null | undefined)
     ?.operationId
@@ -34,6 +35,7 @@ export function createRuntime<
   const listeners = new Map<keyof Events, Set<Listener<Context>>>()
   const anyListeners = new Set<Listener<Context>>()
 
+  /** Registers a handler with a listener group and provides a way to remove it. */
   const listen = (
     group: Set<Listener<Context>>,
     handler: Handler<unknown, void, Context>,
@@ -49,6 +51,7 @@ export function createRuntime<
   return {
     telemetry,
     commands: {
+      /** Registers a named command handler for later dispatch while preventing duplicate command registrations. */
       handle<K extends Name>(
         name: K,
         handler: Handler<Commands[K]['input'], Commands[K]['result'], Context>,
@@ -61,6 +64,7 @@ export function createRuntime<
           if (handlers.get(name) === registered) handlers.delete(name)
         }
       },
+      /** Executes the named command with its registered handler, optionally recording execution as a telemetry span. */
       async execute<K extends Name>(
         name: K,
         input: Commands[K]['input'],
@@ -81,6 +85,7 @@ export function createRuntime<
       },
     },
     events: {
+      /** Registers an event handler for the specified event name. */
       on<K extends keyof Events>(
         name: K,
         handler: Handler<Events[K], void, Context>,
@@ -101,6 +106,7 @@ export function createRuntime<
           label,
         )
       },
+      /** Publishes an event to all registered listeners for the event name, with telemetry tracing when enabled. */
       async publish<K extends keyof Events>(
         name: K,
         payload: Events[K],
@@ -145,6 +151,7 @@ export function createRuntime<
         return outcomes
       },
     },
+    /** Releases all registered event handlers and listeners. */
     dispose() {
       handlers.clear()
       listeners.clear()

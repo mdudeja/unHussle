@@ -19,6 +19,7 @@ export function jsonlSink(
   let timer: ReturnType<typeof setTimeout> | undefined
   let writing = Promise.resolve()
 
+  /** Flushes buffered telemetry lines to the log file, rotating it when necessary and treating write failures as non-fatal. */
   const flush = async () => {
     timer = undefined
     const batch = lines.join('')
@@ -43,6 +44,7 @@ export function jsonlSink(
   }
 }
 
+/** Determines the file path where telemetry data is stored for the current database. */
 const telemetryFile = () => {
   const dbFile = process.env.DB_FILE_URL
   if (!dbFile || dbFile === ':memory:' || process.env.NODE_ENV === 'test')

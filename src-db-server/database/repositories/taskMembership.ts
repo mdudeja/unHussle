@@ -26,6 +26,7 @@ export function taskMembershipPredicate(
   db: MembershipDb,
   { kind, id }: PredicateContainer,
 ): SQL {
+  /** Retrieves the goals associated with the current area. */
   const goalsInArea = () =>
     db.select({ id: goals.id }).from(goals).where(eq(goals.area_id, id))
 
@@ -63,11 +64,13 @@ export function taskMembershipPredicate(
     case 'tags':
     case 'urls': {
       const junction = kind === 'tags' ? junctionTags : junctionUrls
+      /** Retrieves the identifiers of entities attached to the current entity. */
       const attached = () =>
         db
           .select({ id: junction.attachedToId })
           .from(junction)
           .where(eq(junction.refId, id))
+      /** Retrieves the goals that are currently attached, whether directly or through an attached area. */
       const attachedGoals = () =>
         db
           .select({ id: goals.id })

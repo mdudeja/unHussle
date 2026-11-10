@@ -8,7 +8,9 @@ export function createOperationTracker() {
   const pending = new Map<string, Pending>()
 
   return {
+    /** Starts tracking a pending operation until all specified events have occurred. */
     begin(operationId: string, eventNames: string[]) {
+      /** Resolves the pending operation. */
       let resolve = () => {}
       const settled = new Promise<void>((done) => {
         resolve = done
@@ -32,6 +34,7 @@ export function createOperationTracker() {
       pending.delete(operationId)
       operation.resolve()
     },
+    /** Resolves all pending operations and clears the pending collection, completing outstanding work before disposal. */
     dispose() {
       for (const operation of pending.values()) operation.resolve()
       pending.clear()

@@ -98,9 +98,11 @@ export function readSchedulerTasks(
     })
 }
 
+/** Determines which tasks are eligible for a given calendar day in a timezone, accounting for recurrence rules and task scheduling or status. */
 function dayEligibility(date: string, timezone: string) {
   const [start, end] = getDayBoundsMillis(date, timezone)
   const day = parseCalendarDate(date)
+  /** Builds a condition for matching recurrence rule data by checking that a value is either allowed by the rule or that the rule has no restriction for the given key. */
   const selector = (key: string, value: number) =>
     sql`(coalesce(json_array_length(json_extract(${tasks.recurrance_rule}, ${'$.data.' + key})), 0) = 0 or ${value} in (select value from json_each(${tasks.recurrance_rule}, ${'$.data.' + key})))`
 
@@ -131,6 +133,7 @@ function dayEligibility(date: string, timezone: string) {
   )
 }
 
+/** Retrieves scheduler tasks that are eligible for the specified date and timezone, optionally restricted by additional criteria. */
 function readEligibleTasks(
   tx: ScheduleTx,
   settings: SchedulerSettings,
@@ -211,6 +214,7 @@ export function countDayCandidates(
   )
 }
 
+/** Ensures a tasks anchor chain does not contain cycles. */
 export function validateTaskAnchors(
   tx: ScheduleTx,
   task: Pick<SchedulerTask, 'id' | 'anchor_id'>,
@@ -249,6 +253,7 @@ function workPredicate(settings: SchedulerSettings) {
   )`
 }
 
+/** Calculates the total minutes of work logged during the specified day in the given timezone. */
 export function dailyWorkUsed(
   tx: ScheduleTx,
   settings: SchedulerSettings,
@@ -274,6 +279,7 @@ export function dailyWorkUsed(
   )
 }
 
+/** Retrieves task occurrences for a given date or selected IDs, including in-progress tasks, and reports overdue pending occurrences as missed. */
 export function readOccurrences(
   tx: ScheduleTx,
   date: string,
@@ -314,9 +320,11 @@ export function readOpenIntervals(tx: ScheduleTx) {
       .map((entry) => [intervalKey(entry.task_id, entry.occurrence_id), entry]),
   )
 }
+/** Provides a stable unique key for identifying a specific task occurrence in interval-related operations. */
 export const intervalKey = (taskId: string, occurrenceId: string | null) =>
   `${taskId}|${occurrenceId ?? ''}`
 
+/** Retrieves a day plan along with its ordered entries. */
 export function readPlan(tx: ScheduleTx, id: string) {
   return tx.query.dayPlans
     .findFirst({
@@ -379,6 +387,7 @@ export function readReservedBetween(
     .map((row) => row.id)
 }
 
+/** Persists a day plan and its entries, replacing existing plan items and materializing associated task occurrences. */
 export function writePlan(
   tx: ScheduleTx,
   plan: {
@@ -503,6 +512,7 @@ export function migrateEarlierMemberships(
   )
 }
 
+/** Marks overdue task occurrences that are still planned or paused as missed. */
 export function expireOccurrences(tx: ScheduleTx, today: string) {
   tx.update(taskOccurrences)
     .set({ status: 'missed' })

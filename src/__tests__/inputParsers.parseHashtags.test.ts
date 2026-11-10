@@ -12,12 +12,16 @@ const noEntities = {
 // stripped, so assertions focus on content rather than stray spaces.
 const normalize = (text: string) => text.replace(/\s+/g, ' ').trim()
 
+/** Parses hashtags from a text string. */
 const parse = (text: string, entities: Partial<typeof noEntities> = {}) =>
   parseHashtags({ text, ...noEntities, ...entities })
 
+/** Creates a project read representation containing its identifier and title. */
 const project = (id: string, title: string) =>
   ({ id, title }) as Project['Read']
+/** Creates the read representation of an area. */
 const area = (id: string, title: string) => ({ id, title }) as Area['Read']
+/** Creates a goal representation consisting of its identifier and title. */
 const goal = (id: string, title: string) => ({ id, title }) as Goal['Read']
 
 describe('parseHashtags', () => {

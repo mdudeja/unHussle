@@ -33,6 +33,7 @@ function ancestorsOf(tx: ScheduleTx, task: Task['Read']) {
   const goalRows = goalIds.length
     ? tx.select().from(goals).where(inArray(goals.id, goalIds)).all()
     : []
+  /** Locates the goal record with the given identifier. */
   const goal = (id: string | null | undefined) =>
     goalRows.find((row) => row.id === id)
 
@@ -45,6 +46,7 @@ function ancestorsOf(tx: ScheduleTx, task: Task['Read']) {
   const areaRows = areaIds.length
     ? tx.select().from(areas).where(inArray(areas.id, areaIds)).all()
     : []
+  /** Looks up an area entry by its ID. */
   const area = (id: string | null | undefined) =>
     areaRows.find((row) => row.id === id)
 
@@ -105,6 +107,7 @@ export function getTaskContext(
     urls: new Set<string>(),
     tags: new Set<string>(),
   }
+  /** Selects previously unseen items belonging to a given owner, marks them as seen, and returns them sorted by label. */
   const pick = <T extends { id: string }>(
     rows: { owner: string; item: T }[],
     owner: string,
@@ -118,6 +121,7 @@ export function getTaskContext(
         return row.item
       })
       .sort((a, b) => label(a).localeCompare(label(b)))
+  /** Provides the context items—resources, URLs, and tags—associated with a given owner. */
   const itemsOf = (owner: string): ContextItems => ({
     resources: pick(resourceRows, owner, 'resources', (item) => item.title),
     urls: pick(urlRows, owner, 'urls', (item) => item.title ?? item.url),

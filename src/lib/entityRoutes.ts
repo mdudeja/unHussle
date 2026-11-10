@@ -25,5 +25,6 @@ export const getEntityItemRoute = (entity: EntityRouteKey, id: string) =>
     ? getResourceRoute(id)
     : `${entityRoutes[entity]}?${new URLSearchParams({ [entitySearchParams.id]: id })}`
 
+/** Generates the route path for a specific resource. */
 export const getResourceRoute = (id: string) =>
   `${entityRoutes.resources}/${encodeURIComponent(id)}`

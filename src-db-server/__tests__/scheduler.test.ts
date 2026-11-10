@@ -23,6 +23,7 @@ import { createSchedulerRoutes } from '@d/routes/scheduler'
 
 const date = '2026-11-02'
 const timezone = 'UTC'
+/** Creates an isolated in-memory backend environment for testing task creation and scheduler generation with controllable time. */
 async function fixture() {
   const database = new UnHussleDB(':memory:')
   const db = await database.getDb()
@@ -31,6 +32,7 @@ async function fixture() {
     now: () => now,
     telemetry: createTelemetry({ side: 'backend' }),
   })
+  /** Creates a new task. */
   const add = async (changes: Record<string, unknown>) => {
     const row = await runtime.commands.execute('entity.add', {
       kind: 'tasks',
@@ -168,6 +170,7 @@ describe('Persistent scheduling commands', () => {
   test('backend intervals own cumulative time and repeated pauses do not double count', async () => {
     const f = await fixture()
     const id = await f.add({ title: 'Tracked' })
+    /** Changes a tasks status and optionally updates the time spent on it. */
     const change = (status: ProgressStatus, spent_minutes?: number) =>
       f.runtime.commands.execute('entity.change', {
         kind: 'tasks',
@@ -248,6 +251,7 @@ describe('Persistent scheduling commands', () => {
     f.runtime.events.on('scheduler.changed', (_name, event) => {
       events.push(event.operationId)
     })
+    /** Sends a JSON payload to the scheduler service for processing. */
     const send = (path: string, body: unknown) =>
       app.handle(
         new Request(`http://localhost/scheduler/${path}`, {
@@ -832,6 +836,7 @@ describe('Scheduler candidate preparation', () => {
       scheduled_start: getDateTimeMillis(date, '00:30', 'UTC'),
       recurrance_rule: { type: 'daily', data: {} },
     })
+    /** Provides the candidate task IDs for a given day and timezone. */
     const candidates = (day: string, zone = timezone) =>
       readDayTasks(f.db, readSettings(f.db), day, zone).candidates.map(
         (task) => task.id,
@@ -909,7 +914,9 @@ describe('Scheduler maintenance actions', () => {
     const f = await fixture()
     const id = await f.add({ title: 'A' })
     await f.generate()
+    /** Indicates whether the days data is stale. */
     const stale = () => readDay(f.db, date, timezone, f.now()).stale
+    /** Resets all day plans to a non-stale state. */
     const reset = () => f.db.update(dayPlans).set({ stale: false }).run()
     await f.runtime.commands.execute('entity.change', {
       kind: 'tasks',
@@ -999,6 +1006,7 @@ describe('Scheduler maintenance actions', () => {
 })
 
 describe('Day modes', () => {
+  /** Updates the schedulers mode to reflect a requested transition, optionally recording why the change occurred. */
   const mode = (
     f: Awaited<ReturnType<typeof fixture>>,
     change: 'startBreak' | 'endBreak' | 'startWrap',
@@ -1145,6 +1153,7 @@ describe('Work carried across days', () => {
     })
     const started = f.now()
     f.advance(24 * 60)
+    /** Stops tracking for the current scheduled task. */
     const stop = (at: number) =>
       f.runtime.commands.execute('scheduler.tracking.stop', {
         taskId: id,

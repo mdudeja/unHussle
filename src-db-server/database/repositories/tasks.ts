@@ -18,6 +18,7 @@ import { timeEntries } from '@d/database/schemas'
 import type { HydratedTask } from '@c/types/Hydrated'
 export type { HydratedTask } from '@c/types/Hydrated'
 
+/** Provides data access for tasks, including retrieval, search, and hydration with related entities and active time intervals. */
 export class TasksRepository
   extends BaseRepository<typeof tasks>
   implements IRepository<Task>
@@ -40,6 +41,7 @@ export class TasksRepository
     tags: withTags,
   } as const
 
+  /** Enriches task list items with the open time intervals currently associated with each task. */
   private openIntervals(
     db: NonNullable<UnHussleDB['db']>,
     rows: TaskListItem[],
@@ -70,10 +72,12 @@ export class TasksRepository
     }))
   }
 
+  /** Creates a repository for managing tasks using the provided database instance. */
   constructor(dbInstance: UnHussleDB) {
     super(dbInstance, tasks)
   }
 
+  /** Retrieves all task list items. */
   async getAll(): Promise<TaskListItem[]> {
     const db = await this.getDb()
     if (!db) return []
@@ -84,6 +88,7 @@ export class TasksRepository
     return this.openIntervals(db, tasks.map(unwrapJunctions))
   }
 
+  /** Retrieves a paginated set of task list items with their related data. */
   async getPaginated(page: number, pageSize: number): Promise<TaskListItem[]> {
     const db = await this.getDb()
     if (!db) return []
@@ -96,6 +101,7 @@ export class TasksRepository
     return this.openIntervals(db, tasks.map(unwrapJunctions))
   }
 
+  /** Retrieves a hydrated task by its ID. */
   async getById(id: string): Promise<HydratedTask | null> {
     const db = await this.getDb()
     if (!db) return null
@@ -107,6 +113,7 @@ export class TasksRepository
     return task ? unwrapJunctions(task) : null
   }
 
+  /** Searches tasks by title or tag and returns matching task list items. */
   async search(query: string, limit: number): Promise<TaskListItem[]> {
     const db = await this.getDb()
     if (!db) return []
@@ -124,6 +131,7 @@ export class TasksRepository
     return this.openIntervals(db, tasks.map(unwrapJunctions))
   }
 
+  /** Fetches fully hydrated tasks for the specified identifiers. */
   async getByIds(ids: string[]): Promise<HydratedTask[]> {
     const db = await this.getDb()
     if (!db || ids.length === 0) return []
@@ -135,6 +143,7 @@ export class TasksRepository
     return tasks.map(unwrapJunctions)
   }
 
+  /** Retrieves task list items matching the given IDs. */
   async getListByIds(ids: string[]): Promise<TaskListItem[]> {
     const db = await this.getDb()
     if (!db || !ids.length) return []

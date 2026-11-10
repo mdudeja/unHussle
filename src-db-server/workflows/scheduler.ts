@@ -34,7 +34,9 @@ import {
 } from '@d/database/repositories/scheduler'
 import { schedulerSettings, tasks } from '@d/database/schemas'
 
+/** Represents an error indicating that a scheduling conflict has occurred. */
 export class ScheduleConflict extends Error {}
+/** Creates an identifier that uniquely represents a plan for a given date and timezone. */
 export const planId = (date: string, timezone: string) => `${timezone}:${date}`
 
 /** Saved settings over the defaults, so settings saved before a field existed get its default. */
@@ -84,6 +86,7 @@ function continuingEntries(
   })
 }
 
+/** Returns the plan entries corresponding to a specific occurrence ID for a task on a given date. */
 function entryFor(
   task: SchedulerTask,
   id: string,
@@ -263,6 +266,7 @@ function hydrateSaved(
   }
 }
 
+/** Creates a placeholder plan entry representing a deleted or cancelled task that remains referenced without task data. */
 function detachedEntry(
   id: string,
   taskId: string,
@@ -296,6 +300,7 @@ function detachedEntry(
   }
 }
 
+/** Reads the schedule plan for a specific day. */
 export function readDay(
   db: ScheduleTx,
   date: string,
@@ -341,6 +346,7 @@ export function previewWeek(
   return plans
 }
 
+/** Reads the next scheduled task for the specified day and returns it along with the days plan. */
 export function readNext(
   db: ScheduleTx,
   date: string,

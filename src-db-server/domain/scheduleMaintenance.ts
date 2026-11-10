@@ -82,6 +82,7 @@ export function syncPlanMembership(tx: ScheduleTx, input: MutationInput) {
     .all()
   const changedPlans: string[] = []
 
+  /** Updates a plan items status and records its plan as changed when the status is different. */
   const setStatus = (row: (typeof rows)[number], status: string) => {
     if (row.status === status) return
     tx.update(planItems).set({ status }).where(eq(planItems.id, row.id)).run()

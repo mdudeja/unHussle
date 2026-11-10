@@ -44,12 +44,15 @@ export type PlanRule = (name: PlanRuleName, context: PlanRuleContext) => void
 
 type Compare = (a: PlanEntry, b: PlanEntry) => number
 
+/** Assigns a comparable numeric weight to a priority, with higher values representing greater priority. */
 const weight = (value: Priority | null) =>
   value === Priority.HIGH ? 3 : value === Priority.LOW ? 1 : 2
 
+/** Orders items by creation time, using their id as a tiebreaker to ensure a stable, deterministic sequence. */
 const byAge: Compare = (a, b) =>
   a.createdAt - b.createdAt || a.id.localeCompare(b.id)
 
+/** Compares items by their due date, placing items without a due date last. */
 const byDue: Compare = (a, b) =>
   (a.due ?? Infinity) - (b.due ?? Infinity) || byAge(a, b)
 
@@ -62,13 +65,16 @@ const byPriority: Compare = (a, b) => {
   return byDue(a, b)
 }
 
+/** Orders items by fixed start, treating missing starts as zero and using age as a tiebreaker. */
 const byStart: Compare = (a, b) =>
   (a.fixedStart ?? 0) - (b.fixedStart ?? 0) || byAge(a, b)
 
+/** Orders items by their window start, using priority ordering as a fallback for equal or missing window starts. */
 const byWindow: Compare = (a, b) =>
   (a.windowStart ?? -Infinity) - (b.windowStart ?? -Infinity) ||
   byPriority(a, b)
 
+/** Produces a sorted copy of the entries while leaving the original collection unchanged. */
 const sorted = (entries: readonly PlanEntry[], compare: Compare) =>
   [...entries].sort(compare)
 

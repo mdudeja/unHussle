@@ -41,6 +41,7 @@ export type VaultReader = Pick<SyncTx, 'select'>
 
 export type VaultRoot = { path: string; source: 'custom' | 'default' }
 
+/** Generates a deterministic hash of content for identification or integrity verification. */
 export const hashContent = (content: string) =>
   createHash('sha256').update(content).digest('hex')
 
@@ -48,6 +49,7 @@ export const hashContent = (content: string) =>
 export function createVault(defaultRoot: string) {
   return {
     defaultRoot,
+    /** Returns the vault root to use, preferring the configured custom vault directory and falling back to the default root. */
     rootOf(db: VaultReader): VaultRoot {
       const saved = db
         .select()
@@ -58,6 +60,7 @@ export function createVault(defaultRoot: string) {
         ? { path: saved.vaultDir, source: 'custom' }
         : { path: defaultRoot, source: 'default' }
     },
+    /** Returns the path to the root location represented by the vault reader. */
     root(db: VaultReader) {
       return this.rootOf(db).path
     },
@@ -98,6 +101,7 @@ export function resolveIn(root: string, rel: string) {
 const toStored = (root: string, abs: string) =>
   relative(resolve(root), abs).split(sep).join('/')
 
+/** Determines whether a file exists at the specified relative path within the given root directory. */
 export function fileExists(root: string, rel: string | null) {
   if (!rel) return false
   try {
@@ -135,6 +139,7 @@ export function uniquePath(
   }
 }
 
+/** Reads a file’s contents and computes a hash of them, returning null if the file does not exist. */
 export function readFile(abs: string) {
   if (!existsSync(abs)) return null
   const content = readFileSync(abs, 'utf8')
@@ -186,6 +191,7 @@ export function listFiles(root: string): string[] {
   const base = resolve(root)
   if (!existsSync(base)) return []
   const found: string[] = []
+  /** Recursively scans a directory tree to find Markdown files while skipping hidden entries. */
   const walk = (dir: string) => {
     for (const entry of readdirSync(dir, { withFileTypes: true })) {
       if (entry.name.startsWith('.')) continue

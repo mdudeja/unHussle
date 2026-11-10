@@ -66,6 +66,7 @@ export function createEntry(
   if (!row) throw new Error(`Failed to insert ${kind}`)
   return row as EntryRecord
 }
+/** Updates an existing entry with the provided changes. */
 export function updateEntry(
   { repository }: TransactionContext,
   kind: EntryKind,
@@ -79,6 +80,7 @@ export function updateEntry(
   if (!row) throw new Error('NOT_FOUND')
   return row as EntryRecord
 }
+/** Deletes the specified entry and returns the deleted record, failing if no such entry exists. */
 export function deleteEntry(
   { repository }: TransactionContext,
   kind: EntryKind,
@@ -88,6 +90,7 @@ export function deleteEntry(
   if (!row) throw new Error('NOT_FOUND')
   return row as EntryRecord
 }
+/** Deletes all entries of the specified kind. */
 export function deleteAllEntries(
   { repository }: TransactionContext,
   kind: EntryKind,

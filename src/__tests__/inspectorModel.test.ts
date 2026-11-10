@@ -9,6 +9,7 @@ import {
   waterfall,
 } from '@/components/dev/inspectorModel'
 
+/** Creates a span with default tracing metadata. */
 const span = (values: Partial<Span> & Pick<Span, 'spanId'>): Span => ({
   traceId: 't1',
   kind: 'command',

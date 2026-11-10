@@ -72,6 +72,7 @@ export const vaultEventDependencies: Record<
   'vault.changed': ['resources', 'resourceContent', 'vault'],
 }
 
+/** Safely updates the stores row data for an entry kind, ignoring updates after disposal. */
 const setRows = (
   { store, isDisposed }: ReactionContext,
   kind: EntryKind,
@@ -83,6 +84,7 @@ const setRows = (
   }))
 }
 
+/** Extracts the identifiers of records affected by a mutation event. */
 const resultIds = ({ result, id }: MutationEvent) =>
   Array.isArray(result)
     ? result.map((row) => row.id)
@@ -117,6 +119,7 @@ const loadAndUpsert = async (
   })
 }
 
+/** Stops tracking and publishes the cleared tracking state. */
 const stopTracking = async ({ tracking, publishTracking }: ReactionContext) => {
   tracking.clear()
   await publishTracking()
@@ -129,6 +132,7 @@ export async function syncTrackedTask(
 ) {
   const session = context.tracking.getActiveTracking()
   if (!session) return
+  /** Refreshes tracking for the current task, stopping it if the task is no longer in progress. */
   const refresh = async () => {
     const task = await context.services.tasks.fetchById(session.taskId)
     if (
@@ -149,6 +153,7 @@ export async function syncTrackedTask(
   }
 }
 
+/** Creates the event reaction handlers that keep application state, cached queries, and tracking sessions synchronized with incoming domain events. */
 export function createReactions<Context extends ReactionContext>() {
   const reactions: { [K in ReactionName]?: Reaction<Context> } = {
     // The persisted task decides whether a local timer still represents running work.

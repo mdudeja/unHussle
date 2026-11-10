@@ -4,6 +4,7 @@ import {
   type AutosaveState,
 } from '@/lib/resourceAutosave'
 
+/** Represents an error caused by a conflict between a requested operation and the current state. */
 class Conflict extends Error {}
 
 /** Manual timers and a save whose calls resolve when the test says so. */
@@ -39,7 +40,9 @@ function fixture() {
       timers[timer as number] = () => {}
     },
   })
+  /** Executes all pending timer callbacks and clears them from the queue. */
   const tick = () => timers.splice(0).forEach((run) => run())
+  /** Waits for the current event loop to finish and pending work to settle before resolving. */
   const settle = () => new Promise((resolve) => setTimeout(resolve, 0))
   return { autosave, calls, states, tick, settle }
 }

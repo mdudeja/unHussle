@@ -10,6 +10,7 @@ import type {
 
 const address = `http://localhost:${import.meta.env.VITE_DB_SERVER_PORT || 3456}`
 
+/** Serializes an options object into a URL-encoded query string, omitting undefined values. */
 const params = (options: object) =>
   new URLSearchParams(
     Object.entries(options)
@@ -17,6 +18,7 @@ const params = (options: object) =>
       .map(([key, value]) => [key, String(value)]),
   ).toString()
 
+/** Fetches detailed information about a specific container. */
 export const fetchContainerDetail = (
   kind: ReadContainerKind,
   id: string,
@@ -27,6 +29,7 @@ export const fetchContainerDetail = (
     method: 'GET',
   })
 
+/** Fetches references for entries of a specified kind. */
 export const fetchReferences = (
   kind: EntryKind,
   options: { q?: string; cursor?: string; limit?: number; ids?: string[] } = {},
@@ -36,6 +39,7 @@ export const fetchReferences = (
     method: 'GET',
   })
 
+/** Retrieves the complete set of references for a given entry kind. */
 export async function fetchAllReferences(kind: EntryKind) {
   const items: EntityReference[] = []
   let cursor: string | undefined

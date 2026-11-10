@@ -46,6 +46,7 @@ export function createCommandActions<
   Context extends { logger: Logger; now?: () => number; vault: Vault },
 >() {
   type ContextWithEffects = ActionContext<Context>
+  /** Creates a command action handler that executes the provided mutation logic within a transaction-aware context. */
   const action =
     (
       run: (
@@ -61,6 +62,7 @@ export function createCommandActions<
       return (work) => run(work, input, context)
     }
 
+  /** Ensures a mutation input includes an entity id and rejects the operation if it is missing. */
   const requireId = (input: MutationInput) => {
     if (!input.id) throw new Error('An entity id is required')
     return input.id

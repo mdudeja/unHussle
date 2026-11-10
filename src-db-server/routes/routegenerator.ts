@@ -55,6 +55,7 @@ import { Logger } from '@c/Logger'
 import { IRepository } from '@d/database/repositories/IRepository.interface'
 import { VaultConflict, VaultError } from '@d/vault/vault'
 
+/** Extracts the message from an Error value, falling back to an empty string for non-Error values. */
 const messageOf = (error: unknown) =>
   error instanceof Error ? error.message : ''
 
@@ -128,6 +129,7 @@ export type RouteGeneratorConfig<
   repository: IRepository<T>
 }
 
+/** Generates a consistent set of API routes for managing and querying a configured entity type, including CRUD, search, pagination, references, and detail access with shared validation, logging, and error handling. */
 export const routeGenerator = <
   T extends { Read: unknown; Write: unknown; Update: unknown },
 >(

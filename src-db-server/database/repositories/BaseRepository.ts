@@ -8,11 +8,13 @@ export type TableWithId = SQLiteTable & { id: SQLiteColumn }
 export abstract class BaseRepository<TTable extends TableWithId> {
   private db: UnHussleDB['db'] | null = null
 
+  /** Initializes the repository with the database instance and table it will operate on. */
   constructor(
     private readonly dbInstance: UnHussleDB,
     protected readonly table: TTable,
   ) {}
 
+  /** Retrieves the database connection, initializing it when the database instance is ready. */
   protected async getDb() {
     if (!this.db) {
       this.db = this.dbInstance.isReady() ? await this.dbInstance.getDb() : null

@@ -27,6 +27,7 @@ if (!('localStorage' in globalThis)) {
 }
 
 describe('Task lifecycle', () => {
+  /** Retrieves a task by its identifier from the store. */
   const getTask = (id: string) => useStore.getState().tasks.getById(id)!
   let firstId: string
   let secondId: string

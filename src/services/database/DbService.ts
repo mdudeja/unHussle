@@ -12,6 +12,7 @@ export type MutationOptions = {
   parentSpanId?: string
 }
 
+/** Generates optional tracing and operation identification headers for a mutation request based on the provided identifiers. */
 export const mutationHeaders = ({
   operationId,
   traceId,
@@ -24,15 +25,18 @@ export const mutationHeaders = ({
   return Object.keys(headers).length ? headers : undefined
 }
 
+/** Provides client-side access to a typed database endpoint for retrieving, searching, creating, updating, and deleting records. */
 export class DbService<T extends DbEntityTypes> {
   dbUrl: string
   baseEndpoint: string
 
+  /** Initializes the service with the database server URL and base endpoint. */
   constructor(baseEndpoint: string) {
     this.dbUrl = `http://localhost:${import.meta.env.VITE_DB_SERVER_PORT}`
     this.baseEndpoint = baseEndpoint
   }
 
+  /** Fetches a paginated collection of records. */
   async fetchPaginated(page: number, pageSize: number) {
     const pageNum = page > 0 ? page : 1
     const pageSizeNum = pageSize > 0 ? pageSize : 10
@@ -43,6 +47,7 @@ export class DbService<T extends DbEntityTypes> {
     })
   }
 
+  /** Fetches all records from the configured endpoint. */
   async fetchAll() {
     return makeJSONRequest<T['Read'][]>({
       url: `${this.dbUrl}/${this.baseEndpoint}`,
@@ -50,6 +55,7 @@ export class DbService<T extends DbEntityTypes> {
     })
   }
 
+  /** Searches for records matching the specified query. */
   async search(query: string) {
     return makeJSONRequest<T['Read'][]>({
       url: `${this.dbUrl}/${this.baseEndpoint}/search/${encodeURIComponent(query)}`,
@@ -57,6 +63,7 @@ export class DbService<T extends DbEntityTypes> {
     })
   }
 
+  /** Fetches a single record identified by its ID. */
   async fetchById(id: string) {
     return makeJSONRequest<T['Read']>({
       url: `${this.dbUrl}/${this.baseEndpoint}/${id}`,
@@ -64,6 +71,7 @@ export class DbService<T extends DbEntityTypes> {
     })
   }
 
+  /** Creates a new record in the database. */
   async create(data: WithSupporters<T['Write']>, options?: MutationOptions) {
     return makeJSONRequest<T['Read']>({
       url: `${this.dbUrl}/${this.baseEndpoint}`,
@@ -73,6 +81,7 @@ export class DbService<T extends DbEntityTypes> {
     })
   }
 
+  /** Update an existing record and return its updated representation. */
   async update(
     id: string,
     data: WithSupporters<T['Update']>,
@@ -86,6 +95,7 @@ export class DbService<T extends DbEntityTypes> {
     })
   }
 
+  /** Deletes the specified resource from the database. */
   async delete(id: string, options?: MutationOptions) {
     return makeJSONRequest<T['Read']>({
       url: `${this.dbUrl}/${this.baseEndpoint}/${id}`,
@@ -94,6 +104,7 @@ export class DbService<T extends DbEntityTypes> {
     })
   }
 
+  /** Deletes all existing data, resetting the database to an empty state. */
   async reset(options?: MutationOptions) {
     return makeJSONRequest<{ deleted: number }>({
       url: `${this.dbUrl}/${this.baseEndpoint}/all`,

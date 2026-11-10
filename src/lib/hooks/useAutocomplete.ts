@@ -180,6 +180,7 @@ export const useAutocomplete = <T extends AutocompleteOption>({
       ? 0
       : Math.min(highlightedIndex, suggestions.length - 1)
 
+  /** Builds the input value after inserting the selected option, preserving any surrounding text. */
   const buildValue = (option: T): string => {
     const insert = option.insertText ?? option.label
     const suffix = appendSpace ? ' ' : ''
@@ -191,6 +192,7 @@ export const useAutocomplete = <T extends AutocompleteOption>({
     return `${before}${trigger}${insert}${suffix}${after}`
   }
 
+  /** Selects an option, applies its generated input value, and dismisses the current suggestions. */
   const select = (option: T) => {
     if (!option) return
     const nextInputValue = buildValue(option)
@@ -199,11 +201,13 @@ export const useAutocomplete = <T extends AutocompleteOption>({
     setDismissedFor(nextInputValue)
   }
 
+  /** Closes the suggestions and dismisses them for the current input. */
   const close = () => {
     setSuggestions([])
     setDismissedFor(inputValue)
   }
 
+  /** Handles keyboard interactions for navigating, selecting, and dismissing suggestions while the dropdown is open. */
   const onKeyDown = (
     event: ReactKeyboardEvent<HTMLInputElement | HTMLTextAreaElement>,
   ): boolean => {

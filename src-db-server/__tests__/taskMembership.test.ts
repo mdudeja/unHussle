@@ -28,22 +28,27 @@ const roots: string[] = []
 afterAll(() => {
   for (const root of roots) rmSync(root, { recursive: true, force: true })
 })
+/** Extracts the identifiers from the given rows and returns them sorted. */
 const ids = (rows: { id: string }[]) => rows.map((row) => row.id).sort()
+/** Returns the IDs of the task items in a row. */
 const memberIds = (row: { tasks: { items: { id: string }[] } }) =>
   ids(row.tasks.items)
 
+/** Sets up an isolated in-memory database and vault with seeded areas, goals, projects, tasks, URLs, and resources for testing membership and backlink behavior. */
 async function fixture() {
   const database = new UnHussleDB(':memory:')
   const db = await database.getDb()
   const vaultDir = mkdtempSync(join(tmpdir(), 'membership-vault-'))
   roots.push(vaultDir)
   const runtime = createBackendRuntime(database, { vaultDir })
+  /** Creates a new entry of the given kind from the provided changes. */
   const create = async (kind: EntryKind, changes: Record<string, unknown>) =>
     (await runtime.commands.execute(`${commandHeadForKind[kind]}.add`, {
       kind,
       action: 'create',
       changes,
     })) as EntryRecord
+  /** Applies the specified changes to an existing entry identified by kind and id. */
   const change = (
     kind: EntryKind,
     id: string,

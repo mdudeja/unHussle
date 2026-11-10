@@ -11,10 +11,12 @@ const noEntities = {
   goals: [] as Goal['Read'][],
 }
 
+/** Parses task input to extract structured data. */
 const parse = (input: string, entities: Partial<typeof noEntities> = {}) =>
   parseDataFromTaskInput({ input, ...noEntities, ...entities })
 
 const now = Temporal.Now.plainDateISO()
+/** Returns the start of the day for a date. */
 const startOf = (date: Temporal.PlainDateLike) => getStartOfDayMillis(date)
 
 describe('parseDataFromTaskInput', () => {

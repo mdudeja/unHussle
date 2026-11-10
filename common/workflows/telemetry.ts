@@ -70,6 +70,7 @@ export type TelemetrySink = (span: Span) => void
 export const traceIdHeader = 'x-trace-id'
 export const parentSpanHeader = 'x-parent-span-id'
 
+/** Generates a new unique identifier. */
 export const newId = () => crypto.randomUUID()
 
 /** Keeps the name, message and stack, which `String(error)` drops. */
@@ -84,6 +85,7 @@ export function serializeError(error: unknown): SerializedError {
   }
 }
 
+/** Checks whether a value is a Promise. */
 const isPromise = (value: unknown): value is Promise<unknown> =>
   value instanceof Promise
 
@@ -103,6 +105,7 @@ export function createTelemetry({
   const buffer: Span[] = []
   const listeners = new Set<TelemetrySink>([...sinks])
 
+  /** Records a span for observability, keeping recent history and notifying listeners. */
   const record = (span: Span) => {
     buffer.push(span)
     if (buffer.length > bufferSize) buffer.shift()
@@ -114,6 +117,7 @@ export function createTelemetry({
       }
   }
 
+  /** Starts a new trace span for an operation and returns an active span handle for updating and ending it. */
   const start = (
     kind: SpanKind,
     name: string,
@@ -128,12 +132,15 @@ export function createTelemetry({
     return {
       traceId,
       spanId,
+      /** Updates the current attributes by merging in new attribute values. */
       setAttrs(next) {
         current = { ...current, ...next }
       },
+      /** Marks the current operation as failed and records the failure reason. */
       fail(reason) {
         error = serializeError(reason)
       },
+      /** Marks the end of the span and records its final timing, status, error details, and attributes. */
       end() {
         if (ended) return
         ended = true
@@ -208,6 +215,7 @@ export function createTelemetry({
       active.fail(error)
       active.end()
     },
+    /** Retrieves recent buffered spans, optionally narrowed by the given filter criteria and limited to the most recent matches. */
     recent({ traceId, kind, since, status, limit }: SpanFilter = {}) {
       const spans = buffer.filter(
         (span) =>
@@ -218,12 +226,14 @@ export function createTelemetry({
       )
       return limit ? spans.slice(-limit) : spans
     },
+    /** Registers a telemetry sink to receive telemetry updates until it is unsubscribed. */
     subscribe(listener: TelemetrySink) {
       listeners.add(listener)
       return () => {
         listeners.delete(listener)
       }
     },
+    /** Removes all data from the buffer. */
     clear() {
       buffer.length = 0
     },

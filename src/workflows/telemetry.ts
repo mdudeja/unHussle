@@ -9,8 +9,10 @@ export const frontendTelemetry = createTelemetry({
 
 /** Records uncaught errors and unhandled rejections as error spans. */
 export function captureGlobalErrors(telemetry = frontendTelemetry) {
+  /** Reports unhandled window errors to telemetry for monitoring and diagnostics. */
   const onError = (event: ErrorEvent) =>
     telemetry.error('window.error', event.error ?? event.message)
+  /** Reports unhandled promise rejections to telemetry as errors. */
   const onRejection = (event: PromiseRejectionEvent) =>
     telemetry.error('unhandledrejection', event.reason)
   window.addEventListener('error', onError)

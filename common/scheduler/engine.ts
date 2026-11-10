@@ -20,6 +20,7 @@ import { planRuleRegistry, rulesFor } from './ruleRegistry'
 
 type Interval = [number, number]
 
+/** Determines the urgency level of a plan entry by comparing its due date with the specified date in the given timezone. */
 function urgency(entry: PlanEntry, date: string, timezone: string) {
   if (entry.due === null) return 3
   const day = getLocalDateString(entry.due, timezone)
@@ -99,6 +100,7 @@ export function buildDay(
     entries.map((entry) => [entry.id, urgency(entry, date, timezone)]),
   )
 
+  /** Provides the urgency level assigned to a plan entry, using a default urgency when no specific value is available. */
   const urgencyOf = (entry: PlanEntry) => urgencyById.get(entry.id) ?? 3
 
   const anchors = resolveAnchors(entries)
@@ -113,6 +115,7 @@ export function buildDay(
     anchors.ordered.map((entry, index) => [entry.id, index]),
   )
 
+  /** Determines whether a plan entry is free to be moved or rescheduled. */
   const movable = (entry: PlanEntry) =>
     !entry.anchorId &&
     !anchors.anchorTasks.has(entry.taskId) &&
@@ -193,6 +196,7 @@ export function buildDay(
     return fits
   }
 
+  /** Attempts to place a plan entry and its related group into the day’s plan when ordering, capacity, and work limits allow, recording conflicts for required placements that cannot fit. */
   const place = (entry: PlanEntry, required: boolean, reason?: string) => {
     if (placed.has(entry.id) || !order.has(entry.id)) return
     const group = (anchors.groups.get(entry.id) ?? [entry])
@@ -229,6 +233,7 @@ export function buildDay(
     cue,
     settings,
     previous,
+    /** Provides the anchors that have not yet been placed. */
     get remaining() {
       return anchors.ordered.filter((entry) => !placed.has(entry.id))
     },
@@ -332,6 +337,7 @@ export function nextTask(
   if (appointment) return { item: appointment, upcoming: upcoming ?? null }
 
   const anchors = resolveAnchors(plan.entries)
+  /** Provides summarized scheduling and readiness information for a chain of plan entries. */
   const chainInfo = (chain: PlanEntry[]) => ({
     duration: chain
       .filter((member) => member.fixedStart === null)
@@ -349,6 +355,7 @@ export function nextTask(
     ),
   })
   const chains = new Map<PlanEntry[], ReturnType<typeof chainInfo>>()
+  /** Provides the chain information for the chain of adjacent plan entries that includes the given entry. */
   const chainOf = (entry: PlanEntry) => {
     const chain = anchors.adjacentGroups.get(entry.id) ?? [entry]
     let info = chains.get(chain)

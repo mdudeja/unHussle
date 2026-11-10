@@ -223,6 +223,7 @@ describe('Transactional command handlers', () => {
   test('supporter counts follow junction changes', async () => {
     const runtime = createBackendRuntime(database)
     const db = await database.getDb()
+    /** Retrieves the task, resource, and PGA counts associated with a title. */
     const countsOf = (title: string) =>
       db
         .select({
@@ -297,6 +298,7 @@ describe('Transactional command handlers', () => {
       action: 'create',
       changes: { title: 'Collection counts other' },
     })) as EntryRecord
+    /** Retrieves the task and resource counts for a project. */
     const countsOf = (id: string) =>
       db
         .select({
@@ -513,7 +515,7 @@ describe('Transactional command handlers', () => {
 
   test('unit of work rejects async transaction callbacks', async () => {
     await expect(
-      createUnitOfWork(database).transaction([async () => 1]),
+      createUnitOfWork(database).transaction(async () => 1),
     ).rejects.toThrow('must be synchronous')
   })
 })

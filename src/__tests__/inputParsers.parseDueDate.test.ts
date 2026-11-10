@@ -4,6 +4,7 @@ import { getStartOfDayMillis } from '@c/datetimeUtils'
 import { parseDueDate } from '@/lib/inputParsers/parseDueDate'
 
 const now = Temporal.Now.plainDateISO()
+/** Returns the start of the day for the given date. */
 const startOf = (date: Temporal.PlainDateLike) => getStartOfDayMillis(date)
 
 // Mirrors the intended rule: use the current year, rolling to next year when

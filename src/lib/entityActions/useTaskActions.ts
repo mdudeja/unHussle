@@ -25,6 +25,7 @@ const askedOvernight = (task: TaskLike, then: OvernightPrompt['then']) => {
   return true
 }
 
+/** Determines whether a task is in a closed state. */
 const isClosed = (task: TaskLike) =>
   task.status === ProgressStatus.COMPLETED ||
   task.status === ProgressStatus.CANCELLED

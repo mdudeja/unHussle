@@ -57,12 +57,15 @@ const tables = {
   urls,
   time_entries: timeEntries,
 }
+/** Represents an error raised when input cannot be read. */
 export class ReadInputError extends Error {}
 
 /** Read projections only; resource content is never queried here. */
 export class ReadModelsRepository {
+  /** Initializes the repository with its database dependency. */
   constructor(private readonly database: UnHussleDB) {}
 
+  /** Provides paginated entity references of a given kind, enriched with their tags and display metadata. */
   async references(
     kind: EntryKind,
     options: {
@@ -145,6 +148,7 @@ export class ReadModelsRepository {
     }
   }
 
+  /** Retrieves a detailed view of a container, including its direct relationships and a paginated set of associated tasks. */
   async detail(
     kind: ReadContainerKind,
     id: string,

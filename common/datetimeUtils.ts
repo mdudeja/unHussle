@@ -2,6 +2,7 @@ import { Temporal } from 'temporal-polyfill'
 import { addDaysToDate, parseCalendarDate } from '@c/calendarUtils'
 
 export const MINUTE_MS = 60_000
+/** Retrieves the identifier of the current time zone. */
 export const getTimeZoneId = () => Temporal.Now.timeZoneId()
 
 /** ISO calendar date of an instant in the requested timezone. */
@@ -56,24 +57,29 @@ export const getDayBoundsMillis = (
   getStartOfDayMillis(addDaysToDate(date, 1), timezone),
 ]
 
+/** Provides the current point in time. */
 export const getNow = (): Temporal.Instant => {
   return Temporal.Now.instant()
 }
 
+/** Provides the current Unix timestamp in milliseconds. */
 export const getNowMillis = (): number => {
   return Temporal.Now.instant().epochMilliseconds
 }
 
+/** Provides the millisecond timestamp for the start of a calendar day in the specified timezone. */
 export const getStartOfDayMillis = (
   date: Parameters<typeof parseCalendarDate>[0],
   timezone = getTimeZoneId(),
 ): number => getDateTimeMillis(date, '00:00', timezone)
 
+/** Provides the final moment of a calendar day as a millisecond timestamp. */
 export const getEndOfDayMillis = (
   date: Parameters<typeof parseCalendarDate>[0],
   timezone = getTimeZoneId(),
 ): number => getDateTimeMillis(date, '23:59:59.999', timezone)
 
+/** Formats a duration in seconds as a readable time string, showing hours only when applicable. */
 export const formatTimeDuration = (durationSeconds: number): string => {
   const hours = Math.floor(durationSeconds / 3600)
   const minutes = Math.floor((durationSeconds % 3600) / 60)
@@ -88,12 +94,14 @@ export const formatTimeDuration = (durationSeconds: number): string => {
   return `${pad(minutes)}:${pad(seconds)}`
 }
 
+/** Converts an epoch timestamp in milliseconds into a local date and time string. */
 export const formatDateTime = (millis: number): string => {
   const instant = Temporal.Instant.fromEpochMilliseconds(millis)
   const zonedDateTime = instant.toZonedDateTimeISO(Temporal.Now.timeZoneId())
   return zonedDateTime.toString({ fractionalSecondDigits: 0 })
 }
 
+/** Formats a date as a DD/MM/YYYY string. */
 export const formatDdMmYyyy = (date: Date): string =>
   `${String(date.getDate()).padStart(2, '0')}/${String(
     date.getMonth() + 1,

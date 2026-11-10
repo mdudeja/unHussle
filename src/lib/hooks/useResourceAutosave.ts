@@ -34,6 +34,7 @@ export function useResourceAutosave(id: string, baseHash: string | null) {
       onChange: setState,
     })
     autosaveRef.current = autosave
+    /** Ensures any pending autosave changes are flushed and persisted before the page is unloaded. */
     const flushBeforeUnload = () => void autosave.flush()
     window.addEventListener('beforeunload', flushBeforeUnload)
     return () => {

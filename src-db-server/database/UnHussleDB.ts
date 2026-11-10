@@ -6,12 +6,14 @@ import { migrate } from 'drizzle-orm/bun-sqlite/migrator'
 import { mkdirSync, existsSync } from 'node:fs'
 import { Logger } from '@c/Logger'
 
+/** Manages the application’s SQLite database, providing shared access to an initialized, migration-ready database instance. */
 export class UnHussleDB {
   private dbFilePath?: string
   private static instance: UnHussleDB | null = null
   private db: BunSQLiteDatabase<typeof schema> | null = null
   private dbReady: boolean = false
 
+  /** Initializes the database file path used by this instance. */
   constructor(file_path?: string) {
     this.dbFilePath =
       file_path ||
@@ -19,6 +21,7 @@ export class UnHussleDB {
       join(process.cwd(), './db/ecn.unhussle.sqlite')
   }
 
+  /** Returns the shared UnHussleDB instance, creating it when absent or replacing it when a different file path is requested. */
   public static getInstance(file_path?: string): UnHussleDB {
     if (
       !this.instance ||
@@ -29,6 +32,7 @@ export class UnHussleDB {
     return this.instance
   }
 
+  /** Indicates whether the database is ready for use. */
   public isReady() {
     return this.dbReady
   }
@@ -38,6 +42,7 @@ export class UnHussleDB {
     return this.dbFilePath
   }
 
+  /** Initializes the database by applying pending migrations and marking it ready for use. */
   private initDb() {
     if (!this.db) {
       throw new Error('Database not initialized')
@@ -52,6 +57,7 @@ export class UnHussleDB {
     this.dbReady = true
   }
 
+  /** Ensures the database is initialized and provides access to it for use. */
   public async getDb() {
     if (this.db && this.dbReady) {
       return this.db

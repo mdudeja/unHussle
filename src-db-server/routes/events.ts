@@ -57,6 +57,7 @@ export function createEventForwarder(
         },
       }
     },
+    /** Releases all resources held by the instance and resets its state. */
     dispose() {
       stop()
       clients.clear()
@@ -75,6 +76,7 @@ export type EventForwarder = ReturnType<typeof createEventForwarder>
 export const formatFrame = ({ id, name, payload }: EventFrame) =>
   `id: ${id}\ndata: ${JSON.stringify({ name, payload: payload ?? null })}\n\n`
 
+/** Creates the event streaming route that delivers forwarded events to clients over server-sent events. */
 export const createEventRoutes = (forwarder: EventForwarder) =>
   new Elysia({ name: 'events' }).get(
     '/events',
@@ -91,10 +93,13 @@ export const createEventRoutes = (forwarder: EventForwarder) =>
         headers['last-event-id'] ?? (query.lastEventId as string | undefined),
       )
       const lastEventId = Number.isInteger(parsed) ? parsed : undefined
+      /** Performs cleanup tasks when invoked. */
       let cleanup = () => {}
 
       const stream = new ReadableStream<Uint8Array>({
+        /** Starts streaming events to the client by replaying or resyncing buffered frames and forwarding new frames until the request is aborted. */
         start(controller) {
+          /** Writes a string to the output stream. */
           const write = (text: string) => {
             try {
               controller.enqueue(encoder.encode(text))
@@ -129,6 +134,7 @@ export const createEventRoutes = (forwarder: EventForwarder) =>
             }
           })
         },
+        /** Cancels the underlying source and performs necessary cleanup. */
         cancel() {
           cleanup()
         },

@@ -6,7 +6,7 @@ export const commandHandlerRegistry: CommandHandlers = {
   'entry.delete': ['deleteRow'],
   'entry.deleteAll': ['deleteAllRows'],
   'entity.add': [
-    'handler:entry.add',
+    'createRow',
     'validateTask',
     'trackTaskInterval',
     'updateSupporters',
@@ -17,7 +17,7 @@ export const commandHandlerRegistry: CommandHandlers = {
     'markPlansStale',
   ],
   'entity.change': [
-    'handler:entry.change',
+    'updateRow',
     'validateTask',
     'trackTaskInterval',
     'updateSupporters',
@@ -33,7 +33,7 @@ export const commandHandlerRegistry: CommandHandlers = {
     // and so are the stored file paths.
     'announceResourceLinks',
     'trashResourceFiles',
-    'handler:entry.delete',
+    'deleteRow',
     'deleteJunctions',
     'updateSupporterCounts',
     'updateCollectionCounts',
@@ -43,7 +43,7 @@ export const commandHandlerRegistry: CommandHandlers = {
   'entity.deleteAll': [
     'announceResourceLinks',
     'trashResourceFiles',
-    'handler:entry.deleteAll',
+    'deleteAllRows',
     'deleteJunctions',
     'updateSupporterCounts',
     'updateCollectionCounts',
@@ -51,14 +51,14 @@ export const commandHandlerRegistry: CommandHandlers = {
     'syncPlanMembership',
   ],
   'entityCollection.add': [
-    'handler:entry.add',
+    'createRow',
     'updateSupporters',
     'updateResourceLinks',
     'updateSupporterCounts',
     'updateCollectionCounts',
   ],
   'entityCollection.change': [
-    'handler:entry.change',
+    'updateRow',
     'updateSupporters',
     'updateResourceLinks',
     'updateSupporterCounts',
@@ -70,7 +70,7 @@ export const commandHandlerRegistry: CommandHandlers = {
     // Before the delete: member foreign keys are nulled once the row is gone.
     'announceAffectedEntities',
     'announceResourceLinks',
-    'handler:entry.delete',
+    'deleteRow',
     'deleteJunctions',
     'updateSupporterCounts',
     'markPlansStale',
@@ -80,21 +80,17 @@ export const commandHandlerRegistry: CommandHandlers = {
     'announceAffectedEntities',
     'announceResourceLinks',
     'trashResourceFiles',
-    'handler:entry.deleteAll',
+    'deleteAllRows',
     'deleteJunctions',
     'updateSupporterCounts',
     'markPlansStale',
   ],
   // Only tag changes affect schedules; markPlansStale ignores other supporters.
-  'entitySupporter.add': ['handler:entry.add', 'markPlansStale'],
-  'entitySupporter.change': ['handler:entry.change', 'markPlansStale'],
-  'entitySupporter.delete': [
-    'handler:entry.delete',
-    'deleteJunctions',
-    'markPlansStale',
-  ],
+  'entitySupporter.add': ['createRow', 'markPlansStale'],
+  'entitySupporter.change': ['updateRow', 'markPlansStale'],
+  'entitySupporter.delete': ['deleteRow', 'deleteJunctions', 'markPlansStale'],
   'entitySupporter.deleteAll': [
-    'handler:entry.deleteAll',
+    'deleteAllRows',
     'deleteJunctions',
     'markPlansStale',
   ],

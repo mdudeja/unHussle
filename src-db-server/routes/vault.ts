@@ -12,6 +12,7 @@ import { vaultInfo } from '@d/domain/vault'
 import { VaultConflict, VaultError } from '@d/vault/vault'
 import { operationIdHeader, traceOf } from './telemetry'
 
+/** Creates the vault HTTP routes for retrieving vault information, triggering rescans, and updating vault settings. */
 export function createVaultRoutes(
   database: UnHussleDB,
   runtime: ReturnType<typeof createBackendRuntime>,

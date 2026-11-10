@@ -18,17 +18,21 @@ export interface DbSlice<T extends DbEntityTypes> {
   getById: (id?: string | null) => T['Read'] | null
 }
 
+/** Creates a frontend store slice that manages a resource collection’s data and loading/error state for fetching, searching, adding, updating, removing, and resetting records. */
 export default function generateCreateDbConnectedStateSlice<
   T extends DbEntityTypes,
   K extends EntryKind,
 >(sliceName: K) {
   type State = { [key in K]: DbSlice<T> }
+  /** Creates a frontend store slice that manages a resource collection’s data and loading/error state for fetching, searching, adding, updating, removing, and resetting records. */
   const creator: StateCreator<State> = (_set, get, api) => {
+    /** Provides the frontend runtime for the current store. */
     const runtime = () =>
       getFrontendRuntime(api as unknown as StoreApi<StoreState>)
     const kind = sliceName
     const head = commandHeadForKind[kind]
     let pending = 0
+    /** Runs an asynchronous task while tracking its loading and error state. */
     const operation = async <R>(work: () => Promise<R>): Promise<R> => {
       pending++
       api.setState(

@@ -2,6 +2,7 @@ import { disposeFrontendRuntimes } from '@/workflows/runtime'
 import { afterAll } from 'bun:test'
 import { useStore } from '@/store'
 
+/** Resets all application data stores to restore the test database to a clean baseline for testing. */
 async function cleanupTestDatabase() {
   const state = useStore.getState()
 

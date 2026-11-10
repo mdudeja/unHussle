@@ -415,6 +415,7 @@ describe('Data Layer Tests', () => {
   })
 
   describe('Tags and URLs written with an entity', () => {
+    /** Provides repository-based mutation operations for tasks, projects, areas, and goals, returning hydrated entity data. */
     const repositories = () => {
       const uDB = UnHussleDB.getInstance(testDbPath)
       const entries = [
@@ -427,6 +428,7 @@ describe('Data Layer Tests', () => {
       return entries.map(([name, read]) => {
         const kind = `${name}s` as EntryKind
         const head = commandHeadForKind[kind]
+        /** Hydrates a mutation result with the complete entity data it references. */
         const hydrate = (result: MutationResult) =>
           runtime.hydrate<{
             id: string
@@ -468,12 +470,14 @@ describe('Data Layer Tests', () => {
       })
     }
 
+    /** Fetches the IDs of tags linked to an attached record. */
     const junctionTagIds = (attachedToId: string) =>
       db
         .select({ refId: schema.junctionTags.refId })
         .from(schema.junctionTags)
         .where(eq(schema.junctionTags.attachedToId, attachedToId))
         .all()
+    /** Retrieves the reference IDs of junction URLs associated with a given attached entity. */
     const junctionUrlIds = (attachedToId: string) =>
       db
         .select({ refId: schema.junctionUrls.refId })
@@ -617,13 +621,16 @@ describe('Data Layer Tests', () => {
       | 'goalProjectResource',
       string
     >
+    /** Supplies the IDs of an entitys tasks in sorted order so they can be compared or referenced consistently. */
     const taskIds = (entity: { tasks: { items: { id: string }[] } }) =>
       entity.tasks.items.map((task) => task.id).sort()
+    /** Fetches the detailed record for a selected area, goal, or project. */
     const detail = (kind: 'areas' | 'goals' | 'projects', id: string) =>
       new ReadModelsRepository(UnHussleDB.getInstance(testDbPath)).detail(
         kind,
         id,
       )
+    /** Arranges the provided string values in ascending order. */
     const sorted = (...values: string[]) => [...values].sort()
 
     beforeAll(async () => {
@@ -643,6 +650,7 @@ describe('Data Layer Tests', () => {
         .insert(schema.projects)
         .values({ title: 'Goal Project', goal_id: goal.id })
         .returning()
+      /** Adds a new task. */
       const addTask = async (values: Partial<Task['Write']>) =>
         (
           await db

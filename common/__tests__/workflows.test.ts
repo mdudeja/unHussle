@@ -2,6 +2,7 @@ import { describe, expect, test } from 'bun:test'
 import { createRuntime } from '@c/workflows/runtime'
 
 describe('Workflow runtime', () => {
+  /** Creates a runtime for saving numbers with an offset. */
   const make = () =>
     createRuntime<
       {

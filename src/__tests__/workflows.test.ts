@@ -42,6 +42,7 @@ function fakeEventStream() {
       handlers = undefined
     },
   }
+  /** Enqueues a unit of work to run sequentially after all previously queued work has completed. */
   const enqueue = (work: () => void | Promise<void> | undefined) => {
     queue = queue.then(work)
     return queue
@@ -54,6 +55,7 @@ function fakeEventStream() {
   }
 }
 
+/** Creates an isolated in-memory test fixture that simulates the backend services, event stream, storage, and telemetry needed to exercise the frontend runtime. */
 function fixture({
   initialStorage,
   emitEvents = true,
@@ -224,6 +226,7 @@ describe('Frontend workflows', () => {
   test('slice operations publish through the same runtime consumed by React', async () => {
     const runtime = getFrontendRuntime(useStore)
     const seen: string[] = []
+    /** Records task-related mutation events for tracking. */
     const record = (name: string, event: MutationEvent) => {
       if (event.kind === 'tasks') seen.push(`${name}:${event.action}`)
     }
@@ -608,6 +611,7 @@ describe('Frontend workflows', () => {
   })
 
   describe('telemetry', () => {
+    /** Finds the span with the given name. */
     const named = (spans: Span[], name: string) =>
       spans.find((span) => span.name === name)!
 

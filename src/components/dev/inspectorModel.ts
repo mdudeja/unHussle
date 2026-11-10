@@ -20,6 +20,7 @@ export type SpanStats = {
   p95: number
 }
 
+/** Computes the end time of a span. */
 const end = (span: Span) => span.start + span.durationMs
 
 /** Frontend and backend halves can overlap when fetched more than once. */
@@ -30,6 +31,7 @@ export const mergeSpans = (...groups: Span[][]) => {
   return [...byId.values()]
 }
 
+/** Finds the root span among a collection of spans, treating spans with no parent or a missing parent as roots and selecting the earliest-starting one. */
 const rootOf = (spans: Span[]) => {
   const ids = new Set(spans.map((span) => span.spanId))
   const roots = spans.filter(
@@ -79,6 +81,7 @@ export function waterfall(spans: Span[]): WaterfallRow[] {
 
   const t0 = Math.min(...spans.map((span) => span.start))
   const rows: WaterfallRow[] = []
+  /** Recursively traverses the span tree to build a flattened, depth-annotated list of spans for display. */
   const visit = (parent: string | undefined, depth: number) => {
     for (const span of children.get(parent) ?? []) {
       rows.push({ span, depth, offsetMs: span.start - t0 })
@@ -89,6 +92,7 @@ export function waterfall(spans: Span[]): WaterfallRow[] {
   return rows
 }
 
+/** Computes the percentile value from a sorted numeric array. */
 export const percentile = (sorted: number[], p: number) =>
   sorted.length
     ? sorted[Math.min(sorted.length - 1, Math.ceil(p * sorted.length) - 1)]

@@ -15,6 +15,7 @@ import {
 import type { HydratedGoal } from '@c/types/Hydrated'
 export type { HydratedGoal } from '@c/types/Hydrated'
 
+/** Provides repository access to goals and their associated data. */
 export class GoalsRepository
   extends BaseRepository<typeof goals>
   implements IRepository<Goal>
@@ -32,10 +33,12 @@ export class GoalsRepository
     area: { columns: referenceColumns },
   } as const
 
+  /** Initializes the goals repository. */
   constructor(dbInstance: UnHussleDB) {
     super(dbInstance, goals)
   }
 
+  /** Retrieves all goals with their associated data. */
   async getAll(): Promise<HydratedGoal[]> {
     const db = await this.getDb()
     if (!db) return []
@@ -46,6 +49,7 @@ export class GoalsRepository
     return withCollectionTotals(db, 'goals', goals.map(unwrapJunctions))
   }
 
+  /** Fetches one page of hydrated goals, enriched with their associated collection totals. */
   async getPaginated(page: number, pageSize: number): Promise<HydratedGoal[]> {
     const db = await this.getDb()
     if (!db) return []
@@ -58,6 +62,7 @@ export class GoalsRepository
     return withCollectionTotals(db, 'goals', goals.map(unwrapJunctions))
   }
 
+  /** Retrieves a hydrated goal by its unique identifier. */
   async getById(id: string): Promise<HydratedGoal | null> {
     const db = await this.getDb()
     if (!db) return null
@@ -70,6 +75,7 @@ export class GoalsRepository
     return withCollectionTotals(db, 'goals', [unwrapJunctions(goal)])[0]
   }
 
+  /** Searches for goals matching a query by title or associated tags. */
   async search(query: string, limit: number): Promise<HydratedGoal[]> {
     const db = await this.getDb()
     if (!db) return []
@@ -87,6 +93,7 @@ export class GoalsRepository
     return withCollectionTotals(db, 'goals', goals.map(unwrapJunctions))
   }
 
+  /** Retrieves hydrated goals for the given goal IDs. */
   async getByIds(ids: string[]): Promise<HydratedGoal[]> {
     const db = await this.getDb()
     if (!db || ids.length === 0) return []

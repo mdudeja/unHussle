@@ -19,6 +19,7 @@ type ResourceRow = Parameters<typeof unwrapJunctions>[0] & {
   links?: Parameters<typeof toResourceLinks>[0]
 }
 
+/** Repository responsible for retrieving and hydrating resource records, including related tags, URLs, and links, and optionally indicating whether their backing files are missing. */
 export class ResourcesRepository
   extends BaseRepository<typeof resources>
   implements IRepository<Resource>
@@ -53,6 +54,7 @@ export class ResourcesRepository
     })
   }
 
+  /** Retrieves all resources and hydrates them with their related data. */
   async getAll(): Promise<HydratedResource[]> {
     const db = await this.getDb()
     if (!db) return []
@@ -63,6 +65,7 @@ export class ResourcesRepository
     return this.hydrateAll(resources)
   }
 
+  /** Retrieves a paginated collection of hydrated resources from the database. */
   async getPaginated(
     page: number,
     pageSize: number,
@@ -78,6 +81,7 @@ export class ResourcesRepository
     return this.hydrateAll(resources)
   }
 
+  /** Retrieves a fully hydrated resource by its identifier. */
   async getById(id: string): Promise<HydratedResource | null> {
     const db = await this.getDb()
     if (!db) return null
@@ -89,6 +93,7 @@ export class ResourcesRepository
     return resource ? this.hydrateAll([resource])[0] : null
   }
 
+  /** Retrieves hydrated resources matching the specified IDs. */
   async getByIds(ids: string[]): Promise<HydratedResource[]> {
     const db = await this.getDb()
     if (!db || ids.length === 0) return []
@@ -100,6 +105,7 @@ export class ResourcesRepository
     return this.hydrateAll(resources)
   }
 
+  /** Finds resources relevant to a search query and returns them in hydrated form. */
   async search(query: string, limit: number): Promise<HydratedResource[]> {
     const db = await this.getDb()
     if (!db) return []

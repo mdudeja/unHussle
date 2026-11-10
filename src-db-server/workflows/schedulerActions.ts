@@ -54,6 +54,7 @@ type DayRequest = Extract<
   }
 >
 type DayMode = Pick<DayPlan, 'breakStartedAt' | 'wrapReason' | 'autoWrap'>
+/** Constructs a day mode object that represents the current break, wrapping, and auto-wrap state. */
 const modeOf = ({
   breakStartedAt,
   wrapReason,
@@ -104,9 +105,11 @@ export type SchedulerAction = (
   work: { tx: ScheduleTx },
 ) => void
 
+/** Represents a stale revision conflict requiring a refresh before further editing. */
 const staleRevision = () =>
   new ScheduleConflict('The plan changed. Refresh before editing it again.')
 
+/** Returns the day request input for scheduling when the current command is one that plans a day. */
 function dayRequest(state: SchedulerState): DayRequest['input'] {
   if (
     state.command === 'scheduler.settings.change' ||
@@ -117,6 +120,7 @@ function dayRequest(state: SchedulerState): DayRequest['input'] {
   return state.input
 }
 
+/** Provides access to the previously loaded and current days scheduler data once a plan is available. */
 function loaded(state: SchedulerState) {
   if (!state.previous || !state.today)
     throw new Error('loadPlan must run before this action')
@@ -159,6 +163,7 @@ export const schedulerActions: {
     const { change, reason = 'manual' } = state.input
     const { previous } = loaded(state)
     if (!previous.saved) throw new Error('Save the day before changing it')
+    /** Restores the previous result and marks the operation as complete. */
     const unchanged = () => {
       state.result = previous
       state.done = true

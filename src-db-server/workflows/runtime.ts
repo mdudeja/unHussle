@@ -1,9 +1,20 @@
+import { Type } from '@sinclair/typebox'
+import {
+  createCompositionRegistry,
+  executeWorkflow,
+  type CommandDefinition,
+} from '@c/workflows/composition'
+import {
+  mutationDefinition,
+  mutationInputSchema,
+  rowOutputSchema,
+  rowOutput,
+  createStateComposition,
+} from './composition'
 import { commandHeadForKind } from '@c/workflows/contracts'
-import type { BackendMutationCommands } from './contracts'
 import type {
   ActionContext,
   Announce,
-  CommandAction,
   TransactionWorkUnit,
 } from '@d/workflows/contracts'
 import { createRuntime } from '@c/workflows/runtime'
@@ -45,66 +56,7 @@ import { vaultActions } from '@d/workflows/vaultActions'
 import type { VaultState } from './contracts'
 import { vaultHandlerRegistry } from '@d/workflows/vaultHandlers'
 
-const supporterKinds: MutationInput['kind'][] = ['tags', 'urls', 'time_entries']
-
-/**
- * Goes through the list and replaces any action that starts with handler: with the actions for that handler, recursively.
- * and returns the cleaned list.
- * */
-function replaceNestedActions(
-  actionList: CommandAction[],
-  visited: Set<keyof BackendMutationCommands> = new Set(),
-): CommandAction[] {
-  const cleanedList: CommandAction[] = []
-  for (const action of actionList) {
-    if (action.startsWith('handler:')) {
-      const handlerName = action.replace(
-        'handler:',
-        '',
-      ) as keyof BackendMutationCommands
-
-      if (visited.has(handlerName)) {
-        throw new Error(`Circular command handler reference: ${handlerName}`)
-      }
-
-      const nestedActions = commandHandlerRegistry[handlerName]
-      if (nestedActions && nestedActions.length > 0) {
-        const replacedNestedActions = replaceNestedActions(
-          nestedActions,
-          new Set(visited).add(handlerName),
-        )
-        cleanedList.push(...replacedNestedActions)
-      }
-    } else {
-      cleanedList.push(action)
-    }
-  }
-  return cleanedList
-}
-
-/** Feeds an action's output into the input of the next action in the chain. */
-function carryForward(input: MutationInput, result: MutationResult) {
-  let ids: string[] | undefined
-  const next = { ...input }
-
-  if (Array.isArray(result)) {
-    ids = result.map((row) => row.id)
-  } else if (result && 'id' in result) {
-    next.id = result.id
-    ids = [result.id]
-  }
-
-  if (ids && (input.action === 'delete' || input.action === 'deleteAll')) {
-    if (supporterKinds.includes(input.kind)) {
-      next.ids = ids
-    } else {
-      next.attachedIds = ids
-    }
-  }
-
-  return next
-}
-
+/** Creates the backend runtime that provides the command, workflow, scheduling, and vault execution capabilities for the application. */
 export function createBackendRuntime(
   database: UnHussleDB,
   {
@@ -129,26 +81,25 @@ export function createBackendRuntime(
   /** Side effects outside the database that a command registers as it goes. */
   const sideEffects = () => {
     const undos: (() => void)[] = []
-    const afterCommits: (() => void)[] = []
+    const afterCommits: (() => void | Promise<void>)[] = []
     return {
       undos,
       afterCommits,
       compensate: (undo: () => void) => {
         undos.push(undo)
       },
-      afterCommit: (run: () => void) => {
+      afterCommit: (run: () => void | Promise<void>) => {
         afterCommits.push(run)
       },
     }
   }
 
   /**
-   * Runs work units in one transaction; a failure rolls the command back and
-   * undoes its file changes, newest first. After a commit, the after-commit
-   * cleanup runs; its failures are only logged.
+   * Runs a compiled composition in one transaction. Failure rolls back SQLite
+   * and compensates file changes newest first. Completion runs after publication.
    */
   const commit = async <T>(
-    work: TransactionWorkUnit<T>[],
+    work: TransactionWorkUnit<T>,
     trace?: SpanScope,
     effects?: ReturnType<typeof sideEffects>,
   ) => {
@@ -169,9 +120,17 @@ export function createBackendRuntime(
       trace?.setAttrs({ rolledBack: true })
       throw error
     }
-    for (const run of effects?.afterCommits ?? []) {
+    return result
+  }
+
+  /** Executes post-commit cleanup effects, logging any failures so they do not interrupt the remaining cleanup. */
+  const completeEffects = async (
+    effects: ReturnType<typeof sideEffects>,
+    trace?: SpanScope,
+  ) => {
+    for (const run of effects.afterCommits) {
       try {
-        run()
+        await run()
       } catch (error) {
         context.logger.error('Post-commit cleanup failed', {
           error,
@@ -179,7 +138,6 @@ export function createBackendRuntime(
         })
       }
     }
-    return result
   }
 
   /** Actions run inside the synchronous SQLite transaction, so their spans are too. */
@@ -197,19 +155,72 @@ export function createBackendRuntime(
         })
       : run()
 
+  const compositions = createCompositionRegistry<{
+    transaction: Parameters<TransactionWorkUnit<unknown>>[0]
+    actionContext: ActionContext<typeof context>
+    trace?: SpanScope
+  }>()
+  const rowActions = new Set([
+    'createRow',
+    'updateRow',
+    'deleteRow',
+    'deleteAllRows',
+  ])
+  for (const [name, action] of Object.entries(availableActions)) {
+    compositions.registerAction({
+      id: `kernel.mutation.${name}`,
+      description: name,
+      input: mutationInputSchema,
+      output: rowActions.has(name) ? rowOutputSchema : Type.Undefined(),
+      /** Runs a synchronous mutation action within the provided transaction and trace context, returning its result in the expected output form. */
+      run(value, { transaction, actionContext, trace }) {
+        const input = value as MutationInput
+        return spanAction(
+          trace,
+          name,
+          { kind: input.kind, verb: input.action },
+          () => {
+            const unit = action(name, input, actionContext)
+            if (unit instanceof Promise)
+              throw new Error(`Action ${name} must be synchronous`)
+            const result = unit(transaction)
+            if (result instanceof Promise)
+              throw new Error(`Action ${name} must be synchronous`)
+            return rowActions.has(name) ? rowOutput(input, result) : result
+          },
+        )
+      },
+    })
+  }
+  for (const [name, actions] of Object.entries(commandHandlerRegistry)) {
+    if (name.startsWith('entry.')) continue
+    compositions.registerCommand(mutationDefinition(name, actions), {
+      required: actions.map((action) => `kernel.mutation.${action}`),
+      protectBindings: true,
+    })
+  }
+  const schedulerCompositions = createStateComposition(
+    schedulerHandlerRegistry,
+    schedulerActions,
+    'kernel.scheduler',
+    (name, run, trace) => spanAction(trace, name, {}, run),
+  )
+  const vaultCompositions = createStateComposition(
+    vaultHandlerRegistry,
+    vaultActions,
+    'kernel.vault',
+    (name, run, trace) => spanAction(trace, name, {}, run),
+  )
+
   /** Publishes after commit; a failing listener never fails the command. */
   const publishAll = async (
     events: Parameters<Announce>[],
     operationId: string,
     meta: { traceId?: string; parentId?: string },
   ) => {
-    const outcomes = (
-      await Promise.all(
-        events.map(([name, payload]) =>
-          runtime.events.publish(name, payload, meta),
-        ),
-      )
-    ).flat()
+    const outcomes = []
+    for (const [name, payload] of events)
+      outcomes.push(...(await runtime.events.publish(name, payload, meta)))
     for (const outcome of outcomes)
       if (outcome.status === 'rejected')
         context.logger.error(`Post-commit listener failed (${operationId})`, {
@@ -243,17 +254,9 @@ export function createBackendRuntime(
           `Executing command: ${handlerName} for input: ${JSON.stringify(input)}`,
           { traceId: trace?.traceId },
         )
-        const actionsForCommand =
-          commandHandlerRegistry[handlerName as keyof MutationCommands]
-
-        if (!actionsForCommand || actionsForCommand.length === 0) {
-          return
-        }
-
         const operationId =
           input.operationId ?? trace?.traceId ?? crypto.randomUUID()
         const verb = handlerName.slice(handlerName.indexOf('.') + 1)
-        let currentInput: MutationInput = input
 
         // Announcements are held until commit and dropped on rollback.
         const announcements: Parameters<Announce>[] = []
@@ -268,39 +271,18 @@ export function createBackendRuntime(
           afterCommit: effects.afterCommit,
         }
 
-        // Units are built lazily so each action sees the previous action's output.
-        const work = replaceNestedActions(actionsForCommand).map(
-          (actionName): TransactionWorkUnit<MutationResult> =>
-            (transaction) => {
-              const action =
-                availableActions[actionName as keyof typeof availableActions]
-              if (!action) {
-                logger.warn(`Action not found: ${actionName}. Skipping...`)
-                return
-              }
-
-              return spanAction(
-                trace,
-                actionName,
-                { kind: input.kind, verb },
-                (span) => {
-                  const unit = action(actionName, currentInput, actionContext)
-                  if (unit instanceof Promise)
-                    throw new Error(
-                      `Action ${actionName} must return its work unit synchronously`,
-                    )
-
-                  const result = unit(transaction)
-                  currentInput = carryForward(currentInput, result)
-                  if (Array.isArray(result))
-                    span?.setAttrs({ rows: result.length })
-                  return result
-                },
-              )
-            },
+        // Preparation finishes before this single atomic execution. The result
+        // binding is explicit; all validation runs before SQLite can commit.
+        const result = await commit<MutationResult>(
+          (transaction) =>
+            compositions.execute(handlerName, input, {
+              transaction,
+              actionContext,
+              trace,
+            }) as MutationResult,
+          trace,
+          effects,
         )
-
-        const result = await commit(work, trace, effects)
 
         // Publish under the command (`entity.add`) and its kind (`tasks.add`)
         // so listeners can subscribe to a whole family or a single kind.
@@ -330,6 +312,7 @@ export function createBackendRuntime(
           meta,
         )
 
+        await completeEffects(effects, trace)
         return result
       },
     )
@@ -337,43 +320,30 @@ export function createBackendRuntime(
 
   // Scheduler commands run their registered actions over one carried state.
   for (const command of schedulerCommandNames)
-    runtime.commands.handle(command, async (_name, input, context, trace) => {
+    runtime.commands.handle(command, async (_name, input, _context, trace) => {
       const operationId =
         input.operationId ?? trace?.traceId ?? crypto.randomUUID()
       const announcements: Parameters<Announce>[] = []
-      const result = await commit(
-        [
-          (transaction) => {
-            const state = {
-              command,
-              input,
-              now: now(),
-              settings: readSettings(transaction.tx),
-              publication: {
-                operationId,
-                announce: (name, payload) => {
-                  announcements.push([name, payload])
-                },
-              },
-            } as SchedulerState
-            for (const actionName of schedulerHandlerRegistry[command]) {
-              if (state.done) break
-              const action = schedulerActions[actionName]
-              if (!action) {
-                context.logger.warn(
-                  `Scheduler action not found: ${actionName}. Skipping...`,
-                )
-                continue
-              }
-              spanAction(trace, actionName, { command }, () =>
-                action(actionName, state, transaction),
-              )
-            }
-            return state.result
+      const result = await commit((transaction) => {
+        const state = {
+          command,
+          input,
+          now: now(),
+          settings: readSettings(transaction.tx),
+          publication: {
+            operationId,
+            announce: (name, payload) => {
+              announcements.push([name, payload])
+            },
           },
-        ],
-        trace,
-      )
+        } as SchedulerState
+        schedulerCompositions.execute(command, input, {
+          transaction,
+          state,
+          trace,
+        })
+        return state.result
+      }, trace)
       await publishAll(
         [
           ...announcements,
@@ -396,33 +366,23 @@ export function createBackendRuntime(
         input.operationId ?? trace?.traceId ?? crypto.randomUUID()
       const effects = sideEffects()
       const result = await commit(
-        [
-          (transaction) => {
-            const state = {
-              command,
-              input,
-              now: now(),
-              vault: context.vault,
-              root: context.vault.root(transaction.tx),
-              compensate: effects.compensate,
-              afterCommit: effects.afterCommit,
-            } as VaultState
-            for (const actionName of vaultHandlerRegistry[command]) {
-              if (state.done) break
-              const action = vaultActions[actionName]
-              if (!action) {
-                context.logger.warn(
-                  `Vault action not found: ${actionName}. Skipping...`,
-                )
-                continue
-              }
-              spanAction(trace, actionName, { command }, () =>
-                action(actionName, state, transaction),
-              )
-            }
-            return state.result
-          },
-        ],
+        (transaction) => {
+          const state = {
+            command,
+            input,
+            now: now(),
+            vault: context.vault,
+            root: context.vault.root(transaction.tx),
+            compensate: effects.compensate,
+            afterCommit: effects.afterCommit,
+          } as VaultState
+          vaultCompositions.execute(command, input, {
+            transaction,
+            state,
+            trace,
+          })
+          return state.result
+        },
         trace,
         effects,
       )
@@ -438,12 +398,36 @@ export function createBackendRuntime(
         operationId,
         { traceId: trace?.traceId, parentId: trace?.spanId },
       )
+      await completeEffects(effects, trace)
       return result as VaultCommands[typeof command]['result']
     })
 
   return {
     ...runtime,
     vault: context.vault,
+    compositions: {
+      definition: (id: string) => compositions.definition(id),
+      replaceCommand: (definition: CommandDefinition) =>
+        compositions.replaceCommand(definition),
+    },
+    workflows: {
+      execute: (
+        steps: {
+          id: string
+          command: keyof (MutationCommands & SchedulerCommands & VaultCommands)
+          input: unknown
+        }[],
+      ) =>
+        executeWorkflow(steps, (command, input) =>
+          runtime.commands.execute(
+            command as keyof (MutationCommands &
+              SchedulerCommands &
+              VaultCommands),
+            input as never,
+          ),
+        ),
+    },
+    /** Hydrates a committed mutation result by loading the persisted entity so callers receive the fully hydrated record. */
     async hydrate<T>(
       result: MutationResult,
       read: (id: string) => Promise<T | null>,

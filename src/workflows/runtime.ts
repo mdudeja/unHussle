@@ -72,6 +72,7 @@ const queryKindToLabel: Record<string, string> = {
   time_entries: 'time entries',
 }
 
+/** Creates the frontend runtime that connects the application store to backend services and event streams, coordinating commands, reactions, tracking, and cached queries for the frontend. */
 export function createFrontendRuntime(
   store: StoreApi<StoreState>,
   options: {
@@ -98,6 +99,7 @@ export function createFrontendRuntime(
   const transport = options.transport ?? createEventTransport({ telemetry })
   // Local operations in flight, so their events join the command's trace.
   const traces = new Map<string, TraceMeta>()
+  /** Retrieves the trace metadata associated with an operation, falling back to a minimal trace identifier when no recorded trace exists. */
   const traceOf = (operationId: string | undefined): TraceMeta =>
     (operationId && traces.get(operationId)) || { traceId: operationId }
   const eventTimeoutMs = options.eventTimeoutMs ?? 3000
@@ -115,11 +117,13 @@ export function createFrontendRuntime(
   const services: Record<EntryKind, EntryTransport> =
     options.services ?? entityServices
 
+  /** Updates the application store with the latest records for the specified entry kind. */
   const projectRecord = (kind: EntryKind, data: EntryRecord[]) => {
     if (disposed) return
     store.setState((state) => ({ [kind]: { ...state[kind], data } }))
   }
 
+  /** Defines the query used to load a paginated list of entries so the list can be fetched and managed consistently by the query system. */
   const defineList = (kind: EntryKind, page = 1) => {
     const key = `list:${kind}:${page}`
     queries.define({
@@ -131,14 +135,17 @@ export function createFrontendRuntime(
     return key
   }
 
+  /** Ensures the requested entry list is available. */
   const ensureList = (kind: EntryKind, page = 1) =>
     queries.ensure<EntryRecord[]>(defineList(kind, page))
 
+  /** Dismisses a warning by removing it from the active warnings. */
   const dismissWarning = (id: string) =>
     ui.setState(({ warnings }) => ({
       warnings: warnings.filter((warning) => warning.id !== id),
     }))
 
+  /** Warns that changes were saved but related data failed to refresh, and provides a way to retry the refresh. */
   const warnRefresh = (
     operationId: string,
     key: string,
@@ -182,6 +189,7 @@ export function createFrontendRuntime(
     }))
   }
 
+  /** Invalidates cached query data for the specified dependency kinds and extra keys, warning about any refresh failures. */
   const invalidate = async (
     operationId: string,
     kinds: QueryDependency[],
@@ -376,6 +384,7 @@ export function createFrontendRuntime(
     })
 
   let lifecycleQueue: Promise<unknown> = Promise.resolve()
+  /** Serializes asynchronous work by queuing tasks so they run sequentially in order, preventing overlap. */
   const serialize = <T>(work: () => Promise<T>) => {
     const result = lifecycleQueue.then(work)
     lifecycleQueue = result.catch(() => {})
@@ -443,6 +452,7 @@ export function createFrontendRuntime(
   // Saves of one resource go out one at a time, so an older save can never
   // land after a newer one. Other vault commands share one queue.
   const vaultQueues = new Map<string, Promise<unknown>>()
+  /** Ensures asynchronous work queued under the same key runs sequentially, preventing overlapping tasks for that key while allowing different keys to proceed independently. */
   const queueVault = <T>(key: string, work: () => Promise<T>) => {
     const result = (vaultQueues.get(key) ?? Promise.resolve()).then(work)
     const tail = result.catch(() => {})
@@ -499,6 +509,7 @@ export function createFrontendRuntime(
       ),
     )
 
+  /** Transitions a task to a new status and applies requested changes while keeping active tracking aligned with the task’s progress. */
   const transitionTask = async (
     { id, status, changes = {} }: Transition,
     trace?: SpanScope,
@@ -618,12 +629,14 @@ export function createFrontendRuntime(
     },
   )
 
+  /** Fetches the list of entries for the requested kind and page, ensuring cached data is refreshed when needed. */
   const fetchList = async (kind: EntryKind, page = 1) => {
     const key = defineList(kind, page)
     queries.markStale(key)
     return queries.ensure<EntryRecord[]>(key)
   }
 
+  /** Searches entries of a specified kind for the given term. */
   const search = async (kind: EntryKind, term: string) => {
     const key = `search:${kind}:${term}`
     queries.define({
@@ -634,6 +647,7 @@ export function createFrontendRuntime(
     return queries.ensure<EntryRecord[]>(key)
   }
 
+  /** Releases all resources and shuts down active services cleanly. */
   const dispose = () => {
     disposed = true
     transport.close()
@@ -660,6 +674,7 @@ export function createFrontendRuntime(
   }
 }
 
+/** Identifies the entry kinds associated with the given entry kind for dependency tracking. */
 export function dependencies(kind: EntryKind): EntryKind[] {
   const hydrated: EntryKind[] = [
     'tasks',
@@ -679,6 +694,7 @@ export type FrontendRuntime = ReturnType<typeof createFrontendRuntime>
 let instances = new WeakMap<StoreApi<StoreState>['getState'], FrontendRuntime>()
 const liveInstances = new Set<FrontendRuntime>()
 
+/** Retrieves the shared frontend runtime for a store, creating and registering it when one does not already exist. */
 export function getFrontendRuntime(store: StoreApi<StoreState>) {
   let runtime = instances.get(store.getState)
   if (!runtime) {
@@ -689,6 +705,7 @@ export function getFrontendRuntime(store: StoreApi<StoreState>) {
   return runtime
 }
 
+/** Disposes all active frontend runtimes and clears the tracking of live instances. */
 export function disposeFrontendRuntimes() {
   for (const runtime of liveInstances) runtime.dispose()
   liveInstances.clear()

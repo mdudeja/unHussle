@@ -54,12 +54,14 @@ export const months: Record<
   december: { variations: ['dec', 'december'], monthInt: 12, numberOfDays: 31 },
 }
 
+/** Provides the weekday names ordered by their day of the week. */
 export const getSortedWeekdayNames = (): string[] => {
   return Object.keys(weekdays).sort(
     (a, b) => weekdays[a].dayOfWeek - weekdays[b].dayOfWeek,
   )
 }
 
+/** Provides the names of the months in calendar order. */
 export const getSortedMonthNames = (): string[] => {
   return Object.keys(months).sort(
     (a, b) => months[a].monthInt - months[b].monthInt,

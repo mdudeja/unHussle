@@ -35,7 +35,6 @@ export type CommandAction =
   | 'announceResourceLinks'
   | 'syncResourceFile'
   | 'trashResourceFiles'
-  | `handler:${keyof BackendMutationCommands}`
 
 export type CommandHandlers = {
   [K in keyof BackendMutationCommands]?: CommandAction[]
@@ -62,7 +61,7 @@ export type PublicationContext = {
 export type ActionContext<Context> = Context &
   PublicationContext & {
     compensate: (undo: () => void) => void
-    afterCommit: (run: () => void) => void
+    afterCommit: (run: () => void | Promise<void>) => void
   }
 
 export type TransactionContext = {
@@ -85,7 +84,7 @@ export type VaultState = VaultRequest & {
   vault: Vault
   root: string
   compensate: (undo: () => void) => void
-  afterCommit: (run: () => void) => void
+  afterCommit: (run: () => void | Promise<void>) => void
   resource?: Resource['Read']
   /** Vault files not stored on any row. */
   unindexed?: Set<string>

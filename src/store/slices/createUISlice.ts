@@ -25,6 +25,7 @@ export interface UISlice {
   closeOvernight: () => void
 }
 
+/** Creates the UI state slice that tracks database readiness and manages editor and overnight prompt state. */
 export const createUISlice: StateCreator<UISlice> = (set) => ({
   isDBReady: false,
   checkDBReady: async () => {

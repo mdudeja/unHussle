@@ -18,6 +18,7 @@ type HashtagParseResult = {
   textWithoutTags: string
 }
 
+/** Parses hashtags in text to identify references to existing projects, areas, and goals and to collect any remaining tags. */
 export const parseHashtags = ({
   text,
   existingProjects,

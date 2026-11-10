@@ -15,6 +15,7 @@ import { Goal, WithSupporters } from '@c/types/index'
 import type { FieldConfig, FieldOption } from '../types'
 import { priorityOptions, statusOptions } from '../utils'
 
+/** Generates the field definitions for creating and editing a goal, covering the inputs needed to capture and manage its core information. */
 export const createGoalFields = ({
   areas,
 }: {

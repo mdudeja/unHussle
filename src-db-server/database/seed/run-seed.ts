@@ -5,6 +5,7 @@ import { areasData, goalsData } from '@d/database/seed/data'
 import { eq } from 'drizzle-orm'
 import { Logger } from '@c/Logger'
 
+/** Populates the database with default areas and goals when neither table already contains data. */
 export const runSeed = async ({
   areasToSeed,
   goalsToSeed,

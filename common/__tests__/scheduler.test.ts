@@ -22,6 +22,7 @@ const date = '2026-11-02'
 const timezone = 'UTC'
 const now = getDateTimeMillis(date, '07:00', timezone)
 const settings = { ...defaultSchedulerSettings, overrides: {} }
+/** Creates a new scheduler task with default properties, applying any supplied overrides. */
 function task(id: string, changes: Partial<SchedulerTask> = {}): SchedulerTask {
   return {
     id,
@@ -56,6 +57,7 @@ function task(id: string, changes: Partial<SchedulerTask> = {}): SchedulerTask {
     ...changes,
   }
 }
+/** Builds a day plan by preparing the given tasks and scheduling them into the day according to the provided options. */
 function plan(
   tasks: SchedulerTask[],
   extra: Partial<Omit<Parameters<typeof buildDay>[0], 'candidates'>> &
@@ -558,6 +560,7 @@ test('paused one-off work resumes before new work of the same priority, but not 
 })
 
 describe('Day modes', () => {
+  /** Generates a task plan and marks the resulting schedule as saved. */
   const saved = (
     tasks: SchedulerTask[],
     extra: Parameters<typeof plan>[1] = {},

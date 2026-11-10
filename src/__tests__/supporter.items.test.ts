@@ -34,6 +34,7 @@ describe('Supporter containment over HTTP', () => {
   let nestedTaskId: string
   let resourceId: string
   let expected: string[]
+  /** Returns the sorted identifiers from a collection of rows. */
   const ids = (rows: { id: string }[]) => rows.map((row) => row.id).sort()
 
   beforeAll(async () => {

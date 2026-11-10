@@ -44,6 +44,7 @@ export function useSchedulerClock(intervalMs = 60_000) {
   return { now, sync }
 }
 
+/** Provides the day plan for a given date and timezone and keeps it refreshed when the window regains focus. */
 export function useDayPlan(date: string, timezone: string) {
   const runtime = useWorkflowRuntime()
   const key = `schedule:day:${timezone}:${date}`
@@ -57,6 +58,7 @@ export function useDayPlan(date: string, timezone: string) {
     await runtime.queries.ensure(key)
   }, [runtime, key])
   useEffect(() => {
+    /** Refreshes the current data when focus is received. */
     const onFocus = () => {
       void refresh().catch(() => {})
     }
@@ -66,6 +68,7 @@ export function useDayPlan(date: string, timezone: string) {
   return { ...query, refresh }
 }
 
+/** Manages today’s schedule plan, including automatic generation, wrap-up transitions, and timely refreshes as the day progresses. */
 export function useTodayPlan() {
   const { now, sync } = useSchedulerClock()
   const timezone = getTimeZoneId()
@@ -135,9 +138,11 @@ export function useTodayPlan() {
   }
 }
 
+/** Manages busy and error state while running asynchronous scheduler actions. */
 export function useSchedulerAction() {
   const [busy, setBusy] = useState(false)
   const [error, setError] = useState<string | null>(null)
+  /** Runs an asynchronous action while managing the surrounding busy and error state. */
   const run = async (work: () => Promise<unknown>) => {
     setBusy(true)
     setError(null)
@@ -156,6 +161,7 @@ export function useSchedulerAction() {
   return { busy, error, run }
 }
 
+/** Creates a namespaced key for identifying skipped entries associated with a specific date. */
 const skippedKey = (date: string) => `unhussle.skipped:${date}`
 
 /**
@@ -179,6 +185,7 @@ export function useSkippedTasks(date: string) {
   // A new day starts with nothing skipped.
   const ids = state.date === date ? state.ids : read()
   if (state.date !== date) setState({ date, ids })
+  /** Persists the current days skipped item IDs and clears skip records from earlier days. */
   const save = (next: string[]) => {
     // Earlier days' skips are never read again.
     for (const key of Object.keys(localStorage))
@@ -205,6 +212,7 @@ export const overnightKey = (
   startedAt: number,
 ) => `${taskId}|${occurrenceId ?? ''}|${startedAt}`
 
+/** Reads the persisted overnight answer from browser local storage when available. */
 const readOvernightAnswer = () =>
   typeof localStorage === 'undefined'
     ? null

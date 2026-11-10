@@ -7,6 +7,7 @@ import {
   type SchedulerTask,
 } from './contracts'
 
+/** Validates scheduler settings to ensure they are consistent and safe to use, rejecting invalid time windows, durations, tags, override dates, or scheduling rule references. */
 export function validateSettings(settings: SchedulerSettings) {
   for (const dayWindow of [settings, ...Object.values(settings.overrides)]) {
     if (compareTimes(dayWindow.sleep, dayWindow.wake) <= 0)
@@ -44,6 +45,7 @@ export function validateSettings(settings: SchedulerSettings) {
   }
 }
 
+/** Validates that a scheduler task’s recurrence settings are well-formed and internally consistent, ensuring recurring tasks have valid rules, calendar selections, and time slots. */
 export function validateRecurrence(
   task: Pick<SchedulerTask, 'is_recurring' | 'recurrance_rule' | 'anchor_slot'>,
 ) {

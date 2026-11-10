@@ -31,6 +31,7 @@ const server = Bun.spawn([process.execPath, 'run', 'src-db-server/server.ts'], {
 })
 type RequestMetric = { method: string; path: string; bytes: number }
 let requests: RequestMetric[] = []
+/** Send an HTTP request to the configured API and return its parsed JSON response, throwing if the request fails. */
 async function request<T>(
   path: string,
   method = 'GET',

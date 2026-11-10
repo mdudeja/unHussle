@@ -46,7 +46,9 @@ export function parseFrames(buffer: string): { frames: Frame[]; rest: string } {
   return { frames, rest }
 }
 
+/** Creates a promise that can be resolved externally at a later time. */
 const deferred = () => {
+  /** Resolves the pending operation. */
   let resolve = () => {}
   const promise = new Promise<void>((done) => {
     resolve = done
@@ -54,12 +56,14 @@ const deferred = () => {
   return { promise, resolve }
 }
 
+/** Provides the default URL for the local events endpoint. */
 const defaultUrl = () =>
   `http://localhost:${import.meta.env.VITE_DB_SERVER_PORT}/events`
 
 /** A frame's data: the backend event name and its payload. */
 type WireEvent = { name: string; payload: unknown }
 
+/** Dispatches incoming wire events to the appropriate handler, routing resync messages to the resync handler and other events to the event handler. */
 const dispatch = async (handlers: EventHandlers, data: string) => {
   const { name, payload } = JSON.parse(data) as WireEvent
   if (name === 'resync') await handlers.onResync()
@@ -118,17 +122,20 @@ export function createEventSourceTransport({
   // `EventSource` fires synchronously; handlers still run one at a time, in order.
   let queue = Promise.resolve()
 
+  /** Schedules a task to run after previously enqueued tasks complete, ensuring failures are logged without interrupting the queue. */
   const enqueue = (task: () => void | Promise<void>) => {
     queue = queue.then(task).catch((error: unknown) => {
       logger.error('Event handling failed', { error })
     })
   }
 
+  /** Disconnects the current connection and resets its state so a new connection can be established. */
   const disconnect = () => {
     if (connected) connection = deferred()
     connected = false
   }
 
+  /** Establishes and maintains an event stream connection, delivering incoming messages and recovering from disconnects. */
   const open = (handlers: EventHandlers) => {
     const target = lastEventId
       ? `${url}${url.includes('?') ? '&' : '?'}lastEventId=${encodeURIComponent(lastEventId)}`
@@ -162,12 +169,14 @@ export function createEventSourceTransport({
   }
 
   return {
+    /** Starts the connection and begins dispatching events to the provided handlers, ensuring it only starts once and not after closure. */
     connect(handlers) {
       if (started || closed) return
       started = true
       open(handlers)
     },
     ready: () => connection.promise,
+    /** Closes the connection and stops any pending retry or reconnection activity. */
     close() {
       closed = true
       clearTimeout(retry)
@@ -203,11 +212,13 @@ export function createSseTransport({
   let connected = false
   let abort: AbortController | undefined
 
+  /** Disconnects the current connection and clears its active state so it can be re-established later. */
   const disconnect = () => {
     if (connected) connection = deferred()
     connected = false
   }
 
+  /** Maintains a resilient server-sent event stream connection, dispatching incoming events to handlers and reconnecting after disconnections. */
   const run = async (handlers: EventHandlers) => {
     let opened = false
     while (!closed) {
@@ -260,12 +271,14 @@ export function createSseTransport({
   }
 
   return {
+    /** Starts handling events with the provided handlers if the connection has not already started or been closed. */
     connect(handlers) {
       if (started || closed) return
       started = true
       void run(handlers)
     },
     ready: () => connection.promise,
+    /** Closes the connection and aborts any ongoing operation. */
     close() {
       closed = true
       abort?.abort()

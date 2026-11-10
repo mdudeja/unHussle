@@ -14,6 +14,7 @@ import {
 import type { HydratedArea } from '@c/types/Hydrated'
 export type { HydratedArea } from '@c/types/Hydrated'
 
+/** Provides repository access to area records and their related data. */
 export class AreasRepository
   extends BaseRepository<typeof areas>
   implements IRepository<Area>
@@ -28,10 +29,12 @@ export class AreasRepository
 
   private readonly listRelations = { tags: withTags } as const
 
+  /** Creates an areas repository backed by the application database. */
   constructor(dbInstance: UnHussleDB) {
     super(dbInstance, areas)
   }
 
+  /** Retrieves all areas with their related data and collection totals. */
   async getAll(): Promise<HydratedArea[]> {
     const db = await this.getDb()
     if (!db) return []
@@ -42,6 +45,7 @@ export class AreasRepository
     return withCollectionTotals(db, 'areas', areas.map(unwrapJunctions))
   }
 
+  /** Retrieves a page of areas with their related data and collection totals. */
   async getPaginated(page: number, pageSize: number): Promise<HydratedArea[]> {
     const db = await this.getDb()
     if (!db) return []
@@ -54,6 +58,7 @@ export class AreasRepository
     return withCollectionTotals(db, 'areas', areas.map(unwrapJunctions))
   }
 
+  /** Retrieves a fully hydrated area, including its related data and collection totals, for the given identifier. */
   async getById(id: string): Promise<HydratedArea | null> {
     const db = await this.getDb()
     if (!db) return null
@@ -66,6 +71,7 @@ export class AreasRepository
     return withCollectionTotals(db, 'areas', [unwrapJunctions(area)])[0]
   }
 
+  /** Finds areas matching a search query by title or tag and returns them with their collection totals. */
   async search(query: string, limit: number): Promise<HydratedArea[]> {
     const db = await this.getDb()
     if (!db) return []
@@ -83,6 +89,7 @@ export class AreasRepository
     return withCollectionTotals(db, 'areas', areas.map(unwrapJunctions))
   }
 
+  /** Retrieves the areas corresponding to the specified IDs. */
   async getByIds(ids: string[]): Promise<HydratedArea[]> {
     const db = await this.getDb()
     if (!db || ids.length === 0) return []

@@ -29,8 +29,10 @@ const paths: Record<keyof SchedulerCommands, string> = {
   'scheduler.occurrence.transition': 'occurrence',
   'scheduler.tracking.stop': 'tracking/stop',
 }
+/** Builds a URL for a scheduler endpoint on the local database server. */
 const url = (path: string) =>
   `http://localhost:${import.meta.env.VITE_DB_SERVER_PORT || '3456'}/scheduler/${path}`
+/** Reads JSON data from a specified source, optionally for a given timezone. */
 const read = <T>(path: string, timezone?: string) =>
   makeJSONRequest<T>({
     url: url(

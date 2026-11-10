@@ -2,6 +2,7 @@ import { describe, expect, test } from 'bun:test'
 import { createRuntime } from '@c/workflows/runtime'
 import { createTelemetry, serializeError } from '@c/workflows/telemetry'
 
+/** Creates a runtime instance paired with telemetry for backend use. */
 const make = (telemetry = createTelemetry({ side: 'backend' })) => {
   const runtime = createRuntime<
     {

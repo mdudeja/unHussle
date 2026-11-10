@@ -115,7 +115,9 @@ function fixture({ emit = true } = {}) {
     },
     telemetry: createTelemetry({ side: 'frontend' }),
   })
+  /** Provides a namespaced key for identifying content resources. */
   const contentKey = (id: string) => `content:resources:${id}`
+  /** Watches content so that it is loaded and made available through the runtime’s query system. */
   const watchContent = (id: string) => {
     runtime.queries.define({
       key: contentKey(id),
@@ -125,6 +127,7 @@ function fixture({ emit = true } = {}) {
     runtime.queries.activate(contentKey(id))
     return runtime.queries.ensure(contentKey(id))
   }
+  /** Emits a named event with its associated payload to the configured event handlers. */
   const emitEvent = (name: string, payload: unknown) =>
     handlers?.onEvent(name, payload)
   return {

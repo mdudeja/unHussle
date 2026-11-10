@@ -9,10 +9,12 @@ import { Logger } from '@c/Logger'
 const WINDOWS_DRIVE = /^[A-Za-z]:[\\/]/
 const WINDOWS_DRIVE_PATHNAME = /^\/[A-Za-z]:\//
 
+/** Checks whether a URL is a file URL. */
 export const isFileUrl = (url: string): boolean => /^file:\/\//i.test(url)
 
 /** Turns an absolute path (POSIX, Windows drive or UNC) into a file:// URL. */
 export function pathToFileUrl(path: string): string {
+  /** Creates a URL-safe path from a sequence of path segments. */
   const encode = (segments: string[]) =>
     segments.map((segment) => encodeURIComponent(segment)).join('/')
 

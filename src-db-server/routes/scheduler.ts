@@ -34,6 +34,7 @@ const dayRequest = {
   query: schedulerDayQuerySchema,
 }
 
+/** Creates the scheduler HTTP routes that expose planning, preview, settings, and occurrence/tracking operations for the backend. */
 export function createSchedulerRoutes(
   database: UnHussleDB,
   runtime: ReturnType<typeof createBackendRuntime>,

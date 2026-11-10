@@ -11,9 +11,11 @@ import type { PublicationContext } from '@d/workflows/contracts'
 import { trackInterval, pauseInterval } from './tracking'
 
 const statuses = new Set<string>(Object.values(ProgressStatus))
+/** Determines whether a value represents a valid progress status. */
 const isProgressStatus = (value: unknown): value is ProgressStatus =>
   typeof value === 'string' && statuses.has(value)
 
+/** Announces that the specified tasks have changed, notifying listeners of task updates. */
 export function announceTaskChanges(
   taskIds: string[],
   { operationId, announce }: PublicationContext,
@@ -104,6 +106,7 @@ export function transitionOccurrence(
     .run()
 }
 
+/** Records a task occurrences transition to a new progress status and propagates any resulting schedule changes to affected tasks. */
 export function trackOccurrenceTransition(
   tx: ScheduleTx,
   id: string,

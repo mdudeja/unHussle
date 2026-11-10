@@ -14,6 +14,7 @@ describe('Backend event stream', () => {
     await database.getDb()
   })
 
+  /** Creates a new task in the backend. */
   const addTask = (
     runtime: ReturnType<typeof createBackendRuntime>,
     title: string,
@@ -56,6 +57,7 @@ describe('Backend event stream', () => {
     ])
     unsubscribe()
 
+    /** Obtains the IDs of events available for replay, or indicates that a full resynchronization is required. */
     const ids = (lastEventId?: number) => {
       const { replay, unsubscribe } = forwarder.subscribe(() => {}, lastEventId)
       unsubscribe()
@@ -135,9 +137,11 @@ describe('Backend event stream', () => {
   test('a silent stream outlives the server idle timeout', async () => {
     const runtime = createBackendRuntime(database)
     const forwarder = createEventForwarder(runtime)
+    /** Creates a silent server-sent events response that instructs the client to retry after two seconds and emits no events. */
     const silent = () =>
       new Response(
         new ReadableStream({
+          /** Initializes the event stream by instructing the client to retry after 2000 milliseconds. */
           start(controller) {
             controller.enqueue(new TextEncoder().encode('retry: 2000\n\n'))
           },
@@ -151,6 +155,7 @@ describe('Backend event stream', () => {
       .listen(0)
     const base = `http://localhost:${app.server!.port}`
 
+    /** Reads a response body incrementally until the specified marker is encountered, capturing the text received up to that point. */
     const readUntil = async (path: string, marker: string) => {
       const response = await fetch(`${base}${path}`)
       const reader = response.body!.getReader()
