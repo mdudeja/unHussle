@@ -1,10 +1,11 @@
+import { taskPageQuerySchema } from './readModels'
 import { UrlsRepository } from '@d/database/repositories/urls'
 import { urls } from '@d/database/schemas'
 import { UnHussleDB } from '@d/database/UnHussleDB'
 import {
   insertUrlsSchema,
   selectUrlsSchema,
-  selectSupporterItemsSchema,
+  selectContainerDetailSchema,
   updateUrlsSchema,
 } from '@d/database/validation'
 import { routeGenerator } from '@d/routes/routegenerator'
@@ -29,9 +30,12 @@ const urlRoutes = routeGenerator({
 
 urlRoutes.get(
   '/:id/items',
-  async ({ params: { id } }) =>
-    Value.Parse(selectSupporterItemsSchema, await items.getItems('urls', id)),
-  { response: selectSupporterItemsSchema },
+  async ({ params: { id }, query }) =>
+    Value.Parse(
+      selectContainerDetailSchema,
+      await items.getItems('urls', id, query),
+    ),
+  { query: taskPageQuerySchema, response: selectContainerDetailSchema },
 )
 
 export { urlRoutes }

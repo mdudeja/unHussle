@@ -284,7 +284,7 @@ Environment variables (see `.env.template`):
 | Scheduler   | `day_plans`, `plan_items`, `task_occurrences`, `scheduling_overrides`, `scheduler_settings` | Saved stacks per `timezone:date` with their day mode (`break_started_at`, `wrap_reason`, `auto_wrap`), recurring occurrences (`taskId:date:slot`), deferrals, and settings. |
 
 Shared row types (`Read` / `Write` / `Update`) and hydrated shapes live in
-`common/types`. Hydrated reads include relations, tags, URLs and time entries.
+`common/types`. List reads include table projections and reference labels. Flat edit reads include direct attachments; task history stays in task detail reads.
 
 ---
 
@@ -439,14 +439,27 @@ domain/
 `${commandHeadForKind[kind]}.add|change|delete|deleteAll` and return the
 hydrated row.
 
-**Membership reads.** `database/repositories/taskMembership.ts` defines the
-fixed SQL containment predicates used by task retrieval and resolved totals.
-All collection read methods use them, with one batched membership query per
-collection page. `SupporterItemsRepository` shares tag/URL read orchestration.
-`count_tasks` remains a direct-assignment/attachment count;
-`resolved_task_total` is the deduplicated task total returned by collection
-reads and tag/URL items reads. Editable collections, resources, tags and URLs
-remain direct-only; upward task context is a separate read.
+**Membership and read projections.** `database/repositories/taskMembership.ts`
+defines the SQL containment predicates shared by paged task retrieval and
+resolved totals. Collection lists never embed descendant task arrays. Their
+`count_tasks` remains the direct-assignment count and `resolved_task_total` is
+computed with a batched count query.
+
+`GET /projects|goals|areas|tags|urls/:id/detail` returns
+`{ item, directRelations, tasks: { items, total, nextCursor } }`.
+Filtering and ordering happen in SQL before pagination and projection fetching.
+Task pages default to 20 rows (maximum 100), support title search, status,
+priority and task flags, and use cursors scoped to the container, filters and
+ordering. Tag/URL `/:id/items` routes use the same explicit response shape.
+Direct attachments remain separate from derived task membership and upward
+context. Flat `GET /:kind/:id` edit reads preserve direct editable attachments.
+
+`GET /:kind/references` supplies lightweight id/title, collection icon/color
+and tag labels for selectors and autocomplete, with search, selected IDs and
+continuation. Badges render the supplied label even when its collection is
+absent from the loaded list. Task table projections contain open timer
+intervals; task edit reads retain their full own history. Resource content is
+excluded from all these projections.
 
 **Contracts.** Public commands/events are in `common/workflows/contracts.ts`.
 Backend execution types live in `src-db-server/workflows/contracts.ts`. Runtime

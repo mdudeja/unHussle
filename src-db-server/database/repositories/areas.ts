@@ -1,4 +1,4 @@
-import { withCollectionTasks } from './taskMembership'
+import { withCollectionTotals } from './taskMembership'
 import { Area, areas } from '../schemas'
 import { UnHussleDB } from '../UnHussleDB'
 import { IRepository } from './IRepository.interface'
@@ -26,6 +26,8 @@ export class AreasRepository
     urls: withUrls,
   } as const
 
+  private readonly listRelations = { tags: withTags } as const
+
   constructor(dbInstance: UnHussleDB) {
     super(dbInstance, areas)
   }
@@ -35,9 +37,9 @@ export class AreasRepository
     if (!db) return []
 
     const areas = await db.query.areas.findMany({
-      with: this.relations,
+      with: this.listRelations,
     })
-    return withCollectionTasks(db, 'areas', areas.map(unwrapJunctions))
+    return withCollectionTotals(db, 'areas', areas.map(unwrapJunctions))
   }
 
   async getPaginated(page: number, pageSize: number): Promise<HydratedArea[]> {
@@ -45,11 +47,11 @@ export class AreasRepository
     if (!db) return []
 
     const areas = await db.query.areas.findMany({
-      with: this.relations,
+      with: this.listRelations,
       limit: pageSize,
       offset: page * pageSize,
     })
-    return withCollectionTasks(db, 'areas', areas.map(unwrapJunctions))
+    return withCollectionTotals(db, 'areas', areas.map(unwrapJunctions))
   }
 
   async getById(id: string): Promise<HydratedArea | null> {
@@ -61,7 +63,7 @@ export class AreasRepository
       with: this.relations,
     })
     if (!area) return null
-    return withCollectionTasks(db, 'areas', [unwrapJunctions(area)])[0]
+    return withCollectionTotals(db, 'areas', [unwrapJunctions(area)])[0]
   }
 
   async search(query: string, limit: number): Promise<HydratedArea[]> {
@@ -76,9 +78,9 @@ export class AreasRepository
           inArray(areas.id, taggedIds(db, pattern)),
         ),
       limit,
-      with: this.relations,
+      with: this.listRelations,
     })
-    return withCollectionTasks(db, 'areas', areas.map(unwrapJunctions))
+    return withCollectionTotals(db, 'areas', areas.map(unwrapJunctions))
   }
 
   async getByIds(ids: string[]): Promise<HydratedArea[]> {
@@ -87,8 +89,8 @@ export class AreasRepository
 
     const areas = await db.query.areas.findMany({
       where: (areas, { inArray }) => inArray(areas.id, ids),
-      with: this.relations,
+      with: this.listRelations,
     })
-    return withCollectionTasks(db, 'areas', areas.map(unwrapJunctions))
+    return withCollectionTotals(db, 'areas', areas.map(unwrapJunctions))
   }
 }

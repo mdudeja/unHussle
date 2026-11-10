@@ -1,3 +1,4 @@
+import { ReadModelsRepository } from '@d/database/repositories/readModels'
 import type { Url } from '@d/database/schemas/urls.schema'
 import { createBackendRuntime } from '@d/workflows/runtime'
 import {
@@ -616,8 +617,13 @@ describe('Data Layer Tests', () => {
       | 'goalProjectResource',
       string
     >
-    const taskIds = (entity: { tasks?: { id: string }[] } | null) =>
-      (entity?.tasks ?? []).map((task) => task.id).sort()
+    const taskIds = (entity: { tasks: { items: { id: string }[] } }) =>
+      entity.tasks.items.map((task) => task.id).sort()
+    const detail = (kind: 'areas' | 'goals' | 'projects', id: string) =>
+      new ReadModelsRepository(UnHussleDB.getInstance(testDbPath)).detail(
+        kind,
+        id,
+      )
     const sorted = (...values: string[]) => [...values].sort()
 
     beforeAll(async () => {
@@ -673,7 +679,7 @@ describe('Data Layer Tests', () => {
         UnHussleDB.getInstance(testDbPath),
       ).getById(ids.area)
 
-      expect(taskIds(area)).toEqual(
+      expect(taskIds(await detail('areas', ids.area))).toEqual(
         sorted(ids.areaTask, ids.sharedTask, ids.goalTask, ids.goalProjectTask),
       )
       // Resources stay direct-only: forms are filled from this row
@@ -692,20 +698,18 @@ describe('Data Layer Tests', () => {
         UnHussleDB.getInstance(testDbPath),
       ).getById(ids.goal)
 
-      expect(taskIds(goal)).toEqual(sorted(ids.goalTask, ids.goalProjectTask))
+      expect(taskIds(await detail('goals', ids.goal))).toEqual(
+        sorted(ids.goalTask, ids.goalProjectTask),
+      )
       expect(goal?.area).not.toHaveProperty('tasks')
     })
 
     test('project includes direct tasks without parent or sibling tasks', async () => {
-      const projects = new ProjectsRepository(
-        UnHussleDB.getInstance(testDbPath),
-      )
-
-      expect(taskIds(await projects.getById(ids.goalProject))).toEqual(
+      expect(taskIds(await detail('projects', ids.goalProject))).toEqual(
         sorted(ids.goalProjectTask),
       )
       // A task with multiple paths still appears only once in its project.
-      expect(taskIds(await projects.getById(ids.areaProject))).toEqual(
+      expect(taskIds(await detail('projects', ids.areaProject))).toEqual(
         sorted(ids.sharedTask),
       )
     })

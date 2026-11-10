@@ -1,3 +1,6 @@
+import { TasksRepository } from '@d/database/repositories/tasks'
+import { Priority, ProgressStatus } from '@c/types/enums'
+import { ReadModelsRepository } from '@d/database/repositories/readModels'
 import { afterAll, describe, expect, test } from 'bun:test'
 import { mkdtempSync, rmSync } from 'node:fs'
 import { join } from 'node:path'
@@ -7,7 +10,6 @@ import { createBackendRuntime } from '@d/workflows/runtime'
 import { AreasRepository } from '@d/database/repositories/areas'
 import { GoalsRepository } from '@d/database/repositories/goals'
 import { ProjectsRepository } from '@d/database/repositories/projects'
-import { TasksRepository } from '@d/database/repositories/tasks'
 import { SupporterItemsRepository } from '@d/database/repositories/supporterItems'
 import {
   countTaskMembership,
@@ -27,8 +29,8 @@ afterAll(() => {
   for (const root of roots) rmSync(root, { recursive: true, force: true })
 })
 const ids = (rows: { id: string }[]) => rows.map((row) => row.id).sort()
-const memberIds = (row: { tasks?: { id: string }[] } | null) =>
-  ids(row?.tasks ?? [])
+const memberIds = (row: { tasks: { items: { id: string }[] } }) =>
+  ids(row.tasks.items)
 
 async function fixture() {
   const database = new UnHussleDB(':memory:')
@@ -91,7 +93,6 @@ async function fixture() {
     title: 'Goal context',
     links: [{ kind: 'goals', id: base.goal.id }],
   })
-  const task = new TasksRepository(database)
   const supporters = new SupporterItemsRepository(database)
   const allAreaTasks = [
     ...Object.entries(base.tasks)
@@ -113,7 +114,6 @@ async function fixture() {
     database,
     db,
     runtime,
-    task,
     supporters,
     create,
     change,
@@ -130,6 +130,161 @@ async function fixture() {
 }
 
 describe('Task membership containment', () => {
+  test('task pages filter before limiting, keep totals and visit every member once', async () => {
+    const f = await fixture()
+    try {
+      const reads = new ReadModelsRepository(f.database)
+      for (const kind of ['areas', 'tags', 'urls'] as const) {
+        const id =
+          kind === 'areas' ? f.area.id : kind === 'tags' ? f.tag.id : f.url.id
+        const seen: string[] = []
+        let cursor: string | undefined
+        do {
+          const detail = await reads.detail(kind, id, {
+            limit: 2,
+            cursor,
+            sort: 'updated_at',
+            direction: 'desc',
+          })
+          expect(detail.tasks.items.length).toBeLessThanOrEqual(2)
+          expect(detail.tasks.total).toBe(f.allAreaTasks.length)
+          seen.push(...detail.tasks.items.map((row) => row.id))
+          cursor = detail.tasks.nextCursor ?? undefined
+          expect(detail.item).not.toHaveProperty('tasks')
+        } while (cursor)
+        expect(seen.sort()).toEqual(f.allAreaTasks)
+        expect(new Set(seen).size).toBe(seen.length)
+      }
+      const target = await f.create('tasks', {
+        title: 'Unique filtered task',
+        area_id: f.area.id,
+        is_fun: true,
+      })
+      const filtered = await reads.detail('areas', f.area.id, {
+        q: 'Unique filtered',
+        is_fun: 'true',
+        limit: 1,
+      })
+      expect(ids(filtered.tasks.items)).toEqual([target.id])
+      expect(filtered.tasks.total).toBe(1)
+      expect(filtered.tasks.nextCursor).toBeNull()
+      const first = await reads.detail('areas', f.area.id, { limit: 1 })
+      expect(first.tasks.nextCursor).not.toBeNull()
+      await expect(
+        reads.detail('areas', f.area.id, {
+          cursor: first.tasks.nextCursor!,
+          q: 'different',
+        }),
+      ).rejects.toThrow('Invalid task cursor')
+      await expect(
+        reads.detail('projects', f.project.id, {
+          cursor: first.tasks.nextCursor!,
+        }),
+      ).rejects.toThrow('Invalid task cursor')
+      await expect(
+        reads.detail('areas', f.area.id, { cursor: 'broken' }),
+      ).rejects.toThrow('Invalid task cursor')
+      await expect(
+        reads.detail('areas', f.area.id, { limit: 101 }),
+      ).rejects.toThrow('Limit')
+    } finally {
+      f.runtime.dispose()
+    }
+  })
+
+  test('list projections retain active tracking without carrying closed history', async () => {
+    const f = await fixture()
+    try {
+      const reads = new ReadModelsRepository(f.database)
+      const tasks = new TasksRepository(f.database)
+      await f.change('tasks', f.tasks.directProject, {
+        status: ProgressStatus.IN_PROGRESS,
+      })
+      const active = await reads.detail('projects', f.project.id)
+      expect(
+        active.tasks.items.find((row) => row.id === f.tasks.directProject)
+          ?.timeEntries,
+      ).toHaveLength(1)
+      await f.change('tasks', f.tasks.directProject, {
+        status: ProgressStatus.PAUSED,
+      })
+      const paused = await reads.detail('projects', f.project.id)
+      expect(
+        paused.tasks.items.find((row) => row.id === f.tasks.directProject)
+          ?.timeEntries,
+      ).toEqual([])
+      expect(
+        (await tasks.getById(f.tasks.directProject))?.timeEntries,
+      ).toHaveLength(1)
+      await f.change('tasks', f.tasks.directProject, { priority: Priority.LOW })
+      await f.change('tasks', f.tasks.multiplePaths, {
+        priority: Priority.HIGH,
+      })
+      const first = await reads.detail('projects', f.project.id, {
+        sort: 'priority',
+        limit: 1,
+      })
+      expect(first.tasks.items[0].id).toBe(f.tasks.directProject)
+      const second = await reads.detail('projects', f.project.id, {
+        sort: 'priority',
+        limit: 1,
+        cursor: first.tasks.nextCursor!,
+      })
+      expect(second.tasks.items[0].id).toBe(f.tasks.multiplePaths)
+      expect(second.tasks.nextCursor).toBeNull()
+    } finally {
+      f.runtime.dispose()
+    }
+  })
+
+  test('reference projections contain labels and metadata without entity trees or content', async () => {
+    const f = await fixture()
+    try {
+      const reads = new ReadModelsRepository(f.database)
+      const ref = await reads.references('projects', { ids: [f.project.id] })
+      expect(ref.items[0]).toMatchObject({
+        id: f.project.id,
+        title: f.project.title,
+      })
+      expect(ref.items[0].tags?.map((row) => row.title)).toContain(
+        String(f.tag.title),
+      )
+      for (const key of [
+        'tasks',
+        'resources',
+        'description',
+        'custom_data',
+        'content',
+      ])
+        expect(ref.items[0]).not.toHaveProperty(key)
+      const all: string[] = []
+      let cursor: string | undefined
+      do {
+        const page = await reads.references('projects', { limit: 1, cursor })
+        all.push(...page.items.map((row) => row.id))
+        cursor = page.nextCursor ?? undefined
+      } while (cursor)
+      expect(new Set(all).size).toBe(all.length)
+      expect(all).toContain(f.project.id)
+      const search = await reads.references('projects', {
+        q: String(f.tag.title),
+      })
+      expect(ids(search.items)).toContain(f.project.id)
+      expect(
+        (await reads.references('resources', { ids: [f.resource.id] }))
+          .items[0],
+      ).not.toHaveProperty('content')
+      const detail = await reads.detail('projects', f.project.id)
+      expect(detail.tasks.items[0].project?.title).toBe(String(f.project.title))
+      expect(detail.tasks.items[0].project).not.toHaveProperty('description')
+      expect(detail.tasks.items[0]).not.toHaveProperty('resources')
+      expect(detail.tasks.items[0]).not.toHaveProperty('urls')
+      expect(detail.directRelations.resources).toEqual([])
+    } finally {
+      f.runtime.dispose()
+    }
+  })
+
   test('resolved totals are computed reads and cannot overwrite direct counts', async () => {
     const f = await fixture()
     try {
@@ -181,13 +336,21 @@ describe('Task membership containment', () => {
         ]
         for (const row of outputs) {
           expect(row).toBeDefined()
-          expect(memberIds(row!)).toEqual(expected)
+          expect(row).not.toHaveProperty('tasks')
+          expect(
+            memberIds(
+              await new ReadModelsRepository(f.database).detail(kind, owner.id),
+            ),
+          ).toEqual(expected)
           expect(row?.resolved_task_total).toBe(expected.length)
           // Every baseline collection has exactly two directly assigned tasks.
           expect(row?.count_tasks).toBe(2)
         }
         expect(
-          ids(await f.task.getByMembership({ kind, id: owner.id })),
+          ids(
+            (await new ReadModelsRepository(f.database).detail(kind, owner.id))
+              .tasks.items,
+          ),
         ).toEqual(expected)
         expect(countTaskMembership(f.db, { kind, id: owner.id })).toBe(
           expected.length,
@@ -205,22 +368,24 @@ describe('Task membership containment', () => {
       try {
         const id = kind === 'tags' ? f.tag.id : f.url.id
         const items = await f.supporters.getItems(kind, id)
-        expect(ids(items.tasks)).toEqual(f.allAreaTasks)
-        expect(items.resolved_task_total).toBe(items.tasks.length)
-        expect(countTaskMembership(f.db, { kind, id })).toBe(items.tasks.length)
-        expect(new Set(items.tasks.map((task) => task.id)).size).toBe(
-          items.tasks.length,
+        expect(ids(items.tasks.items)).toEqual(f.allAreaTasks)
+        expect(items.tasks.total).toBe(items.tasks.items.length)
+        expect(countTaskMembership(f.db, { kind, id })).toBe(
+          items.tasks.items.length,
         )
-        expect(ids(items.projects)).toEqual([f.project.id])
-        expect(ids(items.areas)).toEqual([f.area.id])
-        expect(items.goals).toEqual([])
-        expect(ids(items.resources)).toEqual([f.resource.id])
-        expect(ids(items.tasks)).not.toContain(f.tasks.unrelated)
+        expect(new Set(items.tasks.items.map((task) => task.id)).size).toBe(
+          items.tasks.items.length,
+        )
+        expect(ids(items.directRelations.projects)).toEqual([f.project.id])
+        expect(ids(items.directRelations.areas)).toEqual([f.area.id])
+        expect(items.directRelations.goals).toEqual([])
+        expect(ids(items.directRelations.resources)).toEqual([f.resource.id])
+        expect(ids(items.tasks.items)).not.toContain(f.tasks.unrelated)
         expect(
-          items.tasks.find((task) => task.id === f.tasks.multiplePaths)
+          items.tasks.items.find((task) => task.id === f.tasks.multiplePaths)
             ?.tags?.[0].title,
         ).toBe(String(f.tag.title))
-        expect(items.resources[0]).not.toHaveProperty('content')
+        expect(items.directRelations.resources[0]).not.toHaveProperty('content')
       } finally {
         f.runtime.dispose()
       }
@@ -245,13 +410,13 @@ describe('Task membership containment', () => {
               : [{ url: supporter.url }],
         })
         const items = await f.supporters.getItems(kind, supporter.id)
-        expect(ids(items.tasks)).toEqual(
+        expect(ids(items.tasks.items)).toEqual(
           [f.tasks.directProject, f.tasks.multiplePaths].sort(),
         )
-        expect(items.resolved_task_total).toBe(2)
-        expect(ids(items.projects)).toEqual([f.project.id])
-        expect(items.areas).toEqual([])
-        expect(items.goals).toEqual([])
+        expect(items.tasks.total).toBe(2)
+        expect(ids(items.directRelations.projects)).toEqual([f.project.id])
+        expect(items.directRelations.areas).toEqual([])
+        expect(items.directRelations.goals).toEqual([])
       } finally {
         f.runtime.dispose()
       }
@@ -276,11 +441,11 @@ describe('Task membership containment', () => {
               : [{ url: supporter.url }],
         })
         const items = await f.supporters.getItems(kind, supporter.id)
-        expect(ids(items.tasks)).toEqual(f.goalTasks)
-        expect(items.resolved_task_total).toBe(f.goalTasks.length)
-        expect(ids(items.goals)).toEqual([f.goal.id])
-        expect(items.projects).toEqual([])
-        expect(items.areas).toEqual([])
+        expect(ids(items.tasks.items)).toEqual(f.goalTasks)
+        expect(items.tasks.total).toBe(f.goalTasks.length)
+        expect(ids(items.directRelations.goals)).toEqual([f.goal.id])
+        expect(items.directRelations.projects).toEqual([])
+        expect(items.directRelations.areas).toEqual([])
       } finally {
         f.runtime.dispose()
       }
@@ -291,7 +456,14 @@ describe('Task membership containment', () => {
     const f = await fixture()
     try {
       const area = await new AreasRepository(f.database).getById(f.otherArea.id)
-      expect(memberIds(area)).toEqual([f.crossTask.id])
+      expect(
+        memberIds(
+          await new ReadModelsRepository(f.database).detail(
+            'areas',
+            f.otherArea.id,
+          ),
+        ),
+      ).toEqual([f.crossTask.id])
       expect(area?.resolved_task_total).toBe(1)
       expect(area?.count_tasks).toBe(0)
       const project = await new ProjectsRepository(f.database).getById(
@@ -328,7 +500,9 @@ describe('Task membership containment', () => {
         'urls',
       ] as const) {
         const container: TaskContainer = { kind, id: 'missing' }
-        expect(await f.task.getByMembership(container)).toEqual([])
+        await expect(
+          new ReadModelsRepository(f.database).detail(kind, 'missing'),
+        ).rejects.toThrow('NOT_FOUND')
         expect(countTaskMembership(f.db, container)).toBe(0)
       }
       for (const kind of ['tags', 'urls'] as const) {
@@ -338,13 +512,10 @@ describe('Task membership containment', () => {
             ? { title: 'Empty membership' }
             : { url: 'https://empty.example/' },
         )
-        expect(await f.supporters.getItems(kind, row.id)).toEqual({
-          tasks: [],
-          projects: [],
-          areas: [],
-          goals: [],
-          resources: [],
-          resolved_task_total: 0,
+        expect((await f.supporters.getItems(kind, row.id)).tasks).toEqual({
+          items: [],
+          total: 0,
+          nextCursor: null,
         })
         await expect(f.supporters.getItems(kind, 'missing')).rejects.toThrow(
           'NOT_FOUND',
@@ -367,14 +538,21 @@ describe('Task membership containment', () => {
       )
       // multiplePaths remains a direct member of the original goal and area.
       expect(
-        ids(await f.task.getByMembership({ kind: 'goals', id: f.goal.id })),
+        ids(
+          (
+            await new ReadModelsRepository(f.database).detail(
+              'goals',
+              f.goal.id,
+            )
+          ).tasks.items,
+        ),
       ).toEqual(remainingGoalTasks)
       expect(countTaskMembership(f.db, { kind: 'goals', id: f.goal.id })).toBe(
         remainingGoalTasks.length,
       )
       // The tag still directly owns this project as well as the old area.
       expect(
-        ids((await f.supporters.getItems('tags', f.tag.id)).tasks),
+        ids((await f.supporters.getItems('tags', f.tag.id)).tasks.items),
       ).toEqual(f.allAreaTasks)
     } finally {
       f.runtime.dispose()

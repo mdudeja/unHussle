@@ -100,23 +100,32 @@ Both frontend and sidecar share these aliases.
 - `UnHussleDB` is a singleton. `getDb()` opens SQLite (foreign keys, WAL),
   runs migrations, and marks the DB ready. There are no prepared statements.
   Reads go through `database/repositories/*`.
-- **Repositories** (`IRepository`: `getAll`, `getPaginated`, `getById`,
-  `search`, plus `getByIds` / `getByMembership` where needed) return hydrated rows:
-  relations, tags, URLs, time entries and resources are unwrapped from the junctions.
-  Every collection read resolves tasks through `repositories/taskMembership.ts`:
-  projects include direct tasks, goals include direct/project tasks, and areas
-  include direct tasks and descendants through projects, goals and goals' projects.
-  `withCollectionTasks` batches membership for all rows in a collection page;
-  task retrieval and counts share SQL predicates and deduplicate by task ID.
-  `count_tasks` stays direct-only; read-only `resolved_task_total` is the resolved
-  total. Nested collection lists and editable attachments remain direct-only.
-  Upward task context is separate and never copied into editable links.
-- `SupporterItemsRepository` owns `GET /tags/:id/items` and `/urls/:id/items` reads:
-  `{ tasks, projects, areas, goals, resources, resolved_task_total }`. Tasks include
-  direct attachments and descendants of attached collections; the other arrays
-  are direct attachments only. Resource backlinks do not discover tasks.
+- **Read projections** (`database/repositories/*`): list/search reads fetch scalar
+  rows with the direct tags and reference labels needed by their tables. Task
+  tables include only open tracking intervals; `getById` remains the flat edit
+  read with direct attachments and full own interval history. Junctions are
+  unwrapped with the shared helpers. Collection rows never contain task arrays.
+  `withCollectionTotals` computes read-only `resolved_task_total` in one batched
+  count query; `count_tasks` remains direct-only.
+- **Detail reads** (`repositories/readModels.ts`): `GET /:kind/:id/detail` for
+  projects, goals, areas, tags and URLs returns `{ item, directRelations, tasks:
+  { items, total, nextCursor } }`. Membership comes from `taskMembership.ts`,
+  then SQL filters/orders/limits IDs before fetching task table projections in
+  batches. Task cursors are scoped to container, filters and ordering. The
+  default page is 20, maximum 100. Related panels use these server pages.
+  `SupporterItemsRepository` also serves this shape at `/tags/:id/items` and
+  `/urls/:id/items`. Direct relations never acquire descendant attachments;
+  resource backlinks do not discover tasks. Upward task context stays separate.
+- **References**: `GET /:kind/references` returns `{ items, total, nextCursor }`
+  with id/title, collection icon/color and direct tag labels. Supports `q`,
+  comma-separated `ids`, `cursor`, and `limit` (maximum 100). Selectors,
+  autocomplete and brain dump use reference queries; badges render supplied
+  labels rather than consulting paginated store lists. Plain select inputs
+  follow reference continuations while mounted. Resource content stays outside
+  every entity/detail/reference projection.
 - `routeGenerator` (`src-db-server/routes/routegenerator.ts`) provides
   `GET /`, `GET /paginated/:page/:pageSize`, `GET /:id`, `GET /search/:term`
+  plus `/references` and `/:id/detail` reads
   (leading `#` stripped, limit `VITE_SEARCH_RESULTS_COUNT`), `POST /`,
   `PATCH /:id`, `DELETE /:id` and `DELETE /all` (`{ deleted: n }`). Extra routes
   are chained onto the generated plugin (e.g. `GET /tags/:id/items` and `/urls/:id/items`,
@@ -411,7 +420,7 @@ like the scheduler):
     once. Put kind-specific behaviour on kind events.
 - Reads go through the query coordinator (`queries.ts`, `useWorkflowQuery`):
   - keys look like `list:<kind>:<page>`, `detail:<kind>:<id>`,
-    `search:<kind>:<term>`, `related:<kind>:<id>`, `tagged:<tags|urls>:<id>`,
+    `search:<kind>:<term>`, `related:<kind>:<id>:<options>`, `references:<kind>`,
     `schedule:day:<tz>:<date>`, `schedule:week:<tz>:<date>`, `schedule:settings`,
     `content:resources:<id>` (refetched on every mount), `context:tasks:<id>`,
     `vault:info`. Each one declares `dependencies` (`EntryKind` or `schedule` /

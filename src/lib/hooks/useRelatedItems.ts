@@ -1,40 +1,36 @@
 import { dependencies } from '@/workflows/runtime'
-import type { HydratedTask } from '@c/types/Hydrated'
-import { UrlsService } from '@/services/database/UrlsService'
-import { TagsService } from '@/services/database/TagsService'
 import { useWorkflowQuery, useWorkflowRuntime } from '@/workflows/hooks'
+import { fetchContainerDetail } from '@/services/readModels'
+import type { ReadContainerKind, TaskPageOptions } from '@c/types/readModels'
 
-export function useRelatedTasks(
-  kind: 'areas' | 'projects' | 'goals',
+export function useContainerDetail(
+  kind: ReadContainerKind,
   id: string,
+  options: TaskPageOptions = {},
 ) {
-  const runtime = useWorkflowRuntime()
-  return useWorkflowQuery({
-    key: `related:${kind}:${id}`,
-    dependencies: dependencies(kind),
-    load: async () => {
-      const parent = await runtime.services[kind].fetchById(id)
-      return (parent.tasks ?? []) as HydratedTask[]
-    },
-  })
-}
-
-export function useSupporterItems(kind: 'tags' | 'urls', id: string) {
-  return useWorkflowQuery({
-    key: `tagged:${kind}:${id}`,
+  const { queries } = useWorkflowRuntime()
+  const key = `related:${kind}:${id}:${JSON.stringify(options)}`
+  const query = useWorkflowQuery({
+    key,
     dependencies: [
-      'tags',
-      'urls',
-      'tasks',
-      'projects',
-      'areas',
-      'goals',
-      'resources',
+      ...new Set([
+        ...dependencies(kind),
+        'tasks',
+        'projects',
+        'areas',
+        'goals',
+        'resources',
+        'tags',
+        'urls',
+      ] as const),
     ],
-    load: () =>
-      (kind === 'tags'
-        ? TagsService.getInstance()
-        : UrlsService.getInstance()
-      ).fetchItems(id),
+    load: () => fetchContainerDetail(kind, id, options),
   })
+  return {
+    ...query,
+    retry: () => {
+      queries.markStale(key)
+      return queries.ensure(key)
+    },
+  }
 }

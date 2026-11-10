@@ -11,7 +11,6 @@ import {
   junctionUrls,
 } from '@d/database/schemas'
 import type { EntityCollectionKind } from '@c/workflows/contracts'
-import type { Task } from '@c/types'
 
 type MembershipDb = Pick<BunSQLiteDatabase<typeof schema>, 'select'>
 export type TaskContainer = {
@@ -99,13 +98,7 @@ export function taskMembershipPredicate(
   }
 }
 
-/** Both hydrated retrieval and totals use precisely the same membership predicate. */
-export const taskMembershipIds = (db: MembershipDb, container: TaskContainer) =>
-  db
-    .select({ id: tasks.id })
-    .from(tasks)
-    .where(taskMembershipPredicate(db, container))
-
+/** Total and paged reads share precisely the same membership predicate. */
 export function countTaskMembership(
   db: MembershipDb,
   container: TaskContainer,
@@ -119,33 +112,29 @@ export function countTaskMembership(
   )
 }
 
-/** Resolve a page of containers in one query; nested editable relations remain direct-only. */
-export function withCollectionTasks<T extends { id: string }>(
+/** Count membership without materializing task rows or nested trees. */
+export function withCollectionTotals<T extends { id: string }>(
   db: MembershipDb,
   kind: EntityCollectionKind,
   rows: T[],
 ) {
   if (!rows.length) return []
   const table = { projects, goals, areas }[kind]
-  const members = db
-    .select({ ownerId: table.id, task: tasks })
+  const totals = db
+    .select({ ownerId: table.id, total: count(tasks.id) })
     .from(table)
-    .innerJoin(tasks, taskMembershipPredicate(db, { kind, id: table.id }))
+    .leftJoin(tasks, taskMembershipPredicate(db, { kind, id: table.id }))
     .where(
       inArray(
         table.id,
         rows.map((row) => row.id),
       ),
     )
+    .groupBy(table.id)
     .all()
-  const byOwner = new Map<string, Task['Read'][]>()
-  for (const { ownerId, task } of members) {
-    const own = byOwner.get(ownerId) ?? []
-    own.push(task)
-    byOwner.set(ownerId, own)
-  }
-  return rows.map((row) => {
-    const tasks = byOwner.get(row.id) ?? []
-    return { ...row, tasks, resolved_task_total: tasks.length }
-  })
+  const byOwner = new Map(totals.map((row) => [row.ownerId, row.total]))
+  return rows.map((row) => ({
+    ...row,
+    resolved_task_total: byOwner.get(row.id) ?? 0,
+  }))
 }

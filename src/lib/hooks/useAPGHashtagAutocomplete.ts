@@ -1,22 +1,22 @@
 import { useCallback } from 'react'
-import { useStore } from '@/store'
-import type { Area, Goal, Project, Tag } from '@c/types'
+import { useEntityReferences } from './useEntityReferences'
+import { fetchReferences } from '@/services/readModels'
+import type { EntityReference } from '@c/types/readModels'
 import {
   useAutocomplete,
   type AutocompleteOption,
   type UseAutocompleteResult,
 } from '@/lib/hooks/useAutocomplete'
 import { slugifyTag } from '@/lib/inputParsers/parseHashtags'
-import { HydratedArea, HydratedGoal, HydratedProject } from '@c/types/Hydrated'
 
 export type APGSuggestionKind = 'area' | 'project' | 'goal' | 'tag'
 
 export interface APGSuggestion extends AutocompleteOption {
   kind: APGSuggestionKind
-  entity: Area['Read'] | Project['Read'] | Goal['Read'] | Tag['Read']
+  entity: EntityReference
 }
 
-type AnyAPG = Area['Read'] | Project['Read'] | Goal['Read']
+type AnyAPG = EntityReference
 
 const tagForEntity = (
   entity: AnyAPG,
@@ -24,11 +24,11 @@ const tagForEntity = (
 ): string | undefined => {
   switch (kind) {
     case 'area':
-      return (entity as HydratedArea).tags?.[0]?.title ?? undefined
+      return entity.tags?.[0]?.title ?? undefined
     case 'project':
-      return (entity as HydratedProject).tags?.[0]?.title ?? undefined
+      return entity.tags?.[0]?.title ?? undefined
     case 'goal':
-      return (entity as HydratedGoal).tags?.[0]?.title ?? undefined
+      return entity.tags?.[0]?.title ?? undefined
   }
 }
 
@@ -45,7 +45,7 @@ const toSuggestion = (
   additionalInfo: `#${tagForEntity(entity, kind)}`,
 })
 
-const toTagSuggestion = (tag: Tag['Read']): APGSuggestion => ({
+const toTagSuggestion = (tag: EntityReference): APGSuggestion => ({
   id: `tag:${tag.id}`,
   label: `#${tag.title}`,
   insertText: tag.title,
@@ -57,14 +57,12 @@ const toTagSuggestion = (tag: Tag['Read']): APGSuggestion => ({
 // Plain tags, minus those attached to an area/project/goal: `parseHashtags`
 // resolves those to the entity, so offering them as tags would be ambiguous.
 const plainTagSuggestions = (
-  tags: Tag['Read'][],
+  tags: EntityReference[],
   entities: AnyAPG[],
 ): APGSuggestion[] => {
   const entityTags = new Set(
     entities.flatMap(
-      (entity) =>
-        (entity as HydratedArea).tags?.map((tag) => tag.title.toLowerCase()) ??
-        [],
+      (entity) => entity.tags?.map((tag) => tag.title.toLowerCase()) ?? [],
     ),
   )
   return tags
@@ -83,8 +81,8 @@ export interface UseAPGHashtagAutocompleteOptions {
 }
 
 /**
- * `#` autocomplete for areas, projects, goals and plain tags, backed by the entity stores'
- * `search` methods. Built on top of the generic `useAutocomplete` hook.
+ * `#` autocomplete for areas, projects, goals and plain tags, backed by lightweight
+ * reference reads. Built on top of the generic `useAutocomplete` hook.
  */
 export const useAPGHashtagAutocomplete = ({
   inputValue,
@@ -93,34 +91,41 @@ export const useAPGHashtagAutocomplete = ({
   debounceMs = 150,
   enabled = true,
 }: UseAPGHashtagAutocompleteOptions): UseAutocompleteResult<APGSuggestion> => {
-  const areas = useStore((state) => state.areas)
-  const projects = useStore((state) => state.projects)
-  const goals = useStore((state) => state.goals)
-  const tags = useStore((state) => state.tags)
+  const areas = useEntityReferences('areas', enabled)
+  const projects = useEntityReferences('projects', enabled)
+  const goals = useEntityReferences('goals', enabled)
+  const tags = useEntityReferences('tags', enabled)
 
   const getSuggestions = useCallback(
     async (rawQuery: string): Promise<APGSuggestion[]> => {
       const query = rawQuery.trim().toLowerCase()
 
-      // With nothing typed after the `#`, surface entities already in the store
-      // so the dropdown is useful immediately.
-      const storeEntities = [...projects.data, ...areas.data, ...goals.data]
+      // Empty queries use the shared reference cache.
+      const referenceEntities = [...projects.data, ...areas.data, ...goals.data]
 
       if (!query) {
         return [
           ...projects.data.map((p) => toSuggestion(p, 'project')),
           ...areas.data.map((a) => toSuggestion(a, 'area')),
           ...goals.data.map((g) => toSuggestion(g, 'goal')),
-          ...plainTagSuggestions(tags.data, storeEntities),
+          ...plainTagSuggestions(tags.data, referenceEntities),
         ].slice(0, maxSuggestions)
       }
 
       const [projectResults, areaResults, goalResults, tagResults] =
         await Promise.all([
-          projects.search(query),
-          areas.search(query),
-          goals.search(query),
-          tags.search(query),
+          fetchReferences('projects', { q: query, limit: maxSuggestions }).then(
+            (page) => page.items,
+          ),
+          fetchReferences('areas', { q: query, limit: maxSuggestions }).then(
+            (page) => page.items,
+          ),
+          fetchReferences('goals', { q: query, limit: maxSuggestions }).then(
+            (page) => page.items,
+          ),
+          fetchReferences('tags', { q: query, limit: maxSuggestions }).then(
+            (page) => page.items,
+          ),
         ])
 
       return [
@@ -128,7 +133,7 @@ export const useAPGHashtagAutocomplete = ({
         ...(areaResults ?? []).map((a) => toSuggestion(a, 'area')),
         ...(goalResults ?? []).map((g) => toSuggestion(g, 'goal')),
         ...plainTagSuggestions(tagResults ?? [], [
-          ...storeEntities,
+          ...referenceEntities,
           ...(projectResults ?? []),
           ...(areaResults ?? []),
           ...(goalResults ?? []),

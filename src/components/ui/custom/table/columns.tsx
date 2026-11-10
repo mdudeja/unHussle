@@ -1,3 +1,4 @@
+import type { EntityReference } from '@c/types/readModels'
 import { Column, ColumnDef } from '@tanstack/react-table'
 import type { LucideIcon } from 'lucide-react'
 import {
@@ -200,15 +201,15 @@ export const dateTimeColumn = <TData,>(
 export const entityRefColumn = <TData,>(
   kind: EntityRefKind,
   title: string,
-  accessor: (row: TData) => string | null | undefined,
+  accessor: (row: TData) => EntityReference | null | undefined,
 ): ColumnDef<TData, unknown> => ({
   id: `${kind}_ref`,
   accessorFn: (row) => accessor(row) ?? undefined,
   header: title,
   enableSorting: false,
   cell: ({ getValue }) => {
-    const id = getValue<string | undefined>()
-    return id ? <EntityRefBadge kind={kind} id={id} /> : null
+    const record = getValue<EntityReference | undefined>()
+    return record ? <EntityRefBadge kind={kind} record={record} /> : null
   },
 })
 

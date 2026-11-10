@@ -32,7 +32,12 @@ export const withResources = {
 } as const
 // A resource's links, with whichever owner each junction row points at
 export const withResourceLinks = {
-  with: { task: true, project: true, area: true, goal: true },
+  with: {
+    task: { columns: { id: true, title: true } },
+    project: { columns: { id: true, title: true } },
+    area: { columns: { id: true, title: true } },
+    goal: { columns: { id: true, title: true } },
+  },
 } as const
 
 // Junction relation key -> property on the join row holding the referenced record
@@ -115,3 +120,11 @@ export type SyncTx = SQLiteTransaction<
   typeof schema,
   ExtractTablesWithRelations<typeof schema>
 >
+
+/** Label and badge metadata only; no parent payloads in list rows. */
+export const referenceColumns = {
+  id: true,
+  title: true,
+  icon: true,
+  color: true,
+} as const

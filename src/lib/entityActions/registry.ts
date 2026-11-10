@@ -14,7 +14,10 @@ import {
 import type { EntityKind } from './types'
 
 // Records the field builders may offer as select options.
-export type FieldSources = Pick<StoreState, 'projects' | 'areas' | 'goals'>
+export type FieldSources = Record<
+  'projects' | 'areas' | 'goals',
+  { data: import('@c/types/readModels').EntityReference[] }
+>
 
 type AnyEntity = { id: string } & Record<string, unknown>
 

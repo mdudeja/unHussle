@@ -1,6 +1,7 @@
+import type { EntityReference } from '@c/types/readModels'
 import { Priority } from '@c/types/enums'
 import { Task } from '@c/types/index'
-import { Area, Goal, Project, Tag, Url } from '@d/database/schemas'
+import { Tag, Url } from '@d/database/schemas'
 import { parseUrl } from '@/lib/inputParsers/parseUrl'
 import { parseHashtags } from '@/lib/inputParsers/parseHashtags'
 import { parseDueDate } from '@/lib/inputParsers/parseDueDate'
@@ -35,9 +36,9 @@ export const parseDataFromTaskInput = ({
   goals,
 }: {
   input: string
-  projects: Project['Read'][]
-  areas: Area['Read'][]
-  goals: Goal['Read'][]
+  projects: EntityReference[]
+  areas: EntityReference[]
+  goals: EntityReference[]
 }): ParsedData => {
   const { urls, textMinusUrls } = parseUrl(input)
 

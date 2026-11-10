@@ -6,12 +6,8 @@ import {
   PopoverContent,
   PopoverTrigger,
 } from '@/components/ui/popover'
-import {
-  useEntrySearch,
-  useWorkflowQuery,
-  useWorkflowRuntime,
-} from '@/workflows/hooks'
-import type { EntryRecord } from '@c/workflows/contracts'
+import { useWorkflowQuery } from '@/workflows/hooks'
+import { fetchReferences } from '@/services/readModels'
 
 export function TaskAnchorInput({
   value,
@@ -24,16 +20,24 @@ export function TaskAnchorInput({
 }) {
   const [open, setOpen] = useState(false)
   const [term, setTerm] = useState('')
-  const runtime = useWorkflowRuntime()
   const selected = useWorkflowQuery(
     {
-      key: `detail:tasks:${value ?? ''}`,
+      key: `reference:tasks:${value ?? ''}`,
       dependencies: ['tasks'],
-      load: () => runtime.services.tasks.fetchById(value!),
+      load: async () =>
+        (await fetchReferences('tasks', { ids: [value!] })).items[0],
     },
     !!value,
   )
-  const search = useEntrySearch<EntryRecord>('tasks', open ? term : '')
+  const search = useWorkflowQuery(
+    {
+      key: `references:tasks:${term}`,
+      dependencies: ['tasks'],
+      load: async () =>
+        (await fetchReferences('tasks', { q: term, limit: 20 })).items,
+    },
+    open,
+  )
   return (
     <Popover open={open} onOpenChange={setOpen}>
       <PopoverTrigger

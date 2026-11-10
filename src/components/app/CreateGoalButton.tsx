@@ -1,4 +1,4 @@
-import { useEntryList } from '@/workflows/hooks'
+import { useEntityReferences } from '@/lib/hooks/useEntityReferences'
 import { useMemo, useState } from 'react'
 import { useStore } from '@/store'
 import { Logger } from '@c/Logger'
@@ -17,11 +17,9 @@ const goalDefaultValues: Partial<WithSupporters<Goal['Write']>> = {
 }
 
 export const CreateGoalButtonComponent = () => {
-  const areas = useStore((state) => state.areas)
   const goals = useStore((state) => state.goals)
-
   const [isDialogOpen, setIsDialogOpen] = useState(false)
-  useEntryList('areas', 1, isDialogOpen)
+  const areas = useEntityReferences('areas', isDialogOpen)
 
   const [isSubmitting, setIsSubmitting] = useState(false)
   const [errorMessage, setErrorMessage] = useState<string | undefined>(

@@ -1,6 +1,6 @@
-import { useEntryList, useWorkflowRuntime } from '@/workflows/hooks'
+import { useEntityReferences } from '@/lib/hooks/useEntityReferences'
+import { useWorkflowRuntime } from '@/workflows/hooks'
 import React, { useState, useRef, useMemo } from 'react'
-import { useStore } from '@/store'
 import { Input } from '@/components/ui/input'
 import { Textarea } from '@/components/ui/textarea'
 import { Button } from '@/components/ui/button'
@@ -102,11 +102,10 @@ export const BrainDumpInputComponent = () => {
   const [scheduledStart, setScheduledStart] = useState<number | undefined>()
   const [scheduledEnd, setScheduledEnd] = useState<number | undefined>()
 
-  const areas = useStore((state) => state.areas)
-  const projects = useStore((state) => state.projects)
-  const goals = useStore((state) => state.goals)
+  const areas = useEntityReferences('areas')
+  const projects = useEntityReferences('projects')
+  const goals = useEntityReferences('goals')
   const runtime = useWorkflowRuntime()
-  useEntryList('tags')
   const [submissionError, setSubmissionError] = useState<string | undefined>()
 
   // `#` autocomplete for areas, projects, goals and tags. Selecting a suggestion
@@ -263,9 +262,15 @@ export const BrainDumpInputComponent = () => {
     setIsExpanded(!isExpanded)
   }
 
-  const selectedProject = projects.getById(parsedData.task.project_id)
-  const selectedArea = areas.getById(parsedData.task.area_id)
-  const selectedGoal = goals.getById(parsedData.task.goal_id)
+  const selectedProject = projects.data.find(
+    (row) => row.id === parsedData.task.project_id,
+  )
+  const selectedArea = areas.data.find(
+    (row) => row.id === parsedData.task.area_id,
+  )
+  const selectedGoal = goals.data.find(
+    (row) => row.id === parsedData.task.goal_id,
+  )
 
   return (
     <div className="w-full space-y-2">
@@ -461,10 +466,14 @@ export const BrainDumpInputComponent = () => {
           )}
           <div className="basis-full h-0" />
           {selectedProject && (
-            <EntityRefBadge kind="projects" id={selectedProject.id} />
+            <EntityRefBadge kind="projects" record={selectedProject} />
           )}
-          {selectedArea && <EntityRefBadge kind="areas" id={selectedArea.id} />}
-          {selectedGoal && <EntityRefBadge kind="goals" id={selectedGoal.id} />}
+          {selectedArea && (
+            <EntityRefBadge kind="areas" record={selectedArea} />
+          )}
+          {selectedGoal && (
+            <EntityRefBadge kind="goals" record={selectedGoal} />
+          )}
           <div className="basis-full h-0" />
           {schedule.estimated_minutes && (
             <IconBadge

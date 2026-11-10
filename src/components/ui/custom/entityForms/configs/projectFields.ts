@@ -1,3 +1,4 @@
+import type { EntityReference } from '@c/types/readModels'
 import {
   Activity,
   AlignLeft,
@@ -12,20 +13,20 @@ import {
   Sparkles,
   Target,
 } from 'lucide-react'
-import { Area, Goal, Project, WithSupporters } from '@c/types/index'
+import { Project, WithSupporters } from '@c/types/index'
 import type { FieldConfig, FieldOption } from '../types'
 import { priorityOptions, statusOptions } from '../utils'
 
 /**
  * Builds the field config for a project. Relation fields (area/goal) are passed
- * in from the store so the select options stay in sync with existing records.
+ * in as lightweight references so the select options stay in sync with existing records.
  */
 export const createProjectFields = ({
   areas,
   goals,
 }: {
-  areas: Area['Read'][]
-  goals: Goal['Read'][]
+  areas: EntityReference[]
+  goals: EntityReference[]
 }): FieldConfig<WithSupporters<Project['Write']>>[] => {
   const areaOptions: FieldOption[] = areas.map((area) => ({
     label: area.title,

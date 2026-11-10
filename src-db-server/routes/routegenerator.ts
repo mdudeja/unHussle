@@ -1,3 +1,13 @@
+import {
+  ReadModelsRepository,
+  ReadInputError,
+} from '@d/database/repositories/readModels'
+import { referencesQuerySchema, taskPageQuerySchema } from './readModels'
+import {
+  entityReferenceSchema,
+  selectContainerDetailSchema,
+} from '@d/database/validation'
+import type { ReadContainerKind } from '@c/types/readModels'
 import { backendRuntime } from '@d/workflows/runtime'
 import { operationIdHeader, traceOf } from '@d/routes/telemetry'
 import { commandHeadForKind, type EntryKind } from '@c/workflows/contracts'
@@ -124,6 +134,7 @@ export const routeGenerator = <
   config: RouteGeneratorConfig<T>,
 ) => {
   const head = commandHeadForKind[config.kind]
+  const reads = new ReadModelsRepository(uDB)
 
   return new Elysia({ prefix: config.prefix, name: config.name })
     .decorate('db', db)
@@ -148,6 +159,9 @@ export const routeGenerator = <
       if (error instanceof VaultConflict) {
         return status(409, { message })
       }
+      if (error instanceof ReadInputError) return status(400, { message })
+      if (code === 'VALIDATION')
+        return status(422, { message: 'Invalid request parameters' })
       if (error instanceof VaultError) {
         return status(400, { message })
       }
@@ -189,6 +203,35 @@ export const routeGenerator = <
       {
         response: Type.Array(config.schemas.select),
       },
+    )
+
+    .get(
+      '/references',
+      ({ query }) =>
+        reads.references(config.kind, {
+          ...query,
+          ids: query.ids === undefined ? undefined : query.ids.split(','),
+        }),
+      {
+        query: referencesQuerySchema,
+        response: Type.Object({
+          items: Type.Array(entityReferenceSchema),
+          total: Type.Integer(),
+          nextCursor: Type.Union([Type.String(), Type.Null()]),
+        }),
+      },
+    )
+
+    .get(
+      '/:id/detail',
+      ({ params: { id }, query }) => {
+        if (
+          !['projects', 'areas', 'goals', 'tags', 'urls'].includes(config.kind)
+        )
+          throw new Error('NOT_FOUND')
+        return reads.detail(config.kind as ReadContainerKind, id, query)
+      },
+      { query: taskPageQuerySchema, response: selectContainerDetailSchema },
     )
 
     .get(

@@ -58,6 +58,9 @@ type DataTableProps<TData extends { id: string }> = {
   selectedId?: string | null
   onRowClick?: (row: TData) => void
   isLoading?: boolean
+  manualRead?: boolean
+  serverSorting?: SortingState
+  onServerSortingChange?: OnChangeFn<SortingState>
   pageSize?: number
   // Rendered between the toolbar and the table, e.g. actions for the selection.
   selectionBar?: React.ReactNode
@@ -85,6 +88,9 @@ export function DataTable<TData extends { id: string }>({
   selectedId,
   onRowClick,
   isLoading = false,
+  manualRead = false,
+  serverSorting,
+  onServerSortingChange,
   pageSize = 20,
   selectionBar,
 }: DataTableProps<TData>) {
@@ -99,7 +105,7 @@ export function DataTable<TData extends { id: string }>({
     columns,
     getRowId: (row) => row.id,
     state: {
-      sorting,
+      sorting: serverSorting ?? sorting,
       columnFilters,
       pagination,
       columnVisibility: Object.fromEntries(
@@ -107,11 +113,14 @@ export function DataTable<TData extends { id: string }>({
       ),
     },
     defaultColumn: { filterFn: equalsStringFilter as FilterFn<TData> },
-    onSortingChange: setSorting,
+    onSortingChange: onServerSortingChange ?? setSorting,
+    manualSorting: manualRead,
     onColumnFiltersChange,
     onPaginationChange: setPagination,
     // Page index is managed below so it doesn't fight the selected-row jump.
     autoResetPageIndex: false,
+    manualFiltering: manualRead,
+    manualPagination: manualRead,
     getCoreRowModel: getCoreRowModel(),
     getFilteredRowModel: getFilteredRowModel(),
     getSortedRowModel: getSortedRowModel(),
@@ -279,35 +288,37 @@ export function DataTable<TData extends { id: string }>({
       </div>
 
       {/* Pagination */}
-      <div className="flex items-center justify-between text-sm text-muted-foreground">
-        <span>
-          {table.getFilteredRowModel().rows.length} of {data.length} item(s)
-        </span>
-        <div className="flex items-center gap-2">
+      {!manualRead && (
+        <div className="flex items-center justify-between text-sm text-muted-foreground">
           <span>
-            Page {table.getState().pagination.pageIndex + 1} of{' '}
-            {Math.max(table.getPageCount(), 1)}
+            {table.getFilteredRowModel().rows.length} of {data.length} item(s)
           </span>
-          <Button
-            type="button"
-            variant="outline"
-            size="sm"
-            onClick={() => table.previousPage()}
-            disabled={!table.getCanPreviousPage()}
-          >
-            Previous
-          </Button>
-          <Button
-            type="button"
-            variant="outline"
-            size="sm"
-            onClick={() => table.nextPage()}
-            disabled={!table.getCanNextPage()}
-          >
-            Next
-          </Button>
+          <div className="flex items-center gap-2">
+            <span>
+              Page {table.getState().pagination.pageIndex + 1} of{' '}
+              {Math.max(table.getPageCount(), 1)}
+            </span>
+            <Button
+              type="button"
+              variant="outline"
+              size="sm"
+              onClick={() => table.previousPage()}
+              disabled={!table.getCanPreviousPage()}
+            >
+              Previous
+            </Button>
+            <Button
+              type="button"
+              variant="outline"
+              size="sm"
+              onClick={() => table.nextPage()}
+              disabled={!table.getCanNextPage()}
+            >
+              Next
+            </Button>
+          </div>
         </div>
-      </div>
+      )}
     </div>
   )
 }

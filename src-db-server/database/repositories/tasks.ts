@@ -1,8 +1,10 @@
+import type { TaskListItem } from '@c/types/readModels'
 import { Task, tasks } from '../schemas'
 import { UnHussleDB } from '../UnHussleDB'
 import { IRepository } from './IRepository.interface'
 import { BaseRepository } from './BaseRepository'
 import {
+  referenceColumns,
   taggedIds,
   unwrapJunctions,
   withTags,
@@ -10,8 +12,8 @@ import {
   withUrls,
   withResources,
 } from './helpers'
-import { inArray } from 'drizzle-orm'
-import { taskMembershipIds, type TaskContainer } from './taskMembership'
+import { and, inArray, isNull } from 'drizzle-orm'
+import { timeEntries } from '@d/database/schemas'
 
 import type { HydratedTask } from '@c/types/Hydrated'
 export type { HydratedTask } from '@c/types/Hydrated'
@@ -21,40 +23,77 @@ export class TasksRepository
   implements IRepository<Task>
 {
   private readonly relations = {
-    project: true,
-    area: true,
-    goal: true,
-    anchor: true,
+    project: { columns: referenceColumns },
+    area: { columns: referenceColumns },
+    goal: { columns: referenceColumns },
+    anchor: { columns: { id: true, title: true } },
     tags: withTags,
     urls: withUrls,
     timeEntries: withTimeEntries,
     resources: withResources,
   } as const
 
+  private readonly listRelations = {
+    project: { columns: referenceColumns },
+    area: { columns: referenceColumns },
+    goal: { columns: referenceColumns },
+    tags: withTags,
+  } as const
+
+  private openIntervals(
+    db: NonNullable<UnHussleDB['db']>,
+    rows: TaskListItem[],
+  ): TaskListItem[] {
+    if (!rows.length) return []
+    const intervals = db
+      .select()
+      .from(timeEntries)
+      .where(
+        and(
+          inArray(
+            timeEntries.task_id,
+            rows.map((row) => row.id),
+          ),
+          isNull(timeEntries.end_time),
+        ),
+      )
+      .all()
+    const byTask = new Map<string, typeof intervals>()
+    for (const interval of intervals) {
+      const own = byTask.get(interval.task_id) ?? []
+      own.push(interval)
+      byTask.set(interval.task_id, own)
+    }
+    return rows.map((row) => ({
+      ...row,
+      timeEntries: byTask.get(row.id) ?? [],
+    }))
+  }
+
   constructor(dbInstance: UnHussleDB) {
     super(dbInstance, tasks)
   }
 
-  async getAll(): Promise<HydratedTask[]> {
+  async getAll(): Promise<TaskListItem[]> {
     const db = await this.getDb()
     if (!db) return []
 
     const tasks = await db.query.tasks.findMany({
-      with: this.relations,
+      with: this.listRelations,
     })
-    return tasks.map(unwrapJunctions)
+    return this.openIntervals(db, tasks.map(unwrapJunctions))
   }
 
-  async getPaginated(page: number, pageSize: number): Promise<HydratedTask[]> {
+  async getPaginated(page: number, pageSize: number): Promise<TaskListItem[]> {
     const db = await this.getDb()
     if (!db) return []
 
     const tasks = await db.query.tasks.findMany({
-      with: this.relations,
+      with: this.listRelations,
       limit: pageSize,
       offset: page * pageSize,
     })
-    return tasks.map(unwrapJunctions)
+    return this.openIntervals(db, tasks.map(unwrapJunctions))
   }
 
   async getById(id: string): Promise<HydratedTask | null> {
@@ -68,7 +107,7 @@ export class TasksRepository
     return task ? unwrapJunctions(task) : null
   }
 
-  async search(query: string, limit: number): Promise<HydratedTask[]> {
+  async search(query: string, limit: number): Promise<TaskListItem[]> {
     const db = await this.getDb()
     if (!db) return []
 
@@ -80,9 +119,9 @@ export class TasksRepository
           inArray(tasks.id, taggedIds(db, pattern)),
         ),
       limit,
-      with: this.relations,
+      with: this.listRelations,
     })
-    return tasks.map(unwrapJunctions)
+    return this.openIntervals(db, tasks.map(unwrapJunctions))
   }
 
   async getByIds(ids: string[]): Promise<HydratedTask[]> {
@@ -96,13 +135,13 @@ export class TasksRepository
     return tasks.map(unwrapJunctions)
   }
 
-  async getByMembership(container: TaskContainer): Promise<HydratedTask[]> {
+  async getListByIds(ids: string[]): Promise<TaskListItem[]> {
     const db = await this.getDb()
-    if (!db) return []
+    if (!db || !ids.length) return []
     const rows = await db.query.tasks.findMany({
-      where: inArray(tasks.id, taskMembershipIds(db, container)),
-      with: this.relations,
+      where: inArray(tasks.id, ids),
+      with: this.listRelations,
     })
-    return rows.map(unwrapJunctions)
+    return this.openIntervals(db, rows.map(unwrapJunctions))
   }
 }

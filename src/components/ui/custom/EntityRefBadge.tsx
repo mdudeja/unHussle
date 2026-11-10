@@ -1,4 +1,4 @@
-import { useStore } from '@/store'
+import type { EntityReference } from '@c/types/readModels'
 import { FolderKanban, GitGraph, Goal } from 'lucide-react'
 import { Link } from 'react-router'
 import IconBadge from '@/components/ui/custom/IconBadge'
@@ -16,12 +16,11 @@ export type EntityRefKind = keyof typeof entityRefConfig
 
 export default function EntityRefBadge({
   kind,
-  id,
+  record,
 }: {
   kind: EntityRefKind
-  id: string
+  record: EntityReference
 }) {
-  const record = useStore((state) => state[kind].getById(id))
   if (!record) {
     return null
   }

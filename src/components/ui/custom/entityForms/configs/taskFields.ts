@@ -1,3 +1,4 @@
+import type { EntityReference } from '@c/types/readModels'
 import {
   Activity,
   AlignLeft,
@@ -20,14 +21,14 @@ import {
   Zap,
 } from 'lucide-react'
 import { AnchorType } from '@c/types/enums'
-import { Area, Goal, Project, Task, WithSupporters } from '@c/types/index'
+import { Task, WithSupporters } from '@c/types/index'
 import { validateTaskSchedule } from '@c/taskSchedule'
 import type { FieldConfig, FieldOption } from '../types'
 import { priorityOptions, statusOptions } from '../utils'
 
 /**
  * Builds the field config for a task. Relation fields (project/area/goal) are
- * passed in from the store so the select options stay in sync with existing
+ * passed in as lightweight references so the select options stay in sync with existing
  * records.
  */
 export const createTaskFields = ({
@@ -35,9 +36,9 @@ export const createTaskFields = ({
   areas,
   goals,
 }: {
-  projects: Project['Read'][]
-  areas: Area['Read'][]
-  goals: Goal['Read'][]
+  projects: EntityReference[]
+  areas: EntityReference[]
+  goals: EntityReference[]
 }): FieldConfig<WithSupporters<Task['Write']>>[] => {
   const projectOptions: FieldOption[] = projects.map((project) => ({
     label: project.title,

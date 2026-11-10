@@ -8,7 +8,7 @@ import { createFrontendRuntime, type EntryTransport } from '@/workflows/runtime'
 import { createSseTransport } from '@/workflows/eventStream'
 import { mutationHeaders } from '@/services/database/DbService'
 import { createTelemetry } from '@c/workflows/telemetry'
-import type { EntryKind, EntryRecord } from '@c/workflows/contracts'
+import type { EntryKind } from '@c/workflows/contracts'
 import { createRelationshipFixture } from './relationshipFixture'
 
 const root = mkdtempSync(join(tmpdir(), 'unhussle-baseline-'))
@@ -158,21 +158,20 @@ try {
     ['projects', fixture.project.id],
     ['goals', fixture.goal.id],
     ['areas', fixture.area.id],
-    ['tags', `${fixture.tag.id}/items`],
+    ['tags', fixture.tag.id],
   ] as const) {
     requests = []
-    const row = await request<{
-      tasks: EntryRecord[]
-      count_tasks?: number
-      resolved_task_total?: number
-    }>(`/${kind}/${id}`)
+    const row = await request<import('@c/types/readModels').ContainerDetail>(
+      `/${kind}/${id}/detail`,
+    )
     relationships.push({
       kind,
-      taskNames: row.tasks.map((task) => labels.get(task.id)),
+      taskNames: row.tasks.items.map((task) => labels.get(task.id)),
       unique:
-        new Set(row.tasks.map((task) => task.id)).size === row.tasks.length,
-      count_tasks: row.count_tasks,
-      resolved_task_total: row.resolved_task_total,
+        new Set(row.tasks.items.map((task) => task.id)).size ===
+        row.tasks.items.length,
+      count_tasks: row.item.count_tasks,
+      resolved_task_total: row.tasks.total,
       responseBytes: requests[0].bytes,
     })
   }

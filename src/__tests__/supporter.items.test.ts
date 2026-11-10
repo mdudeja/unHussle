@@ -1,3 +1,5 @@
+import { fetchContainerDetail, fetchReferences } from '@/services/readModels'
+import { makeJSONRequest } from '@/lib/server'
 import type { HydratedArea } from '@c/types/Hydrated'
 import { afterAll, beforeAll, describe, expect, test } from 'bun:test'
 import { AreasService } from '@/services/database/AreasService'
@@ -112,24 +114,62 @@ describe('Supporter containment over HTTP', () => {
       const service = kind === 'tags' ? tags : urls
       const id = kind === 'tags' ? tagId : urlId
       const items = await service.fetchItems(id)
-      expect(ids(items.tasks)).toEqual(expected)
-      expect(items.resolved_task_total).toBe(3)
-      expect(ids(items.areas)).toEqual([areaId])
-      expect(items.projects).toEqual([])
-      expect(items.goals).toEqual([])
-      expect(ids(items.resources)).toEqual(kind === 'tags' ? [resourceId] : [])
+      expect(items.tasks.total).toBe(expected.length)
+      expect(ids(items.tasks.items)).toEqual(expected)
+      expect(items.tasks.total).toBe(3)
+      expect(ids(items.directRelations.areas)).toEqual([areaId])
+      expect(items.directRelations.projects).toEqual([])
+      expect(items.directRelations.goals).toEqual([])
+      expect(ids(items.directRelations.resources)).toEqual(
+        kind === 'tags' ? [resourceId] : [],
+      )
       expect(
-        items.tasks.find((row) => row.id === nestedTaskId)?.project?.title,
+        items.tasks.items.find((row) => row.id === nestedTaskId)?.project
+          ?.title,
       ).toBe('HTTP containment project')
       // Direct attachment counts retain their original persisted meaning.
       expect((await service.fetchById(id)).count_tasks).toBe(2)
     },
   )
 
+  test('detail and reference routes validate queries and preserve unfiltered defaults', async () => {
+    const first = await fetchContainerDetail('areas', areaId, { limit: 1 })
+    expect(first.tasks.items).toHaveLength(1)
+    expect(first.tasks.total).toBe(2)
+    expect(first.tasks.nextCursor).not.toBeNull()
+    const next = await fetchContainerDetail('areas', areaId, {
+      limit: 1,
+      cursor: first.tasks.nextCursor!,
+    })
+    expect(next.tasks.items).toHaveLength(1)
+    expect(next.tasks.items[0].id).not.toBe(first.tasks.items[0].id)
+    expect(next.tasks.nextCursor).toBeNull()
+    expect(next.item).not.toHaveProperty('tasks')
+    expect(first.directRelations.resources).toEqual([])
+    const refs = await fetchReferences('projects', {
+      ids: [created.projects[0]],
+    })
+    expect(refs.items[0].title).toBe('HTTP containment project')
+    expect(refs.items[0]).not.toHaveProperty('tasks')
+    expect(refs.items[0]).not.toHaveProperty('description')
+    await expect(
+      fetchContainerDetail('areas', areaId, { cursor: 'malformed' }),
+    ).rejects.toMatchObject({ status: 400 })
+    await expect(
+      fetchContainerDetail('areas', areaId, { limit: 101 }),
+    ).rejects.toMatchObject({ status: 422 })
+    await expect(
+      makeJSONRequest({
+        url: `${tags.dbUrl}/areas/${areaId}/detail?is_fun=invalid`,
+        method: 'GET',
+      }),
+    ).rejects.toMatchObject({ status: 422 })
+  })
+
   test('collection totals survive response validation without merging editable resources', async () => {
     const area = (await areas.fetchById(areaId)) as HydratedArea
     expect(area.resolved_task_total).toBe(2)
-    expect(area.tasks).toHaveLength(2)
+    expect(area).not.toHaveProperty('tasks')
     expect(area.count_tasks).toBe(1)
     expect(area.resources).toEqual([])
   })
@@ -150,10 +190,10 @@ describe('Supporter containment over HTTP', () => {
       [urls, urlId],
     ] as const) {
       const items = await service.fetchItems(id)
-      expect(ids(items.tasks)).toEqual(
+      expect(ids(items.tasks.items)).toEqual(
         expected.filter((taskId) => taskId !== nestedTaskId),
       )
-      expect(items.resolved_task_total).toBe(2)
+      expect(items.tasks.total).toBe(2)
     }
   })
 })

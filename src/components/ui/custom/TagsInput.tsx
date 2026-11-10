@@ -1,7 +1,6 @@
-import { useEntryList } from '@/workflows/hooks'
+import { useEntityReferences } from '@/lib/hooks/useEntityReferences'
 import React, { useMemo, useRef, useState } from 'react'
 import { X } from 'lucide-react'
-import { useStore } from '@/store'
 import { Input } from '@/components/ui/input'
 import { Badge } from '@/components/ui/badge'
 import { AutocompleteList } from '@/components/ui/custom/AutocompleteList'
@@ -27,7 +26,7 @@ interface TagOption extends AutocompleteOption {
 }
 
 /**
- * Chip input for tags. Suggests existing tags from the store as you type and
+ * Chip input for tags. Suggests existing reference labels as you type and
  * lets you create new ones. Titles are normalized like hashtags (`#` stripped,
  * lowercase, no spaces).
  */
@@ -39,15 +38,13 @@ export function TagsInput({
   placeholder = 'Add tags...',
   hasError,
 }: TagsInputProps) {
-  const tags = useStore((state) => state.tags)
+  const tags = useEntityReferences('tags')
   const inputRef = useRef<HTMLInputElement>(null)
   const [query, setQuery] = useState('')
   const [isOpen, setIsOpen] = useState(false)
 
   const selected = useMemo(() => value ?? [], [value])
   const normalizedQuery = slugifyTag(query)
-
-  useEntryList('tags')
 
   const options = useMemo<TagOption[]>(() => {
     const selectedTitles = new Set(selected.map((tag) => tag.title))

@@ -159,17 +159,37 @@ export const insertProjectSchema = Type.Object({
 export const updateProjectSchema = t.Partial(insertProjectSchema)
 export const selectProjectBaseSchema = createSelectSchema(projects)
 
+export const entityReferenceSchema = Type.Object({
+  id: Type.String(),
+  title: Type.String(),
+  icon: Type.Optional(Type.Union([Type.String(), Type.Null()])),
+  color: Type.Optional(Type.Union([Type.String(), Type.Null()])),
+  tags: Type.Optional(
+    Type.Array(Type.Object({ id: Type.String(), title: Type.String() })),
+  ),
+})
+
 // select schemas with relations
 export const selectTaskSchema = Type.Object({
   ...selectTaskBaseSchema.properties,
-  project: Type.Optional(Type.Union([selectProjectBaseSchema, Type.Null()])),
-  area: Type.Optional(Type.Union([selectAreaBaseSchema, Type.Null()])),
-  goal: Type.Optional(Type.Union([selectGoalBaseSchema, Type.Null()])),
-  anchor: Type.Optional(Type.Union([selectTaskBaseSchema, Type.Null()])),
+  project: Type.Optional(Type.Union([entityReferenceSchema, Type.Null()])),
+  area: Type.Optional(Type.Union([entityReferenceSchema, Type.Null()])),
+  goal: Type.Optional(Type.Union([entityReferenceSchema, Type.Null()])),
+  anchor: Type.Optional(Type.Union([entityReferenceSchema, Type.Null()])),
   tags: Type.Optional(Type.Array(selectTagsSchema)),
   urls: Type.Optional(Type.Array(selectUrlsSchema)),
   timeEntries: Type.Optional(Type.Array(selectTimeEntriesSchema)),
   resources: Type.Optional(Type.Array(selectResourceBaseSchema)),
+})
+
+/** Only the fields used by task tables and lifecycle presentation. */
+export const selectTaskListSchema = Type.Object({
+  ...selectTaskBaseSchema.properties,
+  project: selectTaskSchema.properties.project,
+  area: selectTaskSchema.properties.area,
+  goal: selectTaskSchema.properties.goal,
+  tags: selectTaskSchema.properties.tags,
+  timeEntries: selectTaskSchema.properties.timeEntries,
 })
 
 export const selectResourceLinkSchema = Type.Object({
@@ -189,7 +209,6 @@ export const selectResourceSchema = Type.Object({
 export const selectAreaSchema = Type.Object({
   ...selectAreaBaseSchema.properties,
   resolved_task_total: Type.Optional(Type.Integer({ minimum: 0 })),
-  tasks: Type.Optional(Type.Array(selectTaskBaseSchema)),
   resources: Type.Optional(Type.Array(selectResourceBaseSchema)),
   goals: Type.Optional(Type.Array(selectGoalBaseSchema)),
   projects: Type.Optional(Type.Array(selectProjectBaseSchema)),
@@ -200,8 +219,7 @@ export const selectAreaSchema = Type.Object({
 export const selectGoalSchema = Type.Object({
   ...selectGoalBaseSchema.properties,
   resolved_task_total: Type.Optional(Type.Integer({ minimum: 0 })),
-  area: Type.Optional(Type.Union([selectAreaBaseSchema, Type.Null()])),
-  tasks: Type.Optional(Type.Array(selectTaskBaseSchema)),
+  area: Type.Optional(Type.Union([entityReferenceSchema, Type.Null()])),
   resources: Type.Optional(Type.Array(selectResourceBaseSchema)),
   projects: Type.Optional(Type.Array(selectProjectBaseSchema)),
   tags: Type.Optional(Type.Array(selectTagsSchema)),
@@ -211,9 +229,8 @@ export const selectGoalSchema = Type.Object({
 export const selectProjectSchema = Type.Object({
   ...selectProjectBaseSchema.properties,
   resolved_task_total: Type.Optional(Type.Integer({ minimum: 0 })),
-  area: Type.Optional(Type.Union([selectAreaBaseSchema, Type.Null()])),
-  goal: Type.Optional(Type.Union([selectGoalBaseSchema, Type.Null()])),
-  tasks: Type.Optional(Type.Array(selectTaskBaseSchema)),
+  area: Type.Optional(Type.Union([entityReferenceSchema, Type.Null()])),
+  goal: Type.Optional(Type.Union([entityReferenceSchema, Type.Null()])),
   resources: Type.Optional(Type.Array(selectResourceBaseSchema)),
   tags: Type.Optional(Type.Array(selectTagsSchema)),
   urls: Type.Optional(Type.Array(selectUrlsSchema)),
@@ -240,14 +257,28 @@ export const selectTaskContextSchema = Type.Object({
   ),
 })
 
-// Items linked to a tag or URL; collection/resource arrays stay direct-only.
-export const selectSupporterItemsSchema = Type.Object({
-  resolved_task_total: Type.Integer({ minimum: 0 }),
-  resources: Type.Array(selectResourceSchema),
-  tasks: Type.Array(selectTaskSchema),
-  projects: Type.Array(selectProjectSchema),
-  areas: Type.Array(selectAreaSchema),
-  goals: Type.Array(selectGoalSchema),
+// Explicit detail projections keep editable relations separate from membership.
+export const selectContainerDetailSchema = Type.Object({
+  item: Type.Union([
+    selectProjectBaseSchema,
+    selectAreaBaseSchema,
+    selectGoalBaseSchema,
+    selectTagsSchema,
+    selectUrlsSchema,
+  ]),
+  directRelations: Type.Object({
+    projects: Type.Array(selectProjectSchema),
+    areas: Type.Array(selectAreaSchema),
+    goals: Type.Array(selectGoalSchema),
+    resources: Type.Array(selectResourceSchema),
+    tags: Type.Array(selectTagsSchema),
+    urls: Type.Array(selectUrlsSchema),
+  }),
+  tasks: Type.Object({
+    items: Type.Array(selectTaskListSchema),
+    total: Type.Integer({ minimum: 0 }),
+    nextCursor: Type.Union([Type.String(), Type.Null()]),
+  }),
 })
 
 // Scheduler

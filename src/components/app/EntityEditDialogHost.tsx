@@ -1,4 +1,5 @@
-import { useEntryDetail, useEntryList } from '@/workflows/hooks'
+import { useEntryDetail } from '@/workflows/hooks'
+import { useEntityReferences } from '@/lib/hooks/useEntityReferences'
 import { useMemo, useState } from 'react'
 import { useStore } from '@/store'
 import { EditingEntity } from '@/store/slices/createUISlice'
@@ -28,17 +29,16 @@ export const EntityEditDialogHost = () => {
 
 const EntityEditDialog = ({ editing }: { editing: EditingEntity }) => {
   const closeEditor = useStore((state) => state.closeEditor)
-  const projects = useStore((state) => state.projects)
-  const areas = useStore((state) => state.areas)
-  const goals = useStore((state) => state.goals)
 
-  useEntryList('projects', 1, editing.kind === 'tasks')
-  useEntryList(
+  const projects = useEntityReferences('projects', editing.kind === 'tasks')
+  const areas = useEntityReferences(
     'areas',
-    1,
     ['tasks', 'projects', 'goals'].includes(editing.kind),
   )
-  useEntryList('goals', 1, ['tasks', 'projects'].includes(editing.kind))
+  const goals = useEntityReferences(
+    'goals',
+    ['tasks', 'projects'].includes(editing.kind),
+  )
 
   const entry = entityRegistry[editing.kind]
   const detail = useEntryDetail(editing.kind, editing.id)

@@ -1,3 +1,4 @@
+import { fetchReferences } from '@/services/readModels'
 import React, { useMemo, useRef, useState } from 'react'
 import { X } from 'lucide-react'
 import { Input } from '@/components/ui/input'
@@ -6,7 +7,7 @@ import { AutocompleteList } from '@/components/ui/custom/AutocompleteList'
 import type { AutocompleteOption } from '@/lib/hooks/useAutocomplete'
 import { useDebouncedValue } from '@/lib/hooks/useDebouncedValue'
 import { cn } from '@/lib/utils'
-import { useWorkflowQuery, useWorkflowRuntime } from '@/workflows/hooks'
+import { useWorkflowQuery } from '@/workflows/hooks'
 import { dependencies } from '@/workflows/runtime'
 
 export type RefKind = 'resources' | 'tasks' | 'projects' | 'areas' | 'goals'
@@ -42,7 +43,6 @@ interface RefOption extends AutocompleteOption {
 
 /** Server search across `kinds`, one query for all of them. */
 function useRefSearch(kinds: RefKind[], term: string) {
-  const runtime = useWorkflowRuntime()
   const key = kinds.join(',')
   return useWorkflowQuery(
     {
@@ -52,13 +52,13 @@ function useRefSearch(kinds: RefKind[], term: string) {
         (
           await Promise.all(
             kinds.map(async (kind) =>
-              (await runtime.services[kind].search(term)).map(
-                (row): EntityRef => ({
-                  kind,
-                  id: row.id,
-                  title: String(row.title),
-                }),
-              ),
+              (
+                await fetchReferences(kind, { q: term, limit: MAX_OPTIONS })
+              ).items.map((row): EntityRef => ({
+                kind,
+                id: row.id,
+                title: String(row.title),
+              })),
             ),
           )
         ).flat(),

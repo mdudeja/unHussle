@@ -1,3 +1,4 @@
+import type { EntityReference } from '@c/types/readModels'
 import {
   Activity,
   AlignLeft,
@@ -10,14 +11,14 @@ import {
   Target,
   TrendingUp,
 } from 'lucide-react'
-import { Area, Goal, WithSupporters } from '@c/types/index'
+import { Goal, WithSupporters } from '@c/types/index'
 import type { FieldConfig, FieldOption } from '../types'
 import { priorityOptions, statusOptions } from '../utils'
 
 export const createGoalFields = ({
   areas,
 }: {
-  areas: Area['Read'][]
+  areas: EntityReference[]
 }): FieldConfig<WithSupporters<Goal['Write']>>[] => {
   const areaOptions: FieldOption[] = areas.map((area) => ({
     label: area.title,

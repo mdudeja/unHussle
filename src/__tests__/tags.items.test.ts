@@ -61,13 +61,15 @@ describe('GET /tags/:id/items', () => {
   test('returns only the items linked to the tag, hydrated', async () => {
     const items = await tags.fetchItems(tagId)
 
-    expect(items.tasks.map((task) => task.id)).toEqual([taggedTaskId])
-    expect(items.projects.map((project) => project.id)).toEqual([
-      taggedProjectId,
+    expect(items.tasks.items.map((task) => task.id)).toEqual([taggedTaskId])
+    expect(items.directRelations.projects.map((project) => project.id)).toEqual(
+      [taggedProjectId],
+    )
+    expect(items.directRelations.areas).toEqual([])
+    expect(items.directRelations.goals).toEqual([])
+    expect(items.tasks.items[0].tags?.map((tag) => tag.title)).toEqual([
+      'itemstag',
     ])
-    expect(items.areas).toEqual([])
-    expect(items.goals).toEqual([])
-    expect(items.tasks[0].tags?.map((tag) => tag.title)).toEqual(['itemstag'])
   })
 
   test('rejects an unknown tag', async () => {

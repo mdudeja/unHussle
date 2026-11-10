@@ -1,4 +1,4 @@
-import type { SupporterItems } from '@c/types/Hydrated'
+import type { ContainerDetail } from '@c/types/readModels'
 import { makeJSONRequest } from '@/lib/server'
 import { Url } from '@d/database/schemas'
 import { DbService } from '@/services/database/DbService'
@@ -17,7 +17,7 @@ export class UrlsService extends DbService<Url> {
     return this.instance
   }
   async fetchItems(id: string) {
-    return makeJSONRequest<SupporterItems>({
+    return makeJSONRequest<ContainerDetail>({
       url: `${this.dbUrl}/${this.baseEndpoint}/${id}/items`,
       method: 'GET',
     })

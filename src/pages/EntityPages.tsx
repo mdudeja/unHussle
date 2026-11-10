@@ -13,7 +13,14 @@ import {
 } from '@/components/pages/EntityListPage'
 import { RelatedEntityTable } from '@/components/app'
 import { useResourceActions, useTaskActions } from '@/lib/entityActions'
-import { useRelatedTasks, useSupporterItems } from '@/lib/hooks/useRelatedItems'
+import { useContainerDetail } from '@/lib/hooks/useRelatedItems'
+import { useState } from 'react'
+import { useNavigate } from 'react-router'
+import { getEntityItemRoute } from '@/lib/entityRoutes'
+import { Button } from '@/components/ui/button'
+import { DataTable } from '@/components/ui/custom/table/DataTable'
+import type { ColumnFiltersState, SortingState } from '@tanstack/react-table'
+import type { ReadContainerKind, ContainerDetail } from '@c/types/readModels'
 import {
   dateColumn,
   dateTimeColumn,
@@ -71,8 +78,8 @@ const projectsConfig: EntityListPageConfig<HydratedProject> = {
     titleColumn(FolderKanban),
     statusColumn(),
     priorityColumn(),
-    entityRefColumn('areas', 'Area', (row) => row.area_id),
-    entityRefColumn('goals', 'Goal', (row) => row.goal_id),
+    entityRefColumn('areas', 'Area', (row) => row.area),
+    entityRefColumn('goals', 'Goal', (row) => row.goal),
     dateColumn('due_date', 'Due', (row) => row.due_date),
     hashtagColumn((row) => row.tags),
     updatedAtColumn(),
@@ -113,7 +120,7 @@ const goalsConfig: EntityListPageConfig<HydratedGoal> = {
     titleColumn(GoalIcon),
     statusColumn(),
     priorityColumn(),
-    entityRefColumn('areas', 'Area', (row) => row.area_id),
+    entityRefColumn('areas', 'Area', (row) => row.area),
     dateColumn('due_date', 'Due', (row) => row.due_date),
     hashtagColumn((row) => row.tags),
     updatedAtColumn(),
@@ -131,9 +138,9 @@ const tasksConfig: EntityListPageConfig<HydratedTask> = {
     textColumn('title', 'Title', (row) => row.title),
     statusColumn(),
     priorityColumn(),
-    entityRefColumn('projects', 'Project', (row) => row.project_id),
-    entityRefColumn('areas', 'Area', (row) => row.area_id),
-    entityRefColumn('goals', 'Goal', (row) => row.goal_id),
+    entityRefColumn('projects', 'Project', (row) => row.project),
+    entityRefColumn('areas', 'Area', (row) => row.area),
+    entityRefColumn('goals', 'Goal', (row) => row.goal),
     ...taskFlagColumns<Task['Read']>(),
     dateColumn('due_date', 'Due', (row) => row.due_date),
     dateTimeColumn('scheduled_start', 'Start', (row) => row.scheduled_start),
@@ -204,95 +211,147 @@ const RelatedTasks = ({
   kind,
   id,
 }: {
-  kind: 'areas' | 'projects' | 'goals'
+  kind: ReadContainerKind
   id: string
 }) => {
-  const { data, isLoading } = useRelatedTasks(kind, id)
+  const navigate = useNavigate()
+  const [q, setQ] = useState('')
+  const [sorting, setSorting] = useState<SortingState>([
+    { id: 'updated_at', desc: true },
+  ])
+  const [filters, setFilters] = useState<ColumnFiltersState>([])
+  const [cursors, setCursors] = useState<(string | undefined)[]>([undefined])
+  const { data, isLoading, error, retry } = useContainerDetail(kind, id, {
+    sort: sorting[0]?.id ?? 'id',
+    direction: sorting[0]?.desc ? 'desc' : 'asc',
+    ...Object.fromEntries(
+      filters.map((filter) => [filter.id, String(filter.value)]),
+    ),
+    q,
+    status: filters.find((filter) => filter.id === 'status')?.value as
+      string | undefined,
+    priority: filters.find((filter) => filter.id === 'priority')?.value as
+      string | undefined,
+    cursor: cursors[cursors.length - 1],
+    limit: 20,
+  })
   return (
-    <RelatedEntityTable
-      title="Tasks"
-      kind="tasks"
-      data={data ?? []}
-      columns={tasksConfig.columns}
-      filters={tasksConfig.filters}
-      hiddenColumns={tasksConfig.hiddenColumns}
-      isLoading={isLoading}
-    />
+    <div className="space-y-4">
+      <h2 className="text-lg font-semibold">
+        Tasks ({data?.tasks.total ?? '…'})
+      </h2>
+      {error && (
+        <p role="alert">
+          Could not load tasks.{' '}
+          <Button
+            variant="ghost"
+            onClick={() => {
+              void retry().catch(() => {})
+            }}
+          >
+            Retry
+          </Button>
+        </p>
+      )}
+      <DataTable
+        columns={tasksConfig.columns}
+        serverSorting={sorting}
+        onServerSortingChange={(update) => {
+          setSorting(typeof update === 'function' ? update(sorting) : update)
+          setCursors([undefined])
+        }}
+        data={data?.tasks.items ?? []}
+        filters={tasksConfig.filters}
+        hiddenColumns={tasksConfig.hiddenColumns}
+        searchValue={q}
+        onSearchChange={(value) => {
+          setQ(value)
+          setCursors([undefined])
+        }}
+        columnFilters={filters}
+        onColumnFiltersChange={(update) => {
+          setFilters(typeof update === 'function' ? update(filters) : update)
+          setCursors([undefined])
+        }}
+        manualRead
+        isLoading={isLoading}
+        onRowClick={(row) => navigate(getEntityItemRoute('tasks', row.id))}
+      />
+      <div className="flex items-center gap-3">
+        <Button
+          variant="outline"
+          disabled={cursors.length === 1 || isLoading}
+          onClick={() => setCursors((previous) => previous.slice(0, -1))}
+        >
+          Previous
+        </Button>
+        <span className="text-sm">Page {cursors.length}</span>
+        <Button
+          variant="outline"
+          disabled={!data?.tasks.nextCursor || isLoading}
+          onClick={() =>
+            setCursors((previous) => [
+              ...previous,
+              data?.tasks.nextCursor ?? undefined,
+            ])
+          }
+        >
+          Next
+        </Button>
+      </div>
+      {data && (kind === 'tags' || kind === 'urls') && (
+        <DirectItems data={data} />
+      )}
+    </div>
   )
 }
 
-const SupporterItems = ({
-  kind,
-  id,
+const DirectItems = ({
+  data: { directRelations: data },
 }: {
-  kind: 'tags' | 'urls'
-  id: string
-}) => {
-  const { data, isLoading } = useSupporterItems(kind, id)
-  if (!data) {
-    return isLoading ? null : (
-      <p className="text-sm text-muted-foreground">Could not load items.</p>
-    )
-  }
-  const tables = [
-    data.resources.length > 0 && (
+  data: ContainerDetail
+}) => (
+  <div className="space-y-6">
+    {data.resources.length > 0 && (
       <RelatedEntityTable
-        key="resources"
         title="Resources"
         kind="resources"
         data={data.resources}
         columns={resourcesConfig.columns}
         hiddenColumns={resourcesConfig.hiddenColumns}
       />
-    ),
-    data.tasks.length > 0 && (
+    )}
+    {data.projects.length > 0 && (
       <RelatedEntityTable
-        key="tasks"
-        title={`Tasks (${data.resolved_task_total})`}
-        kind="tasks"
-        data={data.tasks}
-        columns={tasksConfig.columns}
-        filters={tasksConfig.filters}
-        hiddenColumns={tasksConfig.hiddenColumns}
-      />
-    ),
-    data.projects.length > 0 && (
-      <RelatedEntityTable
-        key="projects"
         title="Projects"
         kind="projects"
         data={data.projects}
         columns={projectsConfig.columns}
         filters={projectsConfig.filters}
       />
-    ),
-    data.areas.length > 0 && (
+    )}
+    {data.areas.length > 0 && (
       <RelatedEntityTable
-        key="areas"
         title="Areas"
         kind="areas"
         data={data.areas}
         columns={areasConfig.columns}
         filters={areasConfig.filters}
       />
-    ),
-    data.goals.length > 0 && (
+    )}
+    {data.goals.length > 0 && (
       <RelatedEntityTable
-        key="goals"
         title="Goals"
         kind="goals"
         data={data.goals}
         columns={goalsConfig.columns}
         filters={goalsConfig.filters}
       />
-    ),
-  ].filter(Boolean)
-  return tables.length > 0 ? (
-    <div className="space-y-6">{tables}</div>
-  ) : (
-    <p className="text-sm text-muted-foreground">No linked items.</p>
-  )
-}
+    )}
+  </div>
+)
+
+const SupporterItems = RelatedTasks
 
 export const ProjectsPage = () => <EntityListPage config={projectsConfig} />
 export const AreasPage = () => <EntityListPage config={areasConfig} />

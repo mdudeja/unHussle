@@ -1,5 +1,5 @@
 import { Tag } from '@c/types'
-import { HydratedArea, HydratedGoal, HydratedProject } from '@c/types/Hydrated'
+import type { EntityReference } from '@c/types/readModels'
 
 // Mirrors the `#\S+` hashtag grammar so a title without a tag can still be
 // inserted as a valid hashtag.
@@ -25,9 +25,9 @@ export const parseHashtags = ({
   existingGoals,
 }: {
   text: string
-  existingProjects: HydratedProject[]
-  existingAreas: HydratedArea[]
-  existingGoals: HydratedGoal[]
+  existingProjects: EntityReference[]
+  existingAreas: EntityReference[]
+  existingGoals: EntityReference[]
 }): HashtagParseResult => {
   const result: HashtagParseResult = {
     textWithoutTags: text,

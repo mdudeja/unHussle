@@ -1,3 +1,4 @@
+import { taskPageQuerySchema } from './readModels'
 import { Value } from '@sinclair/typebox/value'
 import { TagsRepository } from '@d/database/repositories/tags'
 import { SupporterItemsRepository } from '@d/database/repositories/supporterItems'
@@ -5,7 +6,7 @@ import { tags } from '@d/database/schemas'
 import { UnHussleDB } from '@d/database/UnHussleDB'
 import {
   insertTagsSchema,
-  selectSupporterItemsSchema,
+  selectContainerDetailSchema,
   selectTagsSchema,
   updateTagsSchema,
 } from '@d/database/validation'
@@ -30,15 +31,16 @@ const tagRoutes = routeGenerator({
 
 tagRoutes.get(
   '/:id/items',
-  async ({ params: { id }, logger }) => {
+  async ({ params: { id }, query, logger }) => {
     logger.debug(`Get items tagged with tag id: ${id}`)
     return Value.Parse(
-      selectSupporterItemsSchema,
-      await items.getItems('tags', id),
+      selectContainerDetailSchema,
+      await items.getItems('tags', id, query),
     )
   },
   {
-    response: selectSupporterItemsSchema,
+    query: taskPageQuerySchema,
+    response: selectContainerDetailSchema,
   },
 )
 

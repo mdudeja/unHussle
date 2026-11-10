@@ -1,3 +1,4 @@
+import type { EntityReference } from './readModels'
 import type { Url } from '@d/database/schemas/urls.schema'
 import type {
   Task,
@@ -10,10 +11,10 @@ import type {
 } from '@c/types'
 
 type TaskRelations = {
-  project?: Project['Read'] | null
-  area?: Area['Read'] | null
-  goal?: Goal['Read'] | null
-  anchor?: Task['Read'] | null
+  project?: EntityReference | null
+  area?: EntityReference | null
+  goal?: EntityReference | null
+  anchor?: EntityReference | null
   tags?: Tag['Read'][]
   urls?: Url['Read'][]
   timeEntries?: TimeEntry['Read'][]
@@ -25,9 +26,8 @@ export type HydratedTask = Task['Read'] & TaskRelations
 type ProjectRelations = {
   /** Resolved containment total; count_tasks remains the direct-assignment count. */
   resolved_task_total?: number
-  area?: Area['Read'] | null
-  goal?: Goal['Read'] | null
-  tasks?: Task['Read'][]
+  area?: EntityReference | null
+  goal?: EntityReference | null
   resources?: Resource['Read'][]
   tags?: Tag['Read'][]
   urls?: Url['Read'][]
@@ -39,7 +39,6 @@ type AreaRelations = {
   /** Resolved containment total; count_tasks remains the direct-assignment count. */
   resolved_task_total?: number
   goals?: Goal['Read'][]
-  tasks?: Task['Read'][]
   resources?: Resource['Read'][]
   projects?: Project['Read'][]
   tags?: Tag['Read'][]
@@ -51,8 +50,7 @@ export type HydratedArea = Area['Read'] & AreaRelations
 type GoalRelations = {
   /** Resolved containment total; count_tasks remains the direct-assignment count. */
   resolved_task_total?: number
-  area?: Area['Read'] | null
-  tasks?: Task['Read'][]
+  area?: EntityReference | null
   resources?: Resource['Read'][]
   projects?: Project['Read'][]
   tags?: Tag['Read'][]
@@ -94,14 +92,4 @@ export type TaskContext = {
   taskId: string
   own: ContextItems
   inherited: ContextGroup[]
-}
-
-/** Directly attached collections/resources and their resolved task membership. */
-export type SupporterItems = {
-  tasks: HydratedTask[]
-  projects: HydratedProject[]
-  areas: HydratedArea[]
-  goals: HydratedGoal[]
-  resources: HydratedResource[]
-  resolved_task_total: number
 }
