@@ -1,7 +1,7 @@
 import { beforeAll, describe, expect, test } from 'bun:test'
 import { eq } from 'drizzle-orm'
 import { UnHussleDB } from '@d/database/UnHussleDB'
-import { createBackendRuntime } from '@d/workflows/runtime'
+import { createBackendRuntime } from '@d/bootstrap'
 import { createUnitOfWork } from '@d/workflows/unitOfWork'
 import {
   tasks,

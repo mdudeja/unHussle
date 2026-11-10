@@ -1,0 +1,426 @@
+{
+  "bun": "1.4.3",
+  "samples": [
+    {
+      "elapsedMs": 17.263733000000002,
+      "requests": [
+        {
+          "method": "PATCH",
+          "path": "/tasks/i5gcor9fs4n4vh5lk4nq6016",
+          "bytes": 1159
+        },
+        {
+          "method": "GET",
+          "path": "/tasks/search/Baseline",
+          "bytes": 5363
+        }
+      ],
+      "duplicateReads": {}
+    },
+    {
+      "elapsedMs": 5.932862,
+      "requests": [
+        {
+          "method": "PATCH",
+          "path": "/tasks/i5gcor9fs4n4vh5lk4nq6016",
+          "bytes": 1159
+        },
+        {
+          "method": "GET",
+          "path": "/tasks/search/Baseline",
+          "bytes": 5363
+        }
+      ],
+      "duplicateReads": {}
+    },
+    {
+      "elapsedMs": 7.286780000000022,
+      "requests": [
+        {
+          "method": "PATCH",
+          "path": "/tasks/i5gcor9fs4n4vh5lk4nq6016",
+          "bytes": 1159
+        },
+        {
+          "method": "GET",
+          "path": "/tasks/search/Baseline",
+          "bytes": 5363
+        }
+      ],
+      "duplicateReads": {}
+    },
+    {
+      "elapsedMs": 7.166067000000055,
+      "requests": [
+        {
+          "method": "PATCH",
+          "path": "/tasks/i5gcor9fs4n4vh5lk4nq6016",
+          "bytes": 1159
+        },
+        {
+          "method": "GET",
+          "path": "/tasks/search/Baseline",
+          "bytes": 5363
+        }
+      ],
+      "duplicateReads": {}
+    },
+    {
+      "elapsedMs": 5.627999999999929,
+      "requests": [
+        {
+          "method": "PATCH",
+          "path": "/tasks/i5gcor9fs4n4vh5lk4nq6016",
+          "bytes": 1159
+        },
+        {
+          "method": "GET",
+          "path": "/tasks/search/Baseline",
+          "bytes": 5363
+        }
+      ],
+      "duplicateReads": {}
+    }
+  ],
+  "mountedSamples": [
+    {
+      "elapsedMs": 13.725945000000024,
+      "requests": [
+        {
+          "method": "PATCH",
+          "path": "/tasks/i5gcor9fs4n4vh5lk4nq6016",
+          "bytes": 1159
+        },
+        {
+          "method": "GET",
+          "path": "/tasks/paginated/1/100",
+          "bytes": 5363
+        },
+        {
+          "method": "GET",
+          "path": "/projects/paginated/1/30",
+          "bytes": 1780
+        },
+        {
+          "method": "GET",
+          "path": "/time_entries/paginated/1/100",
+          "bytes": 2
+        },
+        {
+          "method": "GET",
+          "path": "/urls/paginated/1/100",
+          "bytes": 2
+        },
+        {
+          "method": "GET",
+          "path": "/tags/paginated/1/100",
+          "bytes": 4838
+        },
+        {
+          "method": "GET",
+          "path": "/resources/paginated/1/100",
+          "bytes": 2
+        },
+        {
+          "method": "GET",
+          "path": "/goals/paginated/1/30",
+          "bytes": 6962
+        },
+        {
+          "method": "GET",
+          "path": "/areas/paginated/1/50",
+          "bytes": 5483
+        },
+        {
+          "method": "GET",
+          "path": "/tasks/search/Baseline",
+          "bytes": 5363
+        }
+      ],
+      "duplicateReads": {}
+    },
+    {
+      "elapsedMs": 15.583796000000007,
+      "requests": [
+        {
+          "method": "PATCH",
+          "path": "/tasks/i5gcor9fs4n4vh5lk4nq6016",
+          "bytes": 1159
+        },
+        {
+          "method": "GET",
+          "path": "/tasks/paginated/1/100",
+          "bytes": 5363
+        },
+        {
+          "method": "GET",
+          "path": "/projects/paginated/1/30",
+          "bytes": 1780
+        },
+        {
+          "method": "GET",
+          "path": "/areas/paginated/1/50",
+          "bytes": 5483
+        },
+        {
+          "method": "GET",
+          "path": "/goals/paginated/1/30",
+          "bytes": 6962
+        },
+        {
+          "method": "GET",
+          "path": "/resources/paginated/1/100",
+          "bytes": 2
+        },
+        {
+          "method": "GET",
+          "path": "/tags/paginated/1/100",
+          "bytes": 4838
+        },
+        {
+          "method": "GET",
+          "path": "/urls/paginated/1/100",
+          "bytes": 2
+        },
+        {
+          "method": "GET",
+          "path": "/time_entries/paginated/1/100",
+          "bytes": 2
+        },
+        {
+          "method": "GET",
+          "path": "/tasks/search/Baseline",
+          "bytes": 5363
+        }
+      ],
+      "duplicateReads": {}
+    },
+    {
+      "elapsedMs": 12.239665000000059,
+      "requests": [
+        {
+          "method": "PATCH",
+          "path": "/tasks/i5gcor9fs4n4vh5lk4nq6016",
+          "bytes": 1159
+        },
+        {
+          "method": "GET",
+          "path": "/tasks/paginated/1/100",
+          "bytes": 5363
+        },
+        {
+          "method": "GET",
+          "path": "/projects/paginated/1/30",
+          "bytes": 1780
+        },
+        {
+          "method": "GET",
+          "path": "/areas/paginated/1/50",
+          "bytes": 5483
+        },
+        {
+          "method": "GET",
+          "path": "/goals/paginated/1/30",
+          "bytes": 6962
+        },
+        {
+          "method": "GET",
+          "path": "/resources/paginated/1/100",
+          "bytes": 2
+        },
+        {
+          "method": "GET",
+          "path": "/tags/paginated/1/100",
+          "bytes": 4838
+        },
+        {
+          "method": "GET",
+          "path": "/urls/paginated/1/100",
+          "bytes": 2
+        },
+        {
+          "method": "GET",
+          "path": "/time_entries/paginated/1/100",
+          "bytes": 2
+        },
+        {
+          "method": "GET",
+          "path": "/tasks/search/Baseline",
+          "bytes": 5363
+        }
+      ],
+      "duplicateReads": {}
+    },
+    {
+      "elapsedMs": 11.357091999999966,
+      "requests": [
+        {
+          "method": "PATCH",
+          "path": "/tasks/i5gcor9fs4n4vh5lk4nq6016",
+          "bytes": 1159
+        },
+        {
+          "method": "GET",
+          "path": "/tasks/paginated/1/100",
+          "bytes": 5363
+        },
+        {
+          "method": "GET",
+          "path": "/projects/paginated/1/30",
+          "bytes": 1780
+        },
+        {
+          "method": "GET",
+          "path": "/areas/paginated/1/50",
+          "bytes": 5483
+        },
+        {
+          "method": "GET",
+          "path": "/goals/paginated/1/30",
+          "bytes": 6962
+        },
+        {
+          "method": "GET",
+          "path": "/resources/paginated/1/100",
+          "bytes": 2
+        },
+        {
+          "method": "GET",
+          "path": "/tags/paginated/1/100",
+          "bytes": 4838
+        },
+        {
+          "method": "GET",
+          "path": "/urls/paginated/1/100",
+          "bytes": 2
+        },
+        {
+          "method": "GET",
+          "path": "/time_entries/paginated/1/100",
+          "bytes": 2
+        },
+        {
+          "method": "GET",
+          "path": "/tasks/search/Baseline",
+          "bytes": 5363
+        }
+      ],
+      "duplicateReads": {}
+    },
+    {
+      "elapsedMs": 10.988553000000024,
+      "requests": [
+        {
+          "method": "PATCH",
+          "path": "/tasks/i5gcor9fs4n4vh5lk4nq6016",
+          "bytes": 1159
+        },
+        {
+          "method": "GET",
+          "path": "/tasks/paginated/1/100",
+          "bytes": 5363
+        },
+        {
+          "method": "GET",
+          "path": "/projects/paginated/1/30",
+          "bytes": 1780
+        },
+        {
+          "method": "GET",
+          "path": "/areas/paginated/1/50",
+          "bytes": 5483
+        },
+        {
+          "method": "GET",
+          "path": "/goals/paginated/1/30",
+          "bytes": 6962
+        },
+        {
+          "method": "GET",
+          "path": "/resources/paginated/1/100",
+          "bytes": 2
+        },
+        {
+          "method": "GET",
+          "path": "/tags/paginated/1/100",
+          "bytes": 4838
+        },
+        {
+          "method": "GET",
+          "path": "/urls/paginated/1/100",
+          "bytes": 2
+        },
+        {
+          "method": "GET",
+          "path": "/time_entries/paginated/1/100",
+          "bytes": 2
+        },
+        {
+          "method": "GET",
+          "path": "/tasks/search/Baseline",
+          "bytes": 5363
+        }
+      ],
+      "duplicateReads": {}
+    }
+  ],
+  "relationships": [
+    {
+      "kind": "projects",
+      "taskNames": [
+        "multiplePaths",
+        "directProject"
+      ],
+      "unique": true,
+      "count_tasks": 2,
+      "resolved_task_total": 2,
+      "responseBytes": 3082
+    },
+    {
+      "kind": "goals",
+      "taskNames": [
+        "directGoal",
+        "sibling",
+        "indirect",
+        "multiplePaths",
+        "directProject"
+      ],
+      "unique": true,
+      "count_tasks": 2,
+      "resolved_task_total": 5,
+      "responseBytes": 5644
+    },
+    {
+      "kind": "areas",
+      "taskNames": [
+        "directGoal",
+        "sibling",
+        "indirect",
+        "multiplePaths",
+        "directArea",
+        "directProject"
+      ],
+      "unique": true,
+      "count_tasks": 2,
+      "resolved_task_total": 6,
+      "responseBytes": 6319
+    },
+    {
+      "kind": "tags",
+      "taskNames": [
+        "directGoal",
+        "sibling",
+        "indirect",
+        "multiplePaths",
+        "directArea",
+        "directProject"
+      ],
+      "unique": true,
+      "count_tasks": 1,
+      "resolved_task_total": 6,
+      "responseBytes": 6307
+    }
+  ],
+  "signals": [],
+  "note": "Decoded JSON bytes; excludes SSE and startup/fixture requests. Real HTTP and Bun fetch SSE; no browser render or Tauri timing."
+}

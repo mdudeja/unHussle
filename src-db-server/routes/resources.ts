@@ -13,7 +13,7 @@ import { routeGenerator } from './routegenerator'
 import { resources } from '@d/database/schemas'
 import { UnHussleDB } from '@d/database/UnHussleDB'
 import { ResourcesRepository } from '@d/database/repositories/resources'
-import { backendRuntime } from '@d/workflows/runtime'
+import { backendRuntime } from '@d/bootstrap'
 import { fileExists, readFile, resolveIn } from '@d/vault/vault'
 import { operationIdHeader, traceOf } from '@d/routes/telemetry'
 

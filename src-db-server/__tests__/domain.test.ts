@@ -1,7 +1,7 @@
 import { describe, expect, test } from 'bun:test'
 import { eq, isNull } from 'drizzle-orm'
 import { UnHussleDB } from '@d/database/UnHussleDB'
-import { createBackendRuntime } from '@d/workflows/runtime'
+import { createBackendRuntime } from '@d/bootstrap'
 import {
   tasks,
   timeEntries,
@@ -91,7 +91,7 @@ describe('Backend domain boundaries', () => {
           action: 'create',
           changes: { title: 'Bypass' },
         }),
-      ).rejects.toThrow('No handler')
+      ).rejects.toThrow('Missing command')
       await expect(
         f.runtime.commands.execute('entitySupporter.add', {
           kind: 'tasks',

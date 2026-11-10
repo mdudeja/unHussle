@@ -1,7 +1,8 @@
 import type { SpanScope } from '@c/workflows/telemetry'
 import { Type, type TSchema } from '@sinclair/typebox'
 import {
-  createCompositionRegistry,
+  type createCompositionRegistry,
+  type CommandBoundary,
   type CommandDefinition,
 } from '@c/workflows/composition'
 import type { MutationInput, MutationResult } from '@c/workflows/contracts'
@@ -134,21 +135,20 @@ export function mutationDefinition(
 }
 
 /** Scheduler/vault state stays private typed domain code; compositions bind its declared envelope. */
-export function createStateComposition<
+export function registerStateCommands<
+  E,
   S extends { done?: boolean; result?: unknown },
   C extends TransactionContext,
   N extends string,
 >(
+  registry: ReturnType<typeof createCompositionRegistry<E>>,
   handlers: Record<string, string[]>,
   actions: Partial<Record<N, (name: N, state: S, context: C) => unknown>>,
   namespace: string,
+  execution: (context: E) => { transaction: C; state: S; trace?: SpanScope },
   span: (name: string, run: () => void, trace?: SpanScope) => void,
+  boundary: (id: string) => CommandBoundary<E>,
 ) {
-  const registry = createCompositionRegistry<{
-    transaction: C
-    state: S
-    trace?: SpanScope
-  }>()
   const envelope = Type.Unknown()
   for (const [name, action] of Object.entries(actions))
     registry.registerAction({
@@ -156,7 +156,8 @@ export function createStateComposition<
       description: name,
       input: envelope,
       output: envelope,
-      run: (input, { transaction, state, trace }) => {
+      run: (input, context) => {
+        const { transaction, state, trace } = execution(context)
         if (!state.done)
           span(
             name,
@@ -184,7 +185,7 @@ export function createStateComposition<
       description: `Result of ${id}`,
       input: envelope,
       output: schemas.output,
-      run: (_input, { state }) => state.result,
+      run: (_input, context) => execution(context).state.result,
     })
     registry.registerCommand(
       {
@@ -211,7 +212,14 @@ export function createStateComposition<
           resultAction,
         ],
       },
+      boundary(id),
     )
   }
-  return registry
+}
+
+/** Unsupported entity content must never reach logs, completion events, or replay buffers. */
+export function withoutResourceContent(input: MutationInput): MutationInput {
+  if (!input.changes || !('content' in input.changes)) return input
+  const { content: _content, ...changes } = input.changes
+  return { ...input, changes }
 }

@@ -1,7 +1,7 @@
 import type { StoreApi } from 'zustand/vanilla'
 import type { StoreState } from '@/store'
 import { commandHeadForKind, type EntryKind } from '@c/workflows/contracts'
-import { getFrontendRuntime } from '@/workflows/runtime'
+import { getFrontendRuntime } from '@/bootstrap'
 import { DbEntityTypes, WithSupporters } from '@c/types/index'
 import { StateCreator } from 'zustand'
 

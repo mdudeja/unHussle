@@ -1,5 +1,5 @@
 import { Elysia } from 'elysia'
-import { backendRuntime } from '@d/workflows/runtime'
+import { backendRuntime } from '@d/bootstrap'
 import type { AppEvents } from '@c/workflows/contracts'
 
 export type EventFrame = { id: number; name: string; payload: unknown }

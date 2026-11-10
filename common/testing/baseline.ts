@@ -4,7 +4,7 @@ import { tmpdir } from 'node:os'
 import { join } from 'node:path'
 import { createStore } from 'zustand/vanilla'
 import { useStore, type StoreState } from '@/store'
-import { createFrontendRuntime, type EntryTransport } from '@/workflows/runtime'
+import { createFrontendRuntime, type EntryTransport } from '@/bootstrap'
 import { createSseTransport } from '@/workflows/eventStream'
 import { mutationHeaders } from '@/services/database/DbService'
 import { createTelemetry } from '@c/workflows/telemetry'
@@ -150,6 +150,36 @@ try {
       ),
     })
   }
+  // A second profile mounts the sidebar's lists as well as the search.
+  const mountedSamples: typeof samples = []
+  const deactivateLists = kinds.map((kind) =>
+    runtime!.queries.activate(runtime!.defineList(kind)),
+  )
+  for (let index = 5; index < 10; index++) {
+    requests = []
+    const start = performance.now()
+    await runtime.commands.execute('entity.change', {
+      kind: 'tasks',
+      action: 'update',
+      id: fixture.tasks.multiplePaths,
+      changes: {
+        title: `Baseline change ${index}`,
+        tags: [{ id: fixture.tag.id, title: fixture.tag.title }],
+      },
+    })
+    const elapsedMs = performance.now() - start
+    const counts: Record<string, number> = {}
+    for (const { method, path } of requests)
+      if (method === 'GET') counts[path] = (counts[path] ?? 0) + 1
+    mountedSamples.push({
+      elapsedMs,
+      requests: [...requests],
+      duplicateReads: Object.fromEntries(
+        Object.entries(counts).filter(([, count]) => count > 1),
+      ),
+    })
+  }
+  for (const off of deactivateLists) off()
   deactivate()
   const labels = new Map(
     Object.entries(fixture.tasks).map(([name, id]) => [id, name]),
@@ -180,6 +210,7 @@ try {
     {
       bun: Bun.version,
       samples,
+      mountedSamples,
       relationships,
       signals: telemetry.recent({ kind: 'signal' }).map((span) => span.name),
       note: 'Decoded JSON bytes; excludes SSE and startup/fixture requests. Real HTTP and Bun fetch SSE; no browser render or Tauri timing.',

@@ -1,3 +1,12 @@
+import { createCompositionRegistry } from '@c/workflows/composition'
+import {
+  commandTracing,
+  registerCommandHandler,
+} from '@c/workflows/registration'
+import type { Handler } from '@c/workflows/runtime'
+import { fetchReferences, fetchContainerDetail } from '@/services/readModels'
+import { fetchTaskContext } from '@/services/taskContext'
+import type { DomainQueries } from '@c/extensions/sdk'
 import { createStore, type StoreApi } from 'zustand/vanilla'
 import { createRuntime } from '@c/workflows/runtime'
 import type { SpanScope, Telemetry } from '@c/workflows/telemetry'
@@ -73,8 +82,10 @@ const queryKindToLabel: Record<string, string> = {
   time_entries: 'time entries',
 }
 
-/** Creates the frontend runtime that connects the application store to backend services and event streams, coordinating commands, reactions, tracking, and cached queries for the frontend. */
-export function createFrontendRuntime(
+/** Creates the frontend runtime that connects the application store to backend
+ * services and event streams, coordinating commands, reactions, tracking, and
+ * cached queries for the frontend. */
+export function createFrontendExecution(
   store: StoreApi<StoreState>,
   options: {
     services?: Record<EntryKind, EntryTransport>
@@ -230,11 +241,29 @@ export function createFrontendRuntime(
         taskId: tracking.getActiveTracking()?.taskId ?? null,
       }),
   }
+  const registry = createCompositionRegistry<{ trace?: SpanScope }>(
+    commandTracing(telemetry),
+  )
   const runtime = createRuntime<
     FrontendCommands,
     FrontendEvents,
     typeof context
-  >(context, { telemetry })
+  >(context, {
+    telemetry,
+    registry,
+  })
+  /** Registers a handler for a frontend command so the command can be invoked through the command registry. */
+  const registerCommand = <K extends keyof FrontendCommands>(
+    id: K,
+    handler: Handler<
+      FrontendCommands[K]['input'],
+      FrontendCommands[K]['result'],
+      typeof context
+    >,
+  ) =>
+    registerCommandHandler(registry, id, (input, { trace }) =>
+      handler(id, input as FrontendCommands[K]['input'], context, trace),
+    )
 
   // Reactions: what the frontend does in response to each event.
   const reactions = createReactions<typeof context>()
@@ -355,7 +384,7 @@ export function createFrontendRuntime(
   }
 
   for (const command of schedulerCommandNames)
-    runtime.commands.handle(command, (_name, input, _context, trace) =>
+    registerCommand(command, (_name, input, _context, trace) =>
       serialize(async () => {
         const event = schedulerCommandEvents[command]
         const { result, operationId } = await commandTransport.send(
@@ -412,7 +441,7 @@ export function createFrontendRuntime(
   }
 
   for (const command of vaultCommandNames)
-    runtime.commands.handle(command, (_name, input, _context, trace) =>
+    registerCommand(command, (_name, input, _context, trace) =>
       queueVault(
         command === 'resource.content.save'
           ? `content:${(input as { id: string }).id}`
@@ -465,10 +494,8 @@ export function createFrontendRuntime(
     return result
   }
 
-  runtime.commands.handle(
-    'task.transition',
-    (_command, input, _context, trace) =>
-      serialize(() => transitionTask(input, trace)),
+  registerCommand('task.transition', (_command, input, _context, trace) =>
+    serialize(() => transitionTask(input, trace)),
   )
 
   // Task status changes and deletions go through the serialized lifecycle;
@@ -505,7 +532,7 @@ export function createFrontendRuntime(
   for (const head of mutationHeads)
     for (const verb of Object.keys(mutationVerbs) as MutationVerb[]) {
       const name: MutationCommand = `${head}.${verb}`
-      runtime.commands.handle(
+      registerCommand(
         name,
         (_command, input, _context, trace) =>
           mutate(name, input, trace) as Promise<
@@ -514,7 +541,7 @@ export function createFrontendRuntime(
       )
     }
 
-  runtime.commands.handle(
+  registerCommand(
     'brainDump.submit',
     async (_command, input, _context, trace) => {
       const nested = { traceId: trace?.traceId, parentId: trace?.spanId }
@@ -576,6 +603,43 @@ export function createFrontendRuntime(
     return queries.ensure<EntryRecord[]>(key)
   }
 
+  /** Registers and retrieves a cached extension query, loading its value if necessary. */
+  const readExtensionQuery = <T>(
+    key: string,
+    kind: EntryKind,
+    load: () => Promise<T>,
+  ) => {
+    queries.define({ key, dependencies: dependencies(kind), load })
+    return queries.ensure<T>(key)
+  }
+  const extensionReads: DomainQueries = {
+    list: (kind, page = 1, limit) =>
+      limit === undefined
+        ? ensureList(kind, page)
+        : readExtensionQuery(`list:${kind}:${page}:${limit}`, kind, () =>
+            services[kind].fetchPaginated(
+              page,
+              Math.max(1, Math.min(limit, 100)),
+            ),
+          ),
+    get: (kind, id) => queries.ensure<EntryRecord>(defineDetail(kind, id)),
+    references: (kind, options) =>
+      readExtensionQuery(
+        `references:${kind}:${JSON.stringify(options ?? {})}`,
+        kind,
+        () => fetchReferences(kind, options),
+      ),
+    container: (kind, id, options) =>
+      readExtensionQuery(
+        `related:${kind}:${id}:${JSON.stringify(options ?? {})}`,
+        kind,
+        () => fetchContainerDetail(kind, id, options),
+      ),
+    taskContext: (id) =>
+      readExtensionQuery(`context:tasks:${id}`, 'tasks', () =>
+        fetchTaskContext(id),
+      ),
+  }
   /** Releases all resources and shuts down active services cleanly. */
   const dispose = () => {
     disposed = true
@@ -589,6 +653,10 @@ export function createFrontendRuntime(
 
   return {
     ...runtime,
+    registry,
+    extensionReads,
+    telemetry,
+    logger,
     queries,
     ui,
     tracking,
@@ -622,27 +690,3 @@ export function dependencies(kind: EntryKind): EntryKind[] {
         ? ['time_entries', 'tasks']
         : [...hydrated, 'tags', 'urls']
 }
-
-export type FrontendRuntime = ReturnType<typeof createFrontendRuntime>
-let instances = new WeakMap<StoreApi<StoreState>['getState'], FrontendRuntime>()
-const liveInstances = new Set<FrontendRuntime>()
-
-/** Retrieves the shared frontend runtime for a store, creating and registering it when one does not already exist. */
-export function getFrontendRuntime(store: StoreApi<StoreState>) {
-  let runtime = instances.get(store.getState)
-  if (!runtime) {
-    runtime = createFrontendRuntime(store)
-    instances.set(store.getState, runtime)
-    liveInstances.add(runtime)
-  }
-  return runtime
-}
-
-/** Disposes all active frontend runtimes and clears the tracking of live instances. */
-export function disposeFrontendRuntimes() {
-  for (const runtime of liveInstances) runtime.dispose()
-  liveInstances.clear()
-  instances = new WeakMap()
-}
-
-if (import.meta.hot) import.meta.hot.dispose(disposeFrontendRuntimes)

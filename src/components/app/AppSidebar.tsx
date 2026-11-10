@@ -1,3 +1,4 @@
+import { ExtensionMenus } from './ExtensionContributions'
 import { useEntryList } from '@/workflows/hooks'
 import type { LucideIcon } from 'lucide-react'
 import {
@@ -239,6 +240,7 @@ export const AppSidebarComponent = () => {
             ))}
           </SidebarMenu>
         </SidebarGroup>
+        <ExtensionMenus />
         {groups.map((group) => (
           <SidebarRecentGroup
             key={group.label}

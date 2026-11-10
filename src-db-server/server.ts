@@ -100,6 +100,8 @@ const app = new Elysia()
   })
 
   .get('/health', ({ set, logger }) => {
+    if (process.env.NODE_ENV === 'test' && process.env.UNHUSSLE_TEST_RUN_ID)
+      set.headers['x-test-server-id'] = process.env.UNHUSSLE_TEST_RUN_ID
     const dbReady = uDB.isReady()
     logger.debug(`Health check - DB ready: ${dbReady}`)
     if (dbReady) {

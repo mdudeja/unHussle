@@ -2,7 +2,6 @@ import { describe, expect, test } from 'bun:test'
 import { Type } from '@sinclair/typebox'
 import {
   createCompositionRegistry,
-  executeWorkflow,
   WorkflowFailure,
   type CommandDefinition,
 } from '@c/workflows/composition'
@@ -138,18 +137,48 @@ describe('compiled command definitions', () => {
   test('reports committed workflow steps and stops without retrying', async () => {
     const calls: string[] = []
     try {
-      await executeWorkflow(
-        ['one', 'two', 'three'].map((id) => ({
+      const registry = createCompositionRegistry<undefined>()
+      for (const id of ['one', 'two', 'three']) {
+        registry.registerAction({
+          id: `test.action.${id}`,
+          description: id,
+          input: number,
+          output: number,
+          run: () => {
+            calls.push(`test.${id}`)
+            if (id === 'two') throw new Error('failed')
+            return 2
+          },
+        })
+        registry.registerCommand({
+          id: `test.${id}`,
+          description: id,
+          input: number,
+          output: number,
+          steps: [
+            {
+              id: 'action',
+              action: `test.action.${id}`,
+              input: { from: 'input' },
+            },
+          ],
+          result: { from: 'step', step: 'action' },
+        })
+      }
+      registry.registerCommand({
+        id: 'test.workflow',
+        description: 'Sequential commands',
+        execution: 'workflow',
+        input: number,
+        output: number,
+        steps: ['one', 'two', 'three'].map((id) => ({
           id,
           command: `test.${id}`,
-          input: 1,
+          input: { from: 'input' },
         })),
-        async (command) => {
-          calls.push(command)
-          if (command === 'test.two') throw new Error('failed')
-          return 2
-        },
-      )
+        result: { from: 'step', step: 'three' },
+      })
+      await registry.executeAsync('test.workflow', 1, undefined)
       throw new Error('Expected failure')
     } catch (error) {
       expect(error).toBeInstanceOf(WorkflowFailure)
@@ -160,4 +189,101 @@ describe('compiled command definitions', () => {
       expect(calls).toEqual(['test.one', 'test.two'])
     }
   })
+})
+
+test('optional output paths cannot satisfy required inputs during compilation', () => {
+  const registry = createCompositionRegistry<undefined>()
+  registry.registerAction({
+    id: 'test.required',
+    description: 'Needs a string',
+    input: Type.String(),
+    output: Type.String(),
+    run: (value) => value,
+  })
+  expect(() =>
+    registry.registerCommand({
+      id: 'test.optional',
+      description: 'Invalid optional binding',
+      input: Type.Object({ value: Type.Optional(Type.String()) }),
+      output: Type.String(),
+      steps: [
+        {
+          id: 'read',
+          action: 'test.required',
+          input: { from: 'input', path: ['value'] },
+        },
+      ],
+      result: { from: 'step', step: 'read' },
+    }),
+  ).toThrow('Incompatible')
+})
+
+test('serialized schemas cannot silently turn unsupported references into unknown values', () => {
+  const registry = createCompositionRegistry<undefined>()
+  const input = JSON.parse('{"$ref":"missing"}') as ReturnType<
+    typeof Type.String
+  >
+  expect(() =>
+    registry.registerAction({
+      id: 'test.unsupportedSchema',
+      description: 'Unsupported reference',
+      input,
+      output: Type.Null(),
+      run: () => null,
+    }),
+  ).toThrow('Unsupported serialized schema')
+})
+
+test('cached atomic plans inline compatible commands and workflows invoke each boundary once', async () => {
+  const registry = setup()
+  let commits = 0
+  const boundary = {
+    id: 'test.atomic',
+    run: async (
+      _input: unknown,
+      context: string[],
+      execute: (context: string[]) => unknown,
+    ) => {
+      const result = execute(context)
+      commits++
+      return result
+    },
+  }
+  registry.registerCommand(definition(), undefined, boundary)
+  registry.registerCommand(
+    {
+      id: 'test.inline',
+      description: 'Inline',
+      input: number,
+      output: number,
+      steps: [
+        { id: 'child', command: 'test.double', input: { from: 'input' } },
+      ],
+      result: { from: 'step', step: 'child' },
+    },
+    undefined,
+    boundary,
+  )
+  registry.registerCommand({
+    id: 'test.workflow',
+    description: 'Independent commits',
+    execution: 'workflow',
+    input: number,
+    output: number,
+    steps: [
+      { id: 'first', command: 'test.inline', input: { from: 'input' } },
+      {
+        id: 'second',
+        command: 'test.double',
+        input: { from: 'step', step: 'first' },
+      },
+    ],
+    result: { from: 'step', step: 'second' },
+  })
+  expect(await registry.executeAsync('test.workflow', 1, [])).toBe(5)
+  expect(commits).toBe(2)
+  await expect(
+    registry.executeAsync('test.inline', 'invalid', []),
+  ).rejects.toThrow('input')
+  expect(commits).toBe(2)
 })

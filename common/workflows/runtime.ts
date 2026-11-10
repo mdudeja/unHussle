@@ -1,3 +1,5 @@
+import { createCompositionRegistry } from './composition'
+import { registerCommandHandler } from './registration'
 import type { SpanOptions, Telemetry, SpanScope } from '@c/workflows/telemetry'
 
 type Command = { input: unknown; result: unknown }
@@ -29,9 +31,24 @@ export function createRuntime<
   Commands extends { [K in keyof Commands]: Command },
   Events extends object,
   Context,
->(context: Context, { telemetry }: { telemetry?: Telemetry } = {}) {
+>(
+  context: Context,
+  {
+    telemetry,
+    registry: suppliedRegistry,
+  }: {
+    telemetry?: Telemetry
+    registry?: ReturnType<
+      typeof createCompositionRegistry<{ trace?: SpanScope }>
+    >
+  } = {},
+) {
   type Name = keyof Commands
-  const handlers = new Map<Name, Handler<unknown, unknown, Context>>()
+  const registry =
+    suppliedRegistry ?? createCompositionRegistry<{ trace?: SpanScope }>()
+  /** Determines the command identifier to use, preserving names from a supplied registry or already-qualified names and otherwise prefixing bare names with the runtime namespace. */
+  const commandId = (name: string) =>
+    suppliedRegistry || name.includes('.') ? name : `runtime.${name}`
   const listeners = new Map<keyof Events, Set<Listener<Context>>>()
   const anyListeners = new Set<Listener<Context>>()
 
@@ -48,21 +65,54 @@ export function createRuntime<
     }
   }
 
+  /** Dynamic invocation is confined to the registry boundary; typed callers use commands.execute. */
+  const execute = async (
+    name: string,
+    input: unknown,
+    meta: TraceMeta = {},
+  ): Promise<unknown> => {
+    /** Executes the registered asynchronous command. */
+    if (!suppliedRegistry && !registry.kind(commandId(name)))
+      throw new Error(`No handler for command: ${name}`)
+    /** Invokes a registered command asynchronously, optionally associating its execution with a trace scope. */
+    const invoke = (trace?: SpanScope) =>
+      registry.executeAsync(commandId(name), input, { trace })
+    if (!telemetry) return await invoke()
+    return await telemetry.span(
+      'command',
+      String(name),
+      (span) => invoke(span),
+      {
+        traceId: meta.traceId ?? operationIdOf(input),
+        parentId: meta.parentId,
+      },
+    )
+  }
+
   return {
     telemetry,
     commands: {
+      invoke: execute,
       /** Registers a named command handler for later dispatch while preventing duplicate command registrations. */
       handle<K extends Name>(
         name: K,
         handler: Handler<Commands[K]['input'], Commands[K]['result'], Context>,
       ) {
-        if (handlers.has(name))
-          throw new Error(`Duplicate command: ${String(name)}`)
-        const registered = handler as Handler<unknown, unknown, Context>
-        handlers.set(name, registered)
-        return () => {
-          if (handlers.get(name) === registered) handlers.delete(name)
-        }
+        if (suppliedRegistry)
+          throw new Error(
+            'Commands are registered through the composition registry',
+          )
+        return registerCommandHandler(
+          registry,
+          commandId(String(name)),
+          (input, { trace }) =>
+            handler(
+              String(name),
+              input as Commands[K]['input'],
+              context,
+              trace,
+            ),
+        )
       },
       /** Executes the named command with its registered handler, optionally recording execution as a telemetry span. */
       async execute<K extends Name>(
@@ -70,18 +120,12 @@ export function createRuntime<
         input: Commands[K]['input'],
         meta: TraceMeta = {},
       ): Promise<Commands[K]['result']> {
-        const handler = handlers.get(name)
-        if (!handler) throw new Error(`No handler for command: ${String(name)}`)
-        if (!telemetry) return await handler(String(name), input, context)
-        return await telemetry.span(
-          'command',
+        const result: Commands[K]['result'] = await execute(
           String(name),
-          (span) => handler(String(name), input, context, span),
-          {
-            traceId: meta.traceId ?? operationIdOf(input),
-            parentId: meta.parentId,
-          },
+          input,
+          meta,
         )
+        return result
       },
     },
     events: {
@@ -153,7 +197,7 @@ export function createRuntime<
     },
     /** Releases all registered event handlers and listeners. */
     dispose() {
-      handlers.clear()
+      registry.clear()
       listeners.clear()
       anyListeners.clear()
     },

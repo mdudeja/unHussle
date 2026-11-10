@@ -7,16 +7,6 @@ import type { SyncTx } from '@d/database/repositories/helpers'
 import type { transactionRepository } from '@d/workflows/unitOfWork'
 import type { AppEvents, MutationCommands } from '@c/workflows/contracts'
 
-/** Row handlers are templates for built-ins, never independently executable commands. */
-export type EntryCommands = {
-  [
-    K in keyof MutationCommands as K extends `entity.${infer Verb}`
-      ? `entry.${Verb}`
-      : never
-  ]: MutationCommands[K]
-}
-export type BackendMutationCommands = MutationCommands & EntryCommands
-
 export type CommandAction =
   | 'createRow'
   | 'updateRow'
@@ -37,7 +27,7 @@ export type CommandAction =
   | 'trashResourceFiles'
 
 export type CommandHandlers = {
-  [K in keyof BackendMutationCommands]?: CommandAction[]
+  [K in keyof MutationCommands]: CommandAction[]
 }
 
 /** Queues an event that is published only after the command's transaction commits. */

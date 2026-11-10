@@ -1,6 +1,6 @@
 import type { EntityReference } from '@c/types/readModels'
 import { useWorkflowQuery } from '@/workflows/hooks'
-import { dependencies } from '@/workflows/runtime'
+import { dependencies } from '@/bootstrap'
 import { fetchAllReferences } from '@/services/readModels'
 import type { EntryKind } from '@c/workflows/contracts'
 

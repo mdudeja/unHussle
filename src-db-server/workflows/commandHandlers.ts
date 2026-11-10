@@ -1,10 +1,6 @@
 import type { CommandHandlers } from '@d/workflows/contracts'
 
 export const commandHandlerRegistry: CommandHandlers = {
-  'entry.add': ['createRow'],
-  'entry.change': ['updateRow'],
-  'entry.delete': ['deleteRow'],
-  'entry.deleteAll': ['deleteAllRows'],
   'entity.add': [
     'createRow',
     'validateTask',

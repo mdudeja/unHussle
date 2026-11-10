@@ -1,7 +1,7 @@
 import { readDetail } from '@c/testing/frontendReads'
 import { describe, test, expect, beforeAll, afterAll } from 'bun:test'
 import { useStore } from '@/store'
-import { getFrontendRuntime } from '@/workflows/runtime'
+import { getFrontendRuntime } from '@/bootstrap'
 const timeTrackingService = {
   getActiveTracking: () =>
     getFrontendRuntime(useStore).tracking.getActiveTracking(),

@@ -1,5 +1,5 @@
 import { useStore } from '@/store'
-import { getFrontendRuntime, type FrontendRuntime } from '@/workflows/runtime'
+import { getFrontendRuntime, type FrontendRuntime } from '@/bootstrap'
 import type { EntryKind, EntryRecord } from '@c/workflows/contracts'
 import type { EntityRead } from '@/workflows/services'
 

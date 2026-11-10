@@ -3,6 +3,10 @@ import { sqliteTable, text } from 'drizzle-orm/sqlite-core'
 export type AppSettings = {
   /** Absolute vault folder chosen by the user; falls back to `VAULT_DIR`. */
   vaultDir?: string
+  extensions?: Record<
+    string,
+    Record<string, import('@c/extensions/sdk').JsonValue>
+  >
 }
 
 // One `default` row, like `scheduler_settings`.

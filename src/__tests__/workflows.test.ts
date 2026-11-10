@@ -6,7 +6,7 @@ import {
   getFrontendRuntime,
   dependencies,
   type EntryTransport,
-} from '@/workflows/runtime'
+} from '@/bootstrap'
 import type { EventHandlers, EventTransport } from '@/workflows/eventStream'
 import type { MutationOptions } from '@/services/database/DbService'
 import { useStore, type StoreState } from '@/store'

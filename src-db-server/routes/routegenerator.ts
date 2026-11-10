@@ -8,7 +8,7 @@ import {
   selectContainerDetailSchema,
 } from '@d/database/validation'
 import type { ReadContainerKind } from '@c/types/readModels'
-import { backendRuntime } from '@d/workflows/runtime'
+import { backendRuntime } from '@d/bootstrap'
 import { operationIdHeader, traceOf } from '@d/routes/telemetry'
 import { commandHeadForKind, type EntryKind } from '@c/workflows/contracts'
 import {

@@ -1,6 +1,6 @@
 import { ReadModelsRepository } from '@d/database/repositories/readModels'
 import type { Url } from '@d/database/schemas/urls.schema'
-import { createBackendRuntime } from '@d/workflows/runtime'
+import { createBackendRuntime } from '@d/bootstrap'
 import {
   commandHeadForKind,
   type EntryKind,

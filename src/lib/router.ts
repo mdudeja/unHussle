@@ -1,3 +1,4 @@
+import { ExtensionPage } from '@/components/app/ExtensionContributions'
 import App from '@/App'
 import { AppErrorBoundary } from '@/components/app/AppErrorBoundary'
 import HomePage from '@/pages/HomePage'
@@ -21,6 +22,7 @@ const router = createBrowserRouter([
     ErrorBoundary: AppErrorBoundary,
     children: [
       { index: true, Component: HomePage },
+      { path: '/extensions/:id', Component: ExtensionPage },
       { path: '/day', Component: DayPage },
       { path: '/week', Component: WeekPage },
       { path: '/scheduler/settings', Component: SchedulerSettingsPage },

@@ -26,6 +26,10 @@ export function transactionRepository<T extends TableWithId>(
         : tx.select().from(table).where(eq(table.id, id)).get()
     },
     /** Deletes the record matching the given ID and returns the deleted record. */
+    get(id: string) {
+      return tx.select().from(table).where(eq(table.id, id)).get()
+    },
+    /** Deletes the record with the given ID and returns the deleted record. */
     delete(id: string) {
       return tx.delete(table).where(eq(table.id, id)).returning().get()
     },

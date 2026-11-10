@@ -1,7 +1,7 @@
 import { queryRows } from '@c/testing/frontendReads'
 import { describe, expect, test } from 'bun:test'
 import { createStore } from 'zustand/vanilla'
-import { createFrontendRuntime, type EntryTransport } from '@/workflows/runtime'
+import { createFrontendRuntime, type EntryTransport } from '@/bootstrap'
 import type { EventHandlers } from '@/workflows/eventStream'
 import type { VaultTransport } from '@/services/vault'
 import { useStore, type StoreState } from '@/store'

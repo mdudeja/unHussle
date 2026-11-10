@@ -12,7 +12,7 @@ import { tmpdir } from 'node:os'
 import { join } from 'node:path'
 import { eq } from 'drizzle-orm'
 import { UnHussleDB } from '@d/database/UnHussleDB'
-import { createBackendRuntime } from '@d/workflows/runtime'
+import { createBackendRuntime } from '@d/bootstrap'
 import { junctionResources, projects, resources } from '@d/database/schemas'
 import { ResourcesRepository } from '@d/database/repositories/resources'
 import { ProjectsRepository } from '@d/database/repositories/projects'
@@ -45,11 +45,11 @@ async function failingAfterFiles(
   command: string,
   work: () => Promise<unknown>,
 ) {
-  const original = runtime.compositions.definition(command)
+  const original = runtime.registry.definition(command)
   const rowStep = original.steps.find((step) =>
     /\.(createRow|updateRow|deleteRow|deleteAllRows)$/.test(step.action ?? ''),
   )!
-  runtime.compositions.replaceCommand({
+  runtime.registry.replaceCommand({
     ...original,
     steps: [
       ...original.steps,
@@ -63,7 +63,7 @@ async function failingAfterFiles(
   try {
     await expect(work()).rejects.toThrow('only supported for collections')
   } finally {
-    runtime.compositions.replaceCommand(original)
+    runtime.registry.replaceCommand(original)
   }
 }
 

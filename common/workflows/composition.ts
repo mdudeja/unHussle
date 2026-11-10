@@ -11,6 +11,7 @@ export type Binding =
 export type CommandDefinition = {
   id: string
   description: string
+  execution?: 'command' | 'workflow'
   input: TSchema
   output: TSchema
   steps: { id: string; action?: string; command?: string; input: Binding }[]
@@ -22,7 +23,18 @@ export type ActionDefinition<C> = {
   description: string
   input: TSchema
   output: TSchema
+  execution?: 'atomic' | 'application'
   run: (input: unknown, context: C) => unknown
+}
+
+/** Execution boundaries wrap a cached plan, never replace its registration. */
+export type CommandBoundary<C> = {
+  id: string
+  run: (
+    input: unknown,
+    context: C,
+    execute: (context: C, input?: unknown) => unknown,
+  ) => Promise<unknown>
 }
 
 export type CompositionPolicy = {
@@ -43,6 +55,26 @@ const clone = <T>(value: T): T => {
         clone((value as Record<PropertyKey, unknown>)[key]),
       ]),
     ) as T
+  return value
+}
+
+/** Resolves a binding to its corresponding value from literals, the input, or previously computed step results. */
+const read = (
+  binding: Binding,
+  input: unknown,
+  results: Map<string, unknown>,
+): unknown => {
+  if (binding.from === 'literal') return binding.value
+  if (binding.from === 'object')
+    return Object.fromEntries(
+      Object.entries(binding.fields).map(([key, value]) => [
+        key,
+        read(value, input, results),
+      ]),
+    )
+  let value = binding.from === 'input' ? input : results.get(binding.step)
+  for (const key of binding.path ?? [])
+    value = (value as Record<string, unknown>)?.[key]
   return value
 }
 
@@ -102,6 +134,15 @@ const restoreSchema = (source: TSchema): TSchema => {
     null: 'Null',
     undefined: 'Undefined',
   }
+  if (
+    '$ref' in schema ||
+    'oneOf' in schema ||
+    'not' in schema ||
+    (schema.type && !kinds[schema.type])
+  )
+    throw new Error(
+      'Unsupported serialized schema; use supported TypeBox JSON-schema definitions',
+    )
   schema[Kind] =
     'const' in schema
       ? 'Literal'
@@ -142,7 +183,15 @@ const sync = (value: unknown) => {
 }
 
 /** Registry boundaries contain dynamic values. Compiled plans never open transactions. */
-export function createCompositionRegistry<C>() {
+export function createCompositionRegistry<C>({
+  invokeCommand,
+}: {
+  invokeCommand?: (
+    id: string,
+    context: C,
+    run: (context: C) => Promise<unknown>,
+  ) => Promise<unknown>
+} = {}) {
   const actions = new Map<string, ActionDefinition<C>>()
   const definitions = new Map<string, CommandDefinition>()
   type Plan = {
@@ -150,12 +199,16 @@ export function createCompositionRegistry<C>() {
     output: TSchema
     actions: string[]
     run: (input: unknown, context: C) => unknown
+    runAsync: (input: unknown, context: C) => Promise<unknown>
   }
   let plans = new Map<string, Plan>()
+  const boundaries = new Map<string, CommandBoundary<C>>()
   const policies = new Map<string, CompositionPolicy>()
   const protectedDefinitions = new Map<string, CommandDefinition>()
 
-  /** Compiles a command definition into an executable, validated plan that resolves dependencies, enforces schemas and policies, and prevents recursive command definitions. */
+  /** Compiles a command definition into an executable, validated plan that
+   * resolves dependencies, enforces schemas and policies, and prevents
+   * recursive command definitions. */
   const compile = (id: string, stack: string[] = []): Plan => {
     const cached = plans.get(id)
     if (cached) return cached
@@ -163,7 +216,9 @@ export function createCompositionRegistry<C>() {
       throw new Error(`Recursive command: ${[...stack, id].join(' -> ')}`)
     const definition = definitions.get(id)
     if (!definition) throw new Error(`Missing command: ${id}`)
+    const boundary = boundaries.get(id)
     const outputs = new Map<string, TSchema>()
+
     /** Derives the schema represented by a binding, resolving literal and object bindings as well as schemas referenced from inputs or steps. */
     const schemaOf = (binding: Binding): TSchema => {
       if (binding.from === 'literal') return Type.Const(binding.value)
@@ -179,14 +234,16 @@ export function createCompositionRegistry<C>() {
       let schema =
         binding.from === 'input' ? definition.input : outputs.get(binding.step)
       if (!schema) throw new Error(`Unknown or forward step reference in ${id}`)
+      let optional = false
       for (const key of binding.path ?? []) {
         const properties = schema.properties as
           Record<string, TSchema> | undefined
         if (!properties?.[key])
           throw new Error(`Undeclared binding path ${key} in ${id}`)
         schema = properties[key]
+        optional ||= schema[OptionalKind] === 'Optional'
       }
-      return schema
+      return optional ? Type.Union([schema, Type.Undefined()]) : schema
     }
 
     /** Validates that a bindings schema is compatible with the target schema, rejecting incompatible bindings. */
@@ -204,36 +261,40 @@ export function createCompositionRegistry<C>() {
         throw new Error(`Incompatible binding in ${id}`)
     }
 
-    /** Resolves a binding to its corresponding value from literals, the input, or previously computed step results. */
-    const read = (
-      binding: Binding,
-      input: unknown,
-      results: Map<string, unknown>,
-    ): unknown => {
-      if (binding.from === 'literal') return binding.value
-      if (binding.from === 'object')
-        return Object.fromEntries(
-          Object.entries(binding.fields).map(([key, value]) => [
-            key,
-            read(value, input, results),
-          ]),
-        )
-      let value = binding.from === 'input' ? input : results.get(binding.step)
-      for (const key of binding.path ?? [])
-        value = (value as Record<string, unknown>)?.[key]
-      return value
-    }
-
     const flattened: string[] = []
     const steps = definition.steps.map((step) => {
       if (!step.id || outputs.has(step.id))
         throw new Error(`Duplicate or empty step id in ${id}: ${step.id}`)
       if (!!step.action === !!step.command)
         throw new Error(`Step ${step.id} needs exactly one action or command`)
+      if (
+        step.command &&
+        definition.execution !== 'workflow' &&
+        boundaries.get(step.command)?.id !== boundary?.id
+      )
+        throw new Error(
+          `Incompatible execution boundary in ${id}: ${step.command}`,
+        )
+      if (
+        step.command &&
+        definition.execution !== 'workflow' &&
+        definitions.get(step.command)?.execution === 'workflow'
+      )
+        throw new Error(`Commands cannot inline workflows: ${step.command}`)
       const target = step.action
         ? actions.get(step.action)
         : compile(step.command!, [...stack, id])
       if (!target) throw new Error(`Missing action: ${step.action}`)
+      if (step.action && 'execution' in target) {
+        if (boundary && target.execution === 'application')
+          throw new Error(
+            `Application action cannot run atomically: ${step.action}`,
+          )
+        if (!boundary && target.execution === 'atomic')
+          throw new Error(
+            `Atomic action requires an atomic command: ${step.action}`,
+          )
+      }
       validateBinding(step.input, target.input)
       outputs.set(step.id, target.output)
       flattened.push(...('actions' in target ? target.actions : [target.id]))
@@ -247,6 +308,7 @@ export function createCompositionRegistry<C>() {
       const same = (left: unknown, right: unknown) =>
         JSON.stringify(left) === JSON.stringify(right)
       if (
+        !same(definition.execution, protectedDefinition.execution) ||
         !same(definition.input, protectedDefinition.input) ||
         !same(definition.output, protectedDefinition.output) ||
         !same(definition.result, protectedDefinition.result)
@@ -254,6 +316,7 @@ export function createCompositionRegistry<C>() {
         throw new Error(
           `Command ${id} cannot change kernel schemas or result binding`,
         )
+
       for (const required of protectedDefinition.steps) {
         const matches = definition.steps.filter(
           (step) => step.action === required.action,
@@ -285,8 +348,54 @@ export function createCompositionRegistry<C>() {
       input: definition.input,
       output: definition.output,
       actions: flattened,
+
+      /** Asynchronously executes the defined sequence of steps in order to produce the final result. */
+      async runAsync(input, context) {
+        if (boundary) {
+          check(definition.input, input, `${id} input`)
+          return boundary.run(input, context, (atomicContext, value = input) =>
+            plan.run(value, atomicContext),
+          )
+        }
+        const results = new Map<string, unknown>()
+        const completed: { id: string; result: unknown }[] = []
+        let failedStep = 'input'
+        try {
+          check(definition.input, input, `${id} input`)
+          for (const step of steps) {
+            failedStep = step.id
+            const value = read(step.input, input, results)
+            check(step.target.input, value, `${id}/${step.id} input`)
+            const target = step.target
+            const result =
+              'runAsync' in target
+                ? await (invokeCommand
+                    ? invokeCommand(step.command!, context, (nextContext) =>
+                        target.runAsync(value, nextContext),
+                      )
+                    : target.runAsync(value, context))
+                : await target.run(value, context)
+            check(step.target.output, result, `${id}/${step.id} output`)
+            results.set(step.id, result)
+            completed.push({ id: step.id, result })
+          }
+          failedStep = 'result'
+          const result = read(definition.result, input, results)
+          check(definition.output, result, `${id} output`)
+          return result
+        } catch (error) {
+          if (definition.execution === 'workflow')
+            throw new WorkflowFailure(completed, failedStep, error)
+          throw error
+        }
+      },
+
       /** Executes the defined workflow against the given input and context, validating each steps inputs and outputs and returning the final result. */
       run(input, context) {
+        if (definition.execution === 'workflow')
+          throw new Error(
+            'Workflows require independent asynchronous command execution',
+          )
         check(definition.input, input, `${id} input`)
         const results = new Map<string, unknown>()
         for (const step of steps) {
@@ -304,11 +413,13 @@ export function createCompositionRegistry<C>() {
     plans.set(id, plan)
     return plan
   }
+
   /** Rebuilds all compiled plans from the current definitions. */
   const recompile = () => {
     plans = new Map()
     for (const id of definitions.keys()) compile(id)
   }
+
   return {
     /** Registers an action definition for later use, ensuring each action has a unique identifier. */
     registerAction(action: ActionDefinition<C>) {
@@ -321,12 +432,18 @@ export function createCompositionRegistry<C>() {
         output: restoreSchema(action.output),
       })
     },
-    /** Registers a command definition and optional composition policy with the command system so the command is available for use. */
-    registerCommand(definition: CommandDefinition, policy?: CompositionPolicy) {
+    /** Registers a command definition and optional composition policy with the
+     * command system so the command is available for use. */
+    registerCommand(
+      definition: CommandDefinition,
+      policy?: CompositionPolicy,
+      boundary?: CommandBoundary<C>,
+    ) {
       namespaced(definition.id)
       if (definitions.has(definition.id))
         throw new Error(`Duplicate command: ${definition.id}`)
       const snapshot = snapshotDefinition(definition)
+      if (boundary) boundaries.set(definition.id, boundary)
       definitions.set(definition.id, snapshot)
       if (policy)
         policies.set(definition.id, {
@@ -339,13 +456,16 @@ export function createCompositionRegistry<C>() {
         recompile()
       } catch (error) {
         definitions.delete(definition.id)
+        boundaries.delete(definition.id)
         policies.delete(definition.id)
         protectedDefinitions.delete(definition.id)
         recompile()
         throw error
       }
     },
-    /** Replaces an existing command definition and updates the compiled command set, preserving the prior definition if the update cannot be applied. */
+    /** Replaces an existing command definition and updates the compiled
+     * command set, preserving the prior definition if the update cannot be
+     * applied. */
     replaceCommand(definition: CommandDefinition) {
       const previous = definitions.get(definition.id)
       if (!previous) throw new Error(`Missing command: ${definition.id}`)
@@ -358,7 +478,85 @@ export function createCompositionRegistry<C>() {
         throw error
       }
     },
-    /** Retrieves a cloned command definition for the specified command identifier, failing if the command is not registered. */
+    /** Replaces an existing action definition with an updated version of the
+     * same action, ensuring the actions restored input and output schemas are
+     * applied while preserving the previous definition if recompilation fails.
+     * */
+    replaceAction(action: ActionDefinition<C>) {
+      const previous = actions.get(action.id)
+      if (!previous) throw new Error(`Missing action: ${action.id}`)
+      actions.set(action.id, {
+        ...action,
+        input: restoreSchema(action.input),
+        output: restoreSchema(action.output),
+      })
+      try {
+        recompile()
+      } catch (error) {
+        actions.set(action.id, previous)
+        recompile()
+        throw error
+      }
+    },
+    /** Removal revokes cached dependent plans too; invoking a dependent
+     * reports its missing target. */
+    remove(actionIds: string[] = [], commandIds: string[] = []) {
+      const removedActions = new Set(actionIds)
+      const removedCommands = new Set(commandIds)
+      let changed = true
+      while (changed) {
+        changed = false
+        for (const [id, definition] of definitions) {
+          if (removedCommands.has(id)) continue
+          if (
+            definition.steps.some(
+              (step) =>
+                (step.action && removedActions.has(step.action)) ||
+                (step.command && removedCommands.has(step.command)),
+            )
+          ) {
+            removedCommands.add(id)
+            changed = true
+          }
+        }
+      }
+      for (const id of removedActions) actions.delete(id)
+      for (const id of removedCommands) {
+        definitions.delete(id)
+        boundaries.delete(id)
+        policies.delete(id)
+        protectedDefinitions.delete(id)
+      }
+      plans.clear()
+      return [...removedCommands]
+    },
+    /** Determines whether an identifier refers to a workflow, a command, or an unknown definition. */
+    clear() {
+      actions.clear()
+      definitions.clear()
+      boundaries.clear()
+      policies.clear()
+      protectedDefinitions.clear()
+      plans.clear()
+    },
+    /** Determines whether the given identifier refers to a workflow, a command, or neither. */
+    boundary(id: string) {
+      return boundaries.get(id)?.id
+    },
+    /** Determines whether an identifier represents a command, a workflow, or neither. */
+    kind(id: string) {
+      return definitions.get(id)?.execution === 'workflow'
+        ? 'workflow'
+        : definitions.has(id)
+          ? 'command'
+          : undefined
+    },
+    /** Asynchronously executes the operation identified by the given identifier. */
+    executeAsync(id: string, input: unknown, context: C) {
+      return compile(id).runAsync(input, context)
+    },
+    /** Retrieves a cloned command definition for the specified command
+     * identifier, failing if the command is not registered. */
     definition(id: string) {
       const definition = definitions.get(id)
       if (!definition) throw new Error(`Missing command: ${id}`)
@@ -387,30 +585,4 @@ export class WorkflowFailure extends Error {
       { cause },
     )
   }
-}
-
-/** Each invocation owns its commit. A failure never retries or undoes earlier commands. */
-export async function executeWorkflow(
-  steps: { id: string; command: string; input: unknown }[],
-  execute: (command: string, input: unknown) => Promise<unknown>,
-) {
-  const ids = new Set<string>()
-  for (const step of steps) {
-    namespaced(step.command)
-    if (!step.id || ids.has(step.id))
-      throw new Error(`Duplicate or empty workflow step: ${step.id}`)
-    ids.add(step.id)
-  }
-  const completed: { id: string; result: unknown }[] = []
-  for (const step of steps) {
-    try {
-      completed.push({
-        id: step.id,
-        result: await execute(step.command, step.input),
-      })
-    } catch (error) {
-      throw new WorkflowFailure(completed, step.id, error)
-    }
-  }
-  return completed
 }

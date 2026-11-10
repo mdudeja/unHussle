@@ -98,3 +98,12 @@ export function deleteAllEntries(
   return repository(entityTables[kind]).deleteAll() as EntryRecord[]
 }
 export { entityTables }
+
+/** Scalar transactional read for supported synchronous domain actions. */
+export function readEntry(
+  work: TransactionContext,
+  kind: EntryKind,
+  id: string,
+) {
+  return work.repository(entityTables[kind]).get(id) as EntryRecord | undefined
+}

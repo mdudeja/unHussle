@@ -1,4 +1,4 @@
-import { dependencies } from '@/workflows/runtime'
+import { dependencies } from '@/bootstrap'
 import { useWorkflowQuery, useWorkflowRuntime } from '@/workflows/hooks'
 import { fetchContainerDetail } from '@/services/readModels'
 import type { ReadContainerKind, TaskPageOptions } from '@c/types/readModels'

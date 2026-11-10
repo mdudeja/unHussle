@@ -1,4 +1,4 @@
-import { disposeFrontendRuntimes } from '@/workflows/runtime'
+import { disposeFrontendRuntimes } from '@/bootstrap'
 import { afterAll } from 'bun:test'
 import { useStore } from '@/store'
 

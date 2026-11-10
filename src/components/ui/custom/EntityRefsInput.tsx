@@ -8,7 +8,7 @@ import type { AutocompleteOption } from '@/lib/hooks/useAutocomplete'
 import { useDebouncedValue } from '@/lib/hooks/useDebouncedValue'
 import { cn } from '@/lib/utils'
 import { useWorkflowQuery } from '@/workflows/hooks'
-import { dependencies } from '@/workflows/runtime'
+import { dependencies } from '@/bootstrap'
 
 export type RefKind = 'resources' | 'tasks' | 'projects' | 'areas' | 'goals'
 

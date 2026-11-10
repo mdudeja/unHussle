@@ -1,12 +1,13 @@
 import { expect, test } from 'bun:test'
-import { createBackendRuntime } from '@d/workflows/runtime'
+import { Type } from '@sinclair/typebox'
+import { createBackendRuntime } from '@d/bootstrap'
 import { UnHussleDB } from '@d/database/UnHussleDB'
 import { tasks } from '@d/database/schemas'
 import { WorkflowFailure } from '@c/workflows/composition'
 
 test('kernel rejects missing integrity steps, changed bindings, duplicate writes and invalid ordering', () => {
   const runtime = createBackendRuntime(new UnHussleDB(':memory:'))
-  const original = runtime.compositions.definition('entity.add')
+  const original = runtime.registry.definition('entity.add')
   for (const mutate of [
     (steps: typeof original.steps) =>
       steps.filter((step) => !step.action?.endsWith('.validateTask')),
@@ -28,7 +29,7 @@ test('kernel rejects missing integrity steps, changed bindings, duplicate writes
     ],
   ]) {
     expect(() =>
-      runtime.compositions.replaceCommand({
+      runtime.registry.replaceCommand({
         ...original,
         steps: mutate(original.steps),
       }),
@@ -46,7 +47,7 @@ test('workflow failure preserves previous commits and reports the failing comman
     events.push(name)
   })
   try {
-    await runtime.workflows.execute([
+    const steps = [
       {
         id: 'first',
         command: 'entity.add',
@@ -78,7 +79,20 @@ test('workflow failure preserves previous commits and reports the failing comman
           changes: { title: 'Never runs' },
         },
       },
-    ])
+    ]
+    runtime.registry.registerCommand({
+      id: 'test.partial',
+      description: 'Independent commits',
+      execution: 'workflow',
+      input: Type.Null(),
+      output: Type.Unknown(),
+      steps: steps.map((step) => ({
+        ...step,
+        input: { from: 'literal', value: step.input },
+      })),
+      result: { from: 'step', step: 'never' },
+    })
+    await runtime.commands.invoke('test.partial', null)
     throw new Error('Expected workflow failure')
   } catch (error) {
     expect(error).toBeInstanceOf(WorkflowFailure)

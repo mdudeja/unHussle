@@ -1,6 +1,10 @@
 # Command composition and execution
 
-Backend mutation, scheduler, and vault commands compile when a runtime is created.
+Backend mutation, scheduler, vault and extension commands share one registry.
+Built-ins compile when the application executor is created; extensions register
+through a scoped adapter to that same catalog. Bootstrap owns the host, while
+execution remains independent of extension lifetimes. There are no builtin
+bridges, parallel handler catalogs or separate workflow interpreters.
 The typed command interfaces and HTTP/event contracts remain unchanged.
 
 `common/workflows/composition.ts` separates executable action registrations from
@@ -9,7 +13,7 @@ input/output schemas, bind each step's input, and select an explicit result.
 Bindings select the command input, a prior step's output, a literal, or an object
 assembled from other bindings. Paths must name declared schema properties.
 Definitions contain no executable callbacks; action implementations live in the
-separate action registry. Schemas can be authored with TypeBox builders; registration also restores the
+action table within the same registry. Schemas can be authored with TypeBox builders; registration also restores the
 metadata needed to load ordinary JSON-schema definitions after serialization.
 Executable schema transforms stay in the built-in adapters.
 
@@ -18,7 +22,10 @@ step IDs, forward references, invalid paths, incompatible schemas, recursion,
 and missing or misordered required actions. Replacing a definition recompiles
 its dependents and restores the previous valid plans on failure. Commands called
 inside an atomic definition inline their plans and share its transaction context.
-No action or compiled plan starts a transaction.
+Each command has at most one kernel-owned execution boundary in that same
+registry. Asynchronous invocation enters it once; compatible synchronous child
+plans inline without entering another boundary. Incompatible boundaries and
+application actions inside atomic plans are rejected during registration.
 
 The mutation adapter in `src-db-server/workflows/composition.ts` explicitly binds
 subsequent integrity actions to the row operation's affected IDs and binds the
@@ -41,12 +48,15 @@ Execution has three boundaries:
    cleanup effects. Listener and cleanup failures are logged and cannot turn a
    committed write into a retryable write failure.
 
-`runtime.workflows.execute(steps)` invokes supported commands sequentially. Each
+A registered definition with `execution: 'workflow'` invokes commands sequentially
+through the same cached plans. Extensions register it with `api.workflows.register`
+and invoke it with `api.workflows.execute(id, input)`. Each
 command commits independently. A `WorkflowFailure` identifies `failedStep`, keeps
 successful `{ id, result }` entries in `completed`, and preserves the original
 error as `cause`. Later steps never run and writes are never retried. This is an
-in-process execution foundation; plugin loading, SDK registration/lifecycle, and
-a workflow editor remain deferred.
+in-process execution foundation. Scoped SDK registration/lifecycle is documented
+in [extensions.md](extensions.md); plugin loading and a workflow editor remain
+deferred. Both synchronous and asynchronous execution use cached compiled plans.
 
 Regression tests cover compiler rejection and replacement recovery, inlined
 execution, required kernel bindings and ordering, asynchronous action rejection,

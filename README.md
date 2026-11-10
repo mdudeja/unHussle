@@ -305,14 +305,12 @@ Here is what happens when you click **Start** on a task:
    `x-parent-span-id`.
 3. **Route → backend command.** `routeGenerator` runs the backend command
    `entity.change` on `backendRuntime`. The route never writes itself.
-4. **Actions in one transaction.** `commandHandlers.ts` expands
-   `entity.change` into `updateRow → validateTask → trackTaskInterval →
-updateSupporters → updateSupporterCounts → updateCollectionCounts →
-markPlansStale → syncPlanMembership`. Each action returns a synchronous unit
-   of work. All units run in one SQLite transaction, and each result
-   (`id`, deleted ids) is carried into the next action's input. Any error rolls
-   everything back, including pauses of competing tasks. Action adapters
-   delegate validation and persistence behavior to `src-db-server/domain/`.
+4. **Compiled actions in one transaction.** Registration compiles the built-in
+   definition, validating action names, schemas, explicit bindings and required
+   integrity ordering. The row action's affected IDs feed named bindings to
+   validation, tracking, supporter/resource synchronization, counts and schedule
+   maintenance. The result explicitly names the row output. One synchronous
+   transaction runs that plan; errors roll back SQLite and compensate vault files.
 5. **Publish after commit.** The backend publishes dependent announcements
    first, then `entity.change` (the family) and `tasks.change` (the kind).
    The route reads the hydrated row back and returns it.
@@ -411,6 +409,7 @@ updates or cancels plan rows and occurrences of changed or deleted tasks.
 ## Backend (`src-db-server/`)
 
 ```
+bootstrap.ts         wires executor and extension adapters, owns disposal
 server.ts            Elysia app: gzip mapResponse, swagger, cors, /health, routes, /events, /telemetry
 database/
   UnHussleDB.ts      singleton; getDb() opens SQLite, sets pragmas, runs migrations
@@ -425,7 +424,9 @@ routes/
   events.ts          SSE forwarder (numbered frames, replay buffer, resync)
   telemetry.ts       http spans, x-operation-id header, GET /telemetry
 workflows/
-  runtime.ts         createBackendRuntime: registers mutation + scheduler commands
+  execution.ts       registers all command families in one composition registry
+  kernel.ts          transactions, compensation and committed publication
+  registerMutations.ts / registerStateful.ts   domain action/definition registration
   commandHandlers.ts command → ordered action names
   commandActions.ts  named action adapters over domain services
   contracts.ts       backend-only action, transaction and publication types
@@ -486,10 +487,10 @@ so enum imports do not pull the schema graph into runtime dependencies.
 | `entityCollection` | `projects`, `areas`, `goals`   | supporters, supporter counts, `announceAffectedEntities` (change/delete), plan staleness |
 | `entitySupporter`  | `tags`, `urls`, `time_entries` | junction cleanup on delete, plan staleness (tags only)                                   |
 
-Each family has `add`, `change`, `delete` and `deleteAll`. `handler:entry.*`
-inlines private row templates, and cycles are rejected. Templates cannot be
-executed directly; per-kind names such as `tasks.change` are events, and public
-commands must use the correct family for their kind. Scheduler commands run
+Each family has `add`, `change`, `delete` and `deleteAll`. Private row actions
+are bound explicitly in compiled definitions. Missing actions, invalid bindings
+and recursive definitions are rejected at registration. Per-kind names such as
+`tasks.change` are events; public commands use the correct family for their kind. Scheduler commands run
 `expireOccurrences → loadPlan → checkRevision → … → savePlan` over one
 `SchedulerState`. A stale `revision` gets a 409.
 
@@ -517,7 +518,7 @@ listener is logged and never fails the write.
 
 | Path                                   | What                                                                                                     |
 | -------------------------------------- | -------------------------------------------------------------------------------------------------------- |
-| `workflows/runtime.ts`                 | `createRuntime`: one handler per command, any number of event listeners (`on`, `onAny`), telemetry spans |
+| `workflows/runtime.ts`                 | `createRuntime`: invokes registered plans; any number of event listeners (`on`, `onAny`), telemetry spans |
 | `workflows/contracts.ts`               | Public `EntryKind`, `commandHeadForKind`, `MutationInput/Event`, `MutationCommands`, `AppEvents`         |
 | `workflows/telemetry*.ts`              | span recorder, ring buffer, sinks, trace headers                                                         |
 | `scheduler/`                           | the pure planning engine shared by both sides (see below)                                                |
@@ -560,6 +561,25 @@ listener is logged and never fails the write.
 
 ---
 
+## Trusted local extensions
+
+Version 1 provides separate [backend and frontend SDKs](docs/extensions.md).
+Extensions register actions, compiled commands, sequential workflows, public
+subscriptions, namespaced settings/logging, and frontend menus/views. The host
+owns disposal, including failed-activation cleanup and cached-plan invalidation.
+Transactional actions receive a synchronous domain facade, not SQLite or Drizzle;
+ordinary actions use asynchronous application services. Atomic mutations keep
+all built-in validation, tracking, relationship and vault guarantees. Workflows
+report partial failure without undoing earlier commits or retrying writes.
+
+The opt-in samples (`examples/extensions/backend.ts` and
+`examples/extensions/frontend.tsx`) use the same registration/compiler entry points as
+built-ins and are exercised by integration tests. They import public SDKs only.
+The host delegates to the executor's single registry; it owns namespaces and
+lifetimes, with no builtin relisting or proxy registrations. Application bootstrap
+wires the host adapters and owns disposal; the executors remain host-independent.
+No plugin loader, installer, sandbox, marketplace or workflow editor is included.
+
 ## Frontend (`src/`)
 
 ```
@@ -567,7 +587,7 @@ main.tsx / lib/router.ts   routes: / (Next task), /day, /week, /scheduler/settin
 pages/                     HomePage, PlannerPages (Day/Week/Preferences), EntityPages (list pages)
 components/
   ui/                      shadcn/ui + ui/custom (pickers, forms, DataTable, …)
-  app/                     NextTaskCard, BrainDumpInput, EntityActionBar, Create*Button, WorkflowWarnings, …
+  app/                     NextTaskCard, BrainDumpInput, EntityActionBar, CreateEntityButton, WorkflowWarnings, …
   pages/                   EntityListPage, PageView
   dev/                     WorkflowInspector (Ctrl+Shift+O, dev only)
 lib/
@@ -578,13 +598,14 @@ services/
   database/                configured CRUD service instances (adds mutation headers)
   scheduler.ts             HTTP client for /scheduler
 store/                     Zustand UI state and mutation command facades; no server-derived rows
+bootstrap.ts               createFrontendRuntime / getFrontendRuntime; extension wiring
 workflows/
-  runtime.ts               createFrontendRuntime / getFrontendRuntime
+  execution.ts             commands, reactions and query coordination
   commandRegistry.ts       verb → service call (add→create, change→update, …)
   eventStream.ts           SSE clients (EventSource in the webview, fetch under Bun)
   operations.ts            waits for an operation's events to be handled
   reactionRegistry.ts      event → ordered reaction names
-  reactions.ts             upsertRows, removeRows, clearRows, invalidateDependents, refreshAnnounced, refreshSchedule, tracking cleanup
+  reactions.ts             query invalidation, announced dependencies, schedule refresh, tracking cleanup
   queries.ts / hooks.ts    query coordinator + React hooks
   schedulerHooks.ts        useTodayPlan (auto-generates today, auto-starts wrap-up), useDayPlan, useSchedulerClock,
                            useSchedulerAction, useSkippedTasks ("Do something else", per day in localStorage)
@@ -696,3 +717,10 @@ bun run test     # starts a server on .env.test, runs **/__tests__, stops it
 [VS Code](https://code.visualstudio.com/) +
 [Tauri](https://marketplace.visualstudio.com/items?itemName=tauri-apps.tauri-vscode) +
 [rust-analyzer](https://marketplace.visualstudio.com/items?itemName=rust-lang.rust-analyzer)
+
+
+Final verification, retained workarounds and baseline comparisons are recorded
+in [docs/final-verification.md](docs/final-verification.md). The test runner now
+polls its own server's health, detects startup failures, preserves test exit
+status and cleans up only its own processes. The desktop smoke test is a separate
+manual check performed by the project owner.

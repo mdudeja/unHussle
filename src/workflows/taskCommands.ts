@@ -1,6 +1,6 @@
 import { ProgressStatus } from '@c/types/enums'
 import { useStore } from '@/store'
-import { getFrontendRuntime } from './runtime'
+import { getFrontendRuntime } from '@/bootstrap'
 
 /** Transitions a task to the specified progress status. */
 const transition = async (

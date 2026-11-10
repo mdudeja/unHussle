@@ -50,22 +50,28 @@ src/                  React frontend
                       inputParsers/ (brain dump), hooks/, server fetch
   services/           database/ configured CRUD service instances (HTTP clients), scheduler.ts (/scheduler client)
   store/              Zustand UI state; mutation command facades per kind + UI slice
+  bootstrap.ts        wires frontend execution and extension adapters; owns disposal
+  extensions/         public frontend SDK and scoped application adapter
   workflows/          frontend runtime: commands, SSE client, operations, reactions, queries, hooks, tracking, telemetry
   __tests__/          frontend/store tests
 src-db-server/        Elysia sidecar API
   server.ts           app bootstrap (port 3456)
   database/           UnHussleDB (singleton), schemas/, repositories/ (hydrated reads), validation, seed/
   routes/             routeGenerator-based CRUD routes, scheduler.ts, events.ts (SSE), telemetry.ts
-  workflows/          backend runtime: command + scheduler registries, action adapters, unit of work,
+  extensions/         public backend SDK and bounded query/settings adapters
+  bootstrap.ts        wires execution and extension adapters; owns disposal
+  workflows/          kernel services, one composition registry, domain registration, unit of work,
                       private execution contracts, scheduler reads
   domain/             task validation/lifecycle, tracking, collection integrity, supporters,
                       counts, resource links/files, vault operations, schedule maintenance
 common/               Shared code for both sides
-  workflows/          createRuntime, contracts, telemetry
+  workflows/          createRuntime, compiled composition, contracts, telemetry
+  extensions/         versioned SDK contracts and scoped registration/lifecycle host
   scheduler/          planning engine: contracts, preparation, engine, rules, ruleRegistry, anchors, validation, status
   types/              row types, hydrated shapes, enums (ProgressStatus, Priority, AnchorType)
   Logger.ts, datetimeUtils.ts, calendarUtils.ts, taskSchedule.ts, version.ts, testing/
 src-tauri/            Rust Tauri shell (sidecar lifecycle)
+examples/extensions/ Opt-in SDK samples; integration tests import these explicitly
 drizzle_migrations/   SQL migrations (bundled as Tauri resource)
 drizzle.config.ts
 ```
@@ -188,7 +194,7 @@ Both frontend and sidecar share these aliases.
 
 ## Workflows (commands → actions → events → reactions)
 
-Both sides use `createRuntime` (`common/workflows/runtime.ts`): typed commands with one handler each, plus events with any number of listeners (`on`, `onAny`).
+Both sides use `createRuntime` (`common/workflows/runtime.ts`): typed command invocation through the composition registry, plus events with any number of listeners (`on`, `onAny`).
 Handlers and listeners receive `(name, payload, context, trace?)`. `publish`
 uses `Promise.allSettled`, so a failing listener never throws into the
 publisher. Shared types are in `common/workflows/contracts.ts` (mutations) and
@@ -204,8 +210,8 @@ Command families come from `commandHeadForKind`:
 | `entityCollection` | `projects`, `areas`, `goals`   |
 | `entitySupporter`  | `tags`, `urls`, `time_entries` |
 
-Each family has the verbs `add`, `change`, `delete` and `deleteAll`. `entry.*` is
-the backend-internal base that the families nest.
+Each family has the verbs `add`, `change`, `delete` and `deleteAll`. Row
+operations are private actions; there are no executable `entry.*` commands.
 
 Scheduler commands (`SchedulerCommands`) and the event each one publishes:
 
@@ -236,9 +242,11 @@ like the scheduler):
 
 **Backend** (`src-db-server/workflows/`)
 
-- `commandHandlers.ts` maps each mutation command to an ordered list of action names.
-  `handler:<command>` inlines another command's list, and cycles are rejected.
-  Current lists, after the inlined `entry.*` row action:
+- `commandHandlers.ts` supplies the built-in action lists. `composition.ts`
+  turns them into definitions with explicit input/result bindings; the shared
+  compiler validates and caches plans at registration/replacement, rejecting
+  missing actions, invalid bindings, cycles and broken required ordering.
+  Current lists, after the explicit row action:
   - `entity.add|change`: `validateTask`, `trackTaskInterval`,
     `updateSupporters`, `updateResourceLinks`, `syncResourceFile`,
     `updateSupporterCounts`, `updateCollectionCounts`, `markPlansStale`, plus
@@ -259,15 +267,14 @@ like the scheduler):
   `(name, input, ActionContext)` returns a **synchronous** `TransactionWorkUnit`.
   All of a command's units run in one transaction (`unitOfWork.ts`); an error
   rolls the whole command back. Actions delegate integrity work to `domain/`.
-  `entry.*` handlers are internal expansion templates and cannot be executed
-  directly; public mutation families must match `commandHeadForKind[kind]`.
-- Actions are built one at a time, and `carryForward` feeds each result into the
-  next action's input:
-  - a created or updated row sets `id`;
-  - deleted rows set `attachedIds` (entities/collections, junction `attachedToId`)
-    or `ids` (supporters, junction `refId`).
-- The command result is the last non-undefined result. Bulk actions return the
-  rows themselves.
+  Public mutation families must match `commandHeadForKind[kind]`.
+- A row action returns an envelope with the affected IDs. Subsequent actions
+  bind explicitly to that envelope, and the command result binds to its row.
+  There is no implicit carry-forward, runtime handler expansion or last-result
+  convention. Kernel policy preserves required actions, bindings and ordering.
+- Execution prepares async input/connection work before one synchronous SQLite
+  transaction, then publishes committed announcements/completions, then awaits
+  optional cleanup effects. Rollback compensates vault changes newest first.
 - `validateTask` runs after the write, on the stored row: recurrence rule,
   `scheduled_end > scheduled_start` (`common/taskSchedule.ts`), and anchors
   (`validateTaskAnchors`).
@@ -425,7 +432,7 @@ like the scheduler):
     `schedule:day:<tz>:<date>`, `schedule:week:<tz>:<date>`, `schedule:settings`,
     `content:resources:<id>` (refetched on every mount), `context:tasks:<id>`,
     `vault:info`. Each one declares `dependencies` (`EntryKind` or `schedule` /
-    `occurrences` / `schedulerSettings` / `resourceContent` / `vault`). `dependencies(kind)` in `runtime.ts`
+    `occurrences` / `schedulerSettings` / `resourceContent` / `vault`). `dependencies(kind)` in `execution.ts`
     gives the standard set for a kind;
   - requests are deduplicated and empty results are cached;
   - an obsolete response can never overwrite a newer one (generations);
@@ -500,6 +507,41 @@ Extending:
 - The direction is to let extensions register their own actions, reactions and
   rules by merging into these registries.
 
+## Trusted local extension SDK
+
+- SDK version 1 exposes separate entry points: `src-db-server/extensions/sdk.ts`
+  and `src/extensions/sdk.ts`. Plugins import these public contracts, TypeBox
+  and supported frontend hooks; never raw Drizzle, runtime objects or Zustand.
+- `runtime.extensions.register({ id, sdkVersion, activate })` activates a scoped
+  in-process extension and returns a disposer. `common/extensions/host.ts` and
+  `common/workflows/composition.ts` owns the sole registry/compiler. Built-ins
+  and extensions register their real definitions there; the host owns namespaces
+  and disposal only. Never relist built-ins through proxies or create a registry
+  per extension. Application composition roots wire host adapters to execution.
+  IDs are namespaced; collisions and unsupported SDK versions are rejected.
+- Ordinary actions receive async application services (`queries`, typed
+  `execute`). Backend atomic actions receive synchronous `mutations.apply/get`;
+  apply invokes the complete protected kernel plan. The capability expires at
+  transaction exit. Compatible atomic definitions inline without nested commits.
+- Commands and workflows compile on registration/replacement. Workflows are
+  command-only, sequential, and independently committed. `WorkflowFailure`
+  reports completed steps and the failed step, without retrying writes.
+- Ordinary action/command/workflow and UI overrides must be explicit and owned.
+  Atomic command replacement uses a new ID; atomic actions support owned
+  replacement. Disposal invalidates cached dependents and removes contributions,
+  subscriptions and acquired resources in reverse order; failed activation also
+  cleans up. Already-started async work is not represented as rolled back.
+- Backend settings use `app_settings.settings.extensions[namespace]` in the
+  existing JSON column. Frontend UI settings use namespaced localStorage.
+  Disposal retains preferences. Extension logs are namespaced; keep payloads and
+  resource content out of logs/telemetry. Unsupported entity `content` fields
+  are stripped before any logging/publication; use the dedicated content API.
+- Frontend view/menu registrations appear in the sidebar and `/extensions/:id`.
+  Views use public query hooks so the coordinator remains the server-data owner.
+  Registration/cleanup is synchronous. Samples in `examples/extensions/` are
+  outside production source and imported by tests; no discovery/loading exists.
+- Full authoring examples and context constraints: `docs/extensions.md`.
+
 ## Frontend UI
 
 - Routes (`src/lib/router.ts`): `/` (NextTaskCard + BrainDumpInput), `/day`,
@@ -558,8 +600,16 @@ Apply happens automatically on server startup via `migrate()`.
 
 ## Testing
 
+- DOM regression tests use development-only Happy DOM with scoped globals;
+  `formDraft.test.ts` checks draft stability across refreshes/options/save errors.
 - Tests live in `__tests__` folders and `*.test.ts` / `*.spec.ts`
   (`common/__tests__`, `src-db-server/__tests__`, `src/__tests__`).
+- `scripts/test-with-server.sh` loads test configuration and invokes the typed
+  runner. `common/testing/runWithServer.ts` reserves the port, starts only its
+  own sidecar, polls health with a 10s deadline and an instance fingerprint,
+  detects early exits, preserves the test exit status, and bounds owned-child
+  shutdown. It never attaches to or kills an existing server. Pass test paths or
+  Bun test flags after `bun run test`.
 - Bun preload (`common/testing/test-setup.ts`) resets DB state in `afterAll` via Zustand store
   (through the frontend runtime, so it needs the test server and its event stream),
   then disposes the frontend runtimes.
@@ -599,7 +649,7 @@ Apply happens automatically on server startup via `migrate()`.
   - `entityTables` in `domain/entries.ts`;
   - `supporterCapabilities` / `supporterTables` / `collectionMembers` in `domain/` as relevant;
   - `scheduleFields` in `domain/scheduleMaintenance.ts` if it affects plans;
-  - `allKinds` and `dependencies()` in `src/workflows/runtime.ts`;
+  - `allKinds` and `dependencies()` in `src/workflows/execution.ts`;
   - list page: `entityRoutes`, `entityRegistry`, `EntityPages.tsx`, router.
 - New foreign keys to collections should use `onDelete: 'set null'` and be added to
   `collectionMembers` so deletions announce affected rows.
