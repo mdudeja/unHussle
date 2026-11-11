@@ -85,7 +85,6 @@
 - Mobile-first responsive prefixes; never desktop-first overrides.
 - Use `gap` between siblings; avoid margin-chaining.
 - Conditional classes via `cn()`; never string concatenation.
-- Radius is `0` by design; never add `rounded-*` classes to override it.
 - Fonts via the `font-sans` token; never raw `font-family` in markup.
 
 ### Feedback
@@ -105,7 +104,6 @@
 ### Tables
 
 - Sortable and searchable by default; actions column non-sortable.
-- Internally scrollable, not the whole page.
 - Paginate large datasets; never render unbounded lists.
 - Clear headers, with numbers and text both left-aligned.
 
