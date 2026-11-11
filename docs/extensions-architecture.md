@@ -1,6 +1,7 @@
 # Extensions: architecture
 
-For maintainers. The authoring guide is [extensions.md](extensions.md).
+For maintainers. The authoring guide is [extensions.md](extensions.md), and
+the concepts are in [mental-models.md](mental-models.md#extensions).
 
 Extensions are trusted, in-process code. The host gives each one a scoped
 API, records everything it registers, and undoes it all on disposal.

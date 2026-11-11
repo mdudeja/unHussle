@@ -5,7 +5,8 @@ For maintainers. This covers the composition registry in
 compiled and run.
 
 - The runtime around it (transactions, events, reactions, queries) is in
-  [workflows.md](workflows.md).
+  [workflows.md](workflows.md), and the concepts behind both are in
+  [mental-models.md](mental-models.md#workflows).
 - Extension authors should start with [extensions.md](extensions.md).
 
 ## The idea

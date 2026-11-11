@@ -4,6 +4,8 @@ For maintainers. This covers the `workflows/` code on both sides: how a
 command runs, how its changes become events, and how the frontend turns
 those events into fresh data.
 
+- The concepts behind it are in
+  [mental-models.md](mental-models.md#workflows).
 - How commands are defined and compiled is in
   [command-composition.md](command-composition.md).
 - The README's [How data flows](../README.md#how-data-flows) walks through
@@ -272,7 +274,7 @@ Keep every action synchronous inside a transaction. Return a
 
 Entry kinds are listed in several places. Update each one that applies.
 
-**Database and routes**
+## Database and routes
 
 - Schema in `src-db-server/database/schemas/`, exported from `index.ts`, with
   junction tables for any relations. Then run `bunx drizzle-kit generate`
@@ -285,7 +287,7 @@ Entry kinds are listed in several places. Update each one that applies.
 - Foreign keys to collections use `onDelete: 'set null'` and go in
   `collectionMembers`, so deletions announce the affected rows.
 
-**Workflow layer**
+## Workflow layer
 
 - `EntryKind`, `_kindHeads` and `commandHeadForKind` in
   `common/workflows/contracts.ts`.
@@ -301,7 +303,7 @@ Entry kinds are listed in several places. Update each one that applies.
 - `allKinds` and `dependencies()` in `src/workflows/execution.ts`.
 - The repository map in `src-db-server/extensions/queries.ts`.
 
-**Frontend**
+## Frontend
 
 - `entityServices` and `fetchLimits` in `src/workflows/services.ts`.
 - A slice in `src/store/slices/`, added to `src/store/index.ts`, and its

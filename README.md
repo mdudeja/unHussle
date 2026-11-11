@@ -241,9 +241,24 @@ Environment variables (see `.env.template`):
 | `DB_SERVER_BUILD_DIR`        | build    | Where `build:server` writes the sidecar binary          |
 | `EXTENSIONS_DIR`             | both     | Where extensions are discovered (default: `extensions`) |
 
+### Documentation
+
+Start with [docs/mental-models.md](docs/mental-models.md). It explains the
+ideas behind the workflow runtime, the scheduler and extensions before you
+read their code.
+
+| Doc                                                           | For                                                     |
+| ------------------------------------------------------------- | ------------------------------------------------------- |
+| [mental-models.md](docs/mental-models.md)                     | The concepts behind workflows, scheduler and extensions |
+| [workflows.md](docs/workflows.md)                             | Commands, transactions, events, reactions, queries      |
+| [command-composition.md](docs/command-composition.md)         | How commands are defined, checked and compiled          |
+| [scheduler.md](docs/scheduler.md)                             | How a day's stack is built, saved and kept              |
+| [extensions.md](docs/extensions.md)                           | Writing an extension                                    |
+| [extensions-architecture.md](docs/extensions-architecture.md) | How the extension host works                            |
+
 ### Architecture at a glance
 
-```
+```text
 ┌────────────────────────── Tauri shell (Rust, src-tauri/) ───────────────────────────┐
 │ spawns the sidecar with DB_FILE_URL + DB_MIGRATIONS_DIR, stops it on exit           │
 │                                                                                     │
@@ -364,6 +379,8 @@ background reads, and submissions include configured direct fields only.
 
 ### Scheduler flow
 
+The full reference is [docs/scheduler.md](docs/scheduler.md).
+
 The scheduler follows the same pattern with its own commands. Its endpoints
 are under `/scheduler`:
 
@@ -413,7 +430,7 @@ updates or cancels plan rows and occurrences of changed or deleted tasks.
 
 ## Backend (`src-db-server/`)
 
-```
+```text
 bootstrap.ts         wires executor, extension host and extension manager, owns disposal
 extensions/          host adapter, discovery/activation manager, bundler, queries, settings
 server.ts            Elysia app: gzip mapResponse, swagger, cors, /health, routes, /events, /telemetry
@@ -544,6 +561,9 @@ listener is logged and never fails the write.
 
 ### The scheduler
 
+The engine below is covered in depth in
+[docs/scheduler.md](docs/scheduler.md#building-a-stack).
+
 - `preparation.ts` expands tasks into **plan entries**: one per one-off task,
   one per recurring slot (`taskId:date:slot`). It works out each entry's
   remaining minutes, fixed time, window and priorities (task, project, goal,
@@ -588,7 +608,7 @@ until turned on in **Preferences > Extensions**.
 
 ## Frontend (`src/`)
 
-```
+```text
 main.tsx / lib/router.ts   routes: / (Next task), /day, /week, /scheduler/settings, /projects, /areas, /goals, /tasks, /urls, /tags, /extensions/:id
 pages/                     HomePage, PlannerPages (Day/Week/Preferences), EntityPages (list pages)
 components/
@@ -678,12 +698,15 @@ published as an app event.
 
 For repeatable command, refresh and relationship measurements, run
 `bun run baseline /tmp/unhussle-baseline.json`. It uses a temporary database
-and vault. See the [baseline and cleanup report](docs/baselines/steps-1-2.md)
-for the recorded results and known relationship behavior.
+and vault.
 
 ```sh
 bun run test     # starts a server on .env.test, runs **/__tests__, stops it
 ```
+
+The runner polls its own server's health, fails on startup errors, keeps the
+test exit status, and cleans up only its own processes. The desktop app is
+checked by hand.
 
 - Backend workflow tests use `new UnHussleDB(':memory:')` +
   `createBackendRuntime(db)`.
@@ -733,9 +756,3 @@ The full list is in [docs/workflows.md](docs/workflows.md#changing-the-runtime).
 [VS Code](https://code.visualstudio.com/) +
 [Tauri](https://marketplace.visualstudio.com/items?itemName=tauri-apps.tauri-vscode) +
 [rust-analyzer](https://marketplace.visualstudio.com/items?itemName=rust-lang.rust-analyzer)
-
-Final verification, retained workarounds and baseline comparisons are recorded
-in [docs/final-verification.md](docs/final-verification.md). The test runner now
-polls its own server's health, detects startup failures, preserves test exit
-status and cleans up only its own processes. The desktop smoke test is a separate
-manual check performed by the project owner.
