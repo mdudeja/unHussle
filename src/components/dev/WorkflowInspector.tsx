@@ -141,7 +141,7 @@ function Waterfall({ trace }: { trace: TraceSummary }) {
   return (
     <div className="space-y-1 py-2">
       {error && (
-        <p className="text-xs text-danger">
+        <p className="text-xs text-destructive">
           Backend spans unavailable: {error}
         </p>
       )}
@@ -155,7 +155,7 @@ function Waterfall({ trace }: { trace: TraceSummary }) {
             <span className="text-muted-foreground">
               {span.side === 'backend' ? 'be' : 'fe'} {span.kind}
             </span>{' '}
-            <span className={span.status === 'error' ? 'text-danger' : ''}>
+            <span className={span.status === 'error' ? 'text-destructive' : ''}>
               {span.name}
             </span>{' '}
             <span className="text-muted-foreground">{ms(span.durationMs)}</span>
@@ -174,7 +174,7 @@ function Waterfall({ trace }: { trace: TraceSummary }) {
             />
           </div>
           {span.error && (
-            <pre className="col-span-2 overflow-x-auto whitespace-pre-wrap rounded bg-danger/10 p-2 text-xs text-danger">
+            <pre className="col-span-2 overflow-x-auto whitespace-pre-wrap rounded bg-destructive/10 p-2 text-xs text-destructive">
               {span.error.stack ?? `${span.error.name}: ${span.error.message}`}
             </pre>
           )}
@@ -355,7 +355,7 @@ function Summary({ spans }: { spans: Span[] }) {
               <TableCell>{row.kind}</TableCell>
               <TableCell className="text-right">{row.count}</TableCell>
               <TableCell
-                className={`text-right ${row.errors ? 'text-danger' : ''}`}
+                className={`text-right ${row.errors ? 'text-destructive' : ''}`}
               >
                 {((row.errors / row.count) * 100).toFixed(0)}%
               </TableCell>

@@ -74,9 +74,9 @@ export default function ResourceEditorPage() {
       {content.data.missing && (
         <div
           role="alert"
-          className="flex items-center gap-2 rounded-md border border-amber-500/40 bg-amber-500/10 p-3 text-sm"
+          className="flex items-center gap-2 rounded-md border border-warning/40 bg-warning/10 p-3 text-sm"
         >
-          <AlertTriangle className="size-4 text-amber-600" />
+          <AlertTriangle className="size-4 text-warning" />
           The file is missing from the vault. Writing here recreates it; or
           delete the resource.
         </div>

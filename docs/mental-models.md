@@ -136,7 +136,7 @@ UI ─▶ frontend command ─▶ HTTP ─▶ route ─▶ backend command
 ### Start reading
 
 1. `src-db-server/workflows/commandHandlers.ts`: the recipes.
-2. `registerMutations.ts`: the mutation boundary, the sealed room.
+2. `src-db-server/workflows/registerMutations.ts`: the mutation boundary, the sealed room.
 3. `src/workflows/commandTransport.ts`: sending and settling.
 4. `src/workflows/reactionRegistry.ts` and `queries.ts`: reacting and
    caching.
@@ -271,7 +271,6 @@ and the clock, and picks:
 - **"Reading a day saves it."** Reads never write.
 - **"Stale means broken."** Stale means details changed since the order
   was chosen. The order is still the user's.
-- **"Recurring tasks are habits."** Not necessarily. Say "recurring".
 - **"An easy starter jumps the queue."** Only among equally urgent work.
   Comfort never outranks urgency when a stack is led.
 

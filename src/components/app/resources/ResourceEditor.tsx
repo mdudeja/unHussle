@@ -117,9 +117,9 @@ export function ResourceEditor({ initial }: { initial: ResourceContent }) {
       {state.status === 'conflict' && (
         <div
           role="alert"
-          className="flex flex-wrap items-center gap-2 rounded-md border border-amber-500/40 bg-amber-500/10 p-3 text-sm"
+          className="flex flex-wrap items-center gap-2 rounded-md border border-warning/40 bg-warning/10 p-3 text-sm"
         >
-          <AlertTriangle className="size-4 text-amber-600" />
+          <AlertTriangle className="size-4 text-warning" />
           <span className="flex-1">
             This file changed outside the app since you opened it.
           </span>

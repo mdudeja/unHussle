@@ -53,7 +53,7 @@ export const TaskTimerComponent = ({
       <TimerDisplay
         seconds={totalSeconds}
         size="sm"
-        className={cn(isActive ? 'text-sage' : 'text-muted')}
+        className={cn(isActive ? 'text-primary' : 'text-muted-foreground')}
       />
 
       <Button

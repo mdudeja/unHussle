@@ -326,9 +326,6 @@ two time zones is two plans.
 | A schedule-relevant field | Add it to `scheduleFields` so edits mark plans stale.                                                                                                                                       |
 | A setting                 | Add it to `SchedulerSettings` and `defaultSchedulerSettings`, validate it in `validateSettings`, and add it to the HTTP schema.                                                             |
 
-Wording: recurring tasks are not necessarily habits, so never call them
-habits in code, copy or reasons.
-
 ## Tests
 
 | Covers                                                                                                                                | File                                        |

@@ -102,7 +102,7 @@ const OvernightDialog = ({ prompt }: { prompt: OvernightPrompt }) => {
           <p className="text-sm text-muted-foreground">Loading…</p>
         )}
         {error && (
-          <p role="alert" className="text-sm text-danger">
+          <p role="alert" className="text-sm text-destructive">
             {error}
           </p>
         )}

@@ -12,7 +12,7 @@ export function WorkflowWarnings() {
         <div
           key={warning.id}
           role="status"
-          className="flex items-center gap-3 rounded-md border border-amber-500/50 bg-amber-500/10 p-3 text-sm"
+          className="flex items-center gap-3 rounded-md border border-warning/50 bg-warning/10 p-3 text-sm"
         >
           <span className="flex-1">{warning.message}</span>
           <Button
