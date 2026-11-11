@@ -105,3 +105,8 @@ export type AppEvents = SchedulerEvents &
 export type AppEventListeners = {
   [K in keyof AppEvents]?: ((event: AppEvents[K]) => void | Promise<void>)[]
 }
+
+/** Backend events (received over SSE) plus frontend-only events. */
+export type FrontendEvents = AppEvents & {
+  'tracking.changed': { taskId: string | null }
+}

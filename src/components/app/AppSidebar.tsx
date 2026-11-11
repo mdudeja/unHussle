@@ -1,4 +1,4 @@
-import { ExtensionMenus } from './ExtensionContributions'
+import { ExtensionMenus } from '@/components/app/ExtensionContributions'
 import { useEntryList } from '@/workflows/hooks'
 import type { LucideIcon } from 'lucide-react'
 import {

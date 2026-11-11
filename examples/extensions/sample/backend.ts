@@ -1,19 +1,14 @@
 import { Type } from '@sinclair/typebox'
-import { SDK_VERSION, type BackendExtension } from '@d/extensions/sdk'
+import type { BackendExtension } from 'unhussle/backend'
 
-/** Opt-in in-process example. Imports only the public backend SDK. */
-export const sampleBackendExtension: BackendExtension = {
-  id: 'sample',
-  sdkVersion: SDK_VERSION,
-  /** Registers sample actions, commands, and workflows for atomically capturing a task and describing its title. */
+const extension: BackendExtension = {
   activate: (api) => {
     const result = Type.Object({ id: Type.String() })
-    api.atomic.action({
+    api.atomic.actions.register({
       id: 'sample.captureAction',
       description: 'Capture one planned task',
       input: Type.String({ minLength: 1 }),
       output: result,
-      /** Creates a new task with the given title. */
       run: (title, domain) => {
         const row = domain.mutations.apply({
           kind: 'tasks',
@@ -24,7 +19,7 @@ export const sampleBackendExtension: BackendExtension = {
         return { id: row.id }
       },
     })
-    api.atomic.command({
+    api.atomic.commands.register({
       id: 'sample.capture',
       description: 'Capture a task atomically',
       input: Type.String({ minLength: 1 }),
@@ -43,7 +38,6 @@ export const sampleBackendExtension: BackendExtension = {
       description: 'Read a captured task title',
       input: Type.String(),
       output: Type.String(),
-      /** Retrieves the title of a task. */
       run: async (id, services) => {
         const task = await services.queries.get('tasks', id)
         if (!task) throw new Error('Task not found')
@@ -84,3 +78,5 @@ export const sampleBackendExtension: BackendExtension = {
     })
   },
 }
+
+export default extension

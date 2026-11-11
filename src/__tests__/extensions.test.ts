@@ -5,10 +5,11 @@ import { useStore } from '@/store'
 import { createFrontendRuntime, type EntryTransport } from '@/bootstrap'
 import type { EventHandlers } from '@/workflows/eventStream'
 import type { FrontendExtension } from '@/extensions/sdk'
-import { sampleFrontendExtension } from '../../examples/extensions/frontend'
+import sampleFrontendExtension from '../../examples/extensions/sample/frontend'
+import { createExtensionLoader } from '@/extensions/loader'
+import type { InstalledExtension } from '@c/extensions/manifest'
 
 type Api = Parameters<FrontendExtension['activate']>[0]
-/** Creates an isolated test fixture for the frontend runtime with mocked services, storage, and transport, and registers the sample extension for integration testing. */
 function fixture() {
   let handlers!: EventHandlers
   const records = [{ id: 'one', title: 'Task' }]
@@ -69,9 +70,7 @@ function fixture() {
     },
   )
   let api!: Api
-  const off = runtime.extensions.register({
-    ...sampleFrontendExtension,
-    /** Activates the frontend extension using the provided API context. */
+  const off = runtime.extensions.register('sample', {
     activate: (value) => {
       api = value
       sampleFrontendExtension.activate(value)
@@ -120,9 +119,7 @@ test('frontend sample invokes supported queries and owns menu/view lifecycle', a
     'disposed',
   )
   let next!: Api
-  f.runtime.extensions.register({
-    ...sampleFrontendExtension,
-    /** Activates the frontend extension. */
+  f.runtime.extensions.register('sample', {
     activate: (api) => {
       next = api
       sampleFrontendExtension.activate(api)
@@ -136,19 +133,15 @@ test('frontend sample invokes supported queries and owns menu/view lifecycle', a
   })
 })
 
-test('registration rejects version/namespace/collisions and supports explicit owned overrides', async () => {
+test('registration rejects invalid IDs and duplicates; stale disposers are inert', async () => {
   const f = fixture()
-  expect(() => f.runtime.extensions.register(sampleFrontendExtension)).toThrow(
-    'already active',
-  )
   expect(() =>
-    f.runtime.extensions.register({
-      id: 'future',
-      sdkVersion: 99,
-      /** Activates the extension so its frontend contributions become available to the application. */
-      activate: () => {},
-    }),
-  ).toThrow('version')
+    f.runtime.extensions.register('sample', sampleFrontendExtension),
+  ).toThrow('already active')
+  for (const id of ['kernel', 'Bad', '1x'])
+    expect(() =>
+      f.runtime.extensions.register(id, { activate: () => {} }),
+    ).toThrow('Invalid extension ID')
   expect(() =>
     f.api.actions.register({
       id: 'entity.hijack',
@@ -159,33 +152,33 @@ test('registration rejects version/namespace/collisions and supports explicit ow
     }),
   ).toThrow('belong')
   const action = {
-    id: 'sample.replaceable',
-    description: 'Replaceable action',
+    id: 'sample.repeatable',
+    description: 'Repeatable action',
     input: Type.Null(),
     output: Type.String(),
     run: () => 'first',
   }
   const old = f.api.actions.register(action)
-  expect(() => f.api.actions.register(action)).toThrow('collision')
+  expect(() => f.api.actions.register(action)).toThrow('Duplicate')
+  old()
+  f.api.actions.register({ ...action, run: () => 'second' })
+  old() // Already disposed: must not remove the new registration.
   f.api.commands.register({
-    id: 'sample.replaced',
+    id: 'sample.repeated',
     description: 'Run action',
     input: Type.Null(),
     output: Type.String(),
     steps: [{ id: 'run', action: action.id, input: { from: 'input' } }],
     result: { from: 'step', step: 'run' },
   })
-  expect(await f.api.commands.execute('sample.replaced', null)).toBe('first')
-  f.api.actions.register({ ...action, run: () => 'second' }, { override: true })
-  old() // A stale disposer cannot revoke its replacement.
-  expect(await f.api.commands.execute('sample.replaced', null)).toBe('second')
+  expect(await f.api.commands.execute('sample.repeated', null)).toBe('second')
   expect(() =>
     f.api.menus.register({
       id: 'sample.tasksMenu',
       label: 'Duplicate',
       viewId: 'sample.tasks',
     }),
-  ).toThrow('collision')
+  ).toThrow('Duplicate')
   f.runtime.dispose()
 })
 
@@ -193,10 +186,7 @@ test('failed activation rolls back registrations, subscriptions and contribution
   const f = fixture()
   let cleaned = false
   expect(() =>
-    f.runtime.extensions.register({
-      id: 'broken',
-      sdkVersion: 1,
-      /** Activate the extension and register its contributions, ensuring any owned resources are cleaned up if activation fails. */
+    f.runtime.extensions.register('broken', {
       activate: (api) => {
         api.own(() => {
           cleaned = true
@@ -217,10 +207,7 @@ test('failed activation rolls back registrations, subscriptions and contribution
   expect(
     f.runtime.extensions.contributions.snapshot().menus.map((menu) => menu.id),
   ).toEqual(['sample.tasksMenu'])
-  const off = f.runtime.extensions.register({
-    id: 'broken',
-    sdkVersion: 1,
-    /** Activates the extension and registers its frontend contributions with the application services. */
+  const off = f.runtime.extensions.register('broken', {
     activate: () => {},
   })
   off()
@@ -230,10 +217,7 @@ test('failed activation rolls back registrations, subscriptions and contribution
 test('disposal invalidates dependent compiled commands rather than leaving stale callbacks', async () => {
   const f = fixture()
   let activeConsumer!: Api
-  f.runtime.extensions.register({
-    id: 'consumer',
-    sdkVersion: 1,
-    /** Registers the consumer titles command, which exposes the sample commands title output as a list of strings. */
+  f.runtime.extensions.register('consumer', {
     activate: (api) => {
       activeConsumer = api
       api.commands.register({
@@ -265,10 +249,7 @@ test('disposal invalidates dependent compiled commands rather than leaving stale
   let consumer!: Api
   // A second consumer can activate, but compilation of a now-missing dependency must fail.
   expect(() =>
-    f.runtime.extensions.register({
-      id: 'late',
-      sdkVersion: 1,
-      /** Activates the extension by registering the late.titles command, which delegates to sample.titles and returns an array of strings. */
+    f.runtime.extensions.register('late', {
       activate: (api) => {
         consumer = api
         api.commands.register({
@@ -305,5 +286,86 @@ test('imperative SDK reads return detached snapshots without mutating coordinato
   expect(
     f.runtime.queries.snapshot(f.runtime.defineDetail('tasks', 'one')).data,
   ).toEqual({ id: 'one', title: 'Task' })
+  f.runtime.dispose()
+})
+
+const installed = (id: string, enabled = true): InstalledExtension => ({
+  folder: id,
+  manifest: { id, name: id, version: '1', frontend: 'frontend.tsx' },
+  enabled,
+  status: enabled ? 'active' : 'disabled',
+})
+
+test('the loader activates enabled frontend entries and unloads disabled ones', async () => {
+  const f = fixture()
+  f.off()
+  const loader = createExtensionLoader(f.runtime.extensions.register, () =>
+    Promise.resolve({ default: sampleFrontendExtension }),
+  )
+  await loader.sync([installed('sample')])
+  expect(
+    f.runtime.extensions.contributions.snapshot().menus.map((menu) => menu.id),
+  ).toEqual(['sample.tasksMenu'])
+  await loader.sync([installed('sample', false)])
+  expect(f.runtime.extensions.contributions.snapshot().menus).toEqual([])
+  f.runtime.dispose()
+})
+
+test('the loader reports bad entries and ignores imports made stale by a reset', async () => {
+  const f = fixture()
+  f.off()
+  let finish!: () => void
+  const loader = createExtensionLoader(f.runtime.extensions.register, (url) =>
+    url.includes('/broken/')
+      ? Promise.resolve({})
+      : new Promise((resolve) => {
+          finish = () => resolve({ default: sampleFrontendExtension })
+        }),
+  )
+  await loader.sync([installed('broken')])
+  expect(loader.errors.snapshot().broken).toContain('default-export')
+  const slow = loader.sync([installed('sample')])
+  loader.reset()
+  finish()
+  await slow
+  expect(f.runtime.extensions.contributions.snapshot().menus).toEqual([])
+  expect(loader.errors.snapshot()).toEqual({})
+  f.runtime.dispose()
+})
+
+test('disposal runs every cleanup in reverse order, even after one throws', () => {
+  const f = fixture()
+  const order: string[] = []
+  const off = f.runtime.extensions.register('cleanup', {
+    activate: (api) => {
+      api.own(() => order.push('first'))
+      api.own(() => {
+        order.push('second')
+        throw new Error('cleanup failed')
+      })
+    },
+  })
+  off()
+  expect(order).toEqual(['second', 'first'])
+  f.runtime.dispose()
+})
+
+test('workflow steps must be registered commands', () => {
+  const f = fixture()
+  const workflow = {
+    id: 'sample.flow',
+    description: 'Flow',
+    input: Type.Null(),
+    output: Type.Unknown(),
+    result: { from: 'step' as const, step: 'one' },
+  }
+  expect(() =>
+    f.api.workflows.register({
+      ...workflow,
+      steps: [
+        { id: 'one', command: 'sample.missing', input: { from: 'input' } },
+      ],
+    }),
+  ).toThrow('needs a registered command')
   f.runtime.dispose()
 })

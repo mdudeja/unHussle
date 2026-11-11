@@ -17,7 +17,9 @@
     "paths": {
       "@/*": ["src/*"],
       "@d/*": ["src-db-server/*"],
-      "@c/*": ["common/*"]
+      "@c/*": ["common/*"],
+      "unhussle/backend": ["src-db-server/extensions/sdk.ts"],
+      "unhussle/frontend": ["src/extensions/sdk.ts"]
     },
     /* Linting */
     "strict": true,

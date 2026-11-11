@@ -1,11 +1,8 @@
 import { Type } from '@sinclair/typebox'
-import { SDK_VERSION, type FrontendExtension } from '@/extensions/sdk'
+import type { FrontendExtension } from 'unhussle/frontend'
+import { SampleTaskView } from './sample-task-view'
 
-import { SampleTaskView } from './SampleTaskView'
-/** Opt-in example. Uses public query hooks and lifecycle-owned UI registrations. */
-export const sampleFrontendExtension: FrontendExtension = {
-  id: 'sample',
-  sdkVersion: SDK_VERSION,
+const extension: FrontendExtension = {
   activate: (api) => {
     api.actions.register({
       id: 'sample.titlesAction',
@@ -43,3 +40,5 @@ export const sampleFrontendExtension: FrontendExtension = {
     })
   },
 }
+
+export default extension

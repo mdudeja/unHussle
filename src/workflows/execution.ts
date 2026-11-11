@@ -4,9 +4,6 @@ import {
   registerCommandHandler,
 } from '@c/workflows/registration'
 import type { Handler } from '@c/workflows/runtime'
-import { fetchReferences, fetchContainerDetail } from '@/services/readModels'
-import { fetchTaskContext } from '@/services/taskContext'
-import type { DomainQueries } from '@c/extensions/sdk'
 import { createStore, type StoreApi } from 'zustand/vanilla'
 import { createRuntime } from '@c/workflows/runtime'
 import type { SpanScope, Telemetry } from '@c/workflows/telemetry'
@@ -603,43 +600,6 @@ export function createFrontendExecution(
     return queries.ensure<EntryRecord[]>(key)
   }
 
-  /** Registers and retrieves a cached extension query, loading its value if necessary. */
-  const readExtensionQuery = <T>(
-    key: string,
-    kind: EntryKind,
-    load: () => Promise<T>,
-  ) => {
-    queries.define({ key, dependencies: dependencies(kind), load })
-    return queries.ensure<T>(key)
-  }
-  const extensionReads: DomainQueries = {
-    list: (kind, page = 1, limit) =>
-      limit === undefined
-        ? ensureList(kind, page)
-        : readExtensionQuery(`list:${kind}:${page}:${limit}`, kind, () =>
-            services[kind].fetchPaginated(
-              page,
-              Math.max(1, Math.min(limit, 100)),
-            ),
-          ),
-    get: (kind, id) => queries.ensure<EntryRecord>(defineDetail(kind, id)),
-    references: (kind, options) =>
-      readExtensionQuery(
-        `references:${kind}:${JSON.stringify(options ?? {})}`,
-        kind,
-        () => fetchReferences(kind, options),
-      ),
-    container: (kind, id, options) =>
-      readExtensionQuery(
-        `related:${kind}:${id}:${JSON.stringify(options ?? {})}`,
-        kind,
-        () => fetchContainerDetail(kind, id, options),
-      ),
-    taskContext: (id) =>
-      readExtensionQuery(`context:tasks:${id}`, 'tasks', () =>
-        fetchTaskContext(id),
-      ),
-  }
   /** Releases all resources and shuts down active services cleanly. */
   const dispose = () => {
     disposed = true
@@ -654,7 +614,6 @@ export function createFrontendExecution(
   return {
     ...runtime,
     registry,
-    extensionReads,
     telemetry,
     logger,
     queries,

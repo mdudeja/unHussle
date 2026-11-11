@@ -1,5 +1,5 @@
-/** Public backend authoring surface. No runtime, repository, or transaction exports. */
-export { SDK_VERSION } from '@c/extensions/sdk'
+/** Public backend authoring surface (`unhussle/backend`). Types only. */
+import type { AtomicContributions, Extension } from '@c/extensions/sdk'
 export type {
   ApplicationServices,
   AtomicDomain,
@@ -7,7 +7,4 @@ export type {
   JsonValue,
   WorkflowDefinition,
 } from '@c/extensions/sdk'
-export type BackendExtension = import('@c/extensions/sdk').Extension<
-  import('@c/extensions/sdk').ApplicationServices,
-  import('@c/extensions/sdk').AtomicContributions
->
+export type BackendExtension = Extension<AtomicContributions>

@@ -17,6 +17,8 @@ import { Logger } from '@c/Logger'
 import { VERSION } from '@c/version'
 import { schedulerRoutes } from './routes/scheduler'
 import { vaultRoutes } from './routes/vault'
+import { extensionRoutes } from '@d/routes/extensions'
+import { backendRuntime } from '@d/bootstrap'
 
 const logger = Logger.getInstance()
 
@@ -29,6 +31,12 @@ try {
   await runSeed()
 } catch (error) {
   logger.error('Error running seed data', { error })
+}
+
+try {
+  await backendRuntime.extensionManager.rescan()
+} catch (error) {
+  logger.error('Could not load extensions', { error })
 }
 
 const PORT = parseInt(process.env.VITE_DB_SERVER_PORT || '3456', 10)
@@ -126,6 +134,7 @@ const app = new Elysia()
   .use(timeEntriesRoutes)
   .use(schedulerRoutes)
   .use(vaultRoutes)
+  .use(extensionRoutes)
 
   // backend events, streamed to the frontend
   .use(eventRoutes)

@@ -1,21 +1,27 @@
 import type { Static, TSchema } from '@sinclair/typebox'
 import type { CommandDefinition } from '@c/workflows/composition'
+import type {
+  EntryKind,
+  EntryRecord,
+  MutationCommands,
+  MutationInput,
+  MutationResult,
+} from '@c/workflows/contracts'
+import type { SchedulerCommands } from '@c/scheduler/contracts'
+import type { VaultCommands } from '@c/vault/contracts'
+import type {
+  ContainerDetail,
+  EntityReference,
+  ReadContainerKind,
+  ReadPage,
+  TaskPageOptions,
+} from '@c/types/readModels'
+import type { TaskContext } from '@c/types/Hydrated'
 
-export const SDK_VERSION = 1 as const
 export type JsonValue =
   null | boolean | number | string | JsonValue[] | { [key: string]: JsonValue }
 export type Disposable = () => void
-export type Override = { override?: boolean }
-export type WorkflowDefinition = Omit<
-  CommandDefinition,
-  'steps' | 'execution'
-> & {
-  steps: {
-    id: string
-    command: string
-    input: CommandDefinition['steps'][number]['input']
-  }[]
-}
+
 export type Action<I extends TSchema, O extends TSchema, C> = {
   id: string
   description: string
@@ -29,23 +35,62 @@ export type AtomicAction<I extends TSchema, O extends TSchema, C> = Omit<
 > & {
   run: (input: Static<I>, context: C) => Static<O>
 }
-export type ExtensionContext<S> = {
+export type WorkflowDefinition = Omit<
+  CommandDefinition,
+  'steps' | 'execution'
+> & {
+  steps: {
+    id: string
+    command: string
+    input: CommandDefinition['steps'][number]['input']
+  }[]
+}
+
+export type SupportedCommands = MutationCommands &
+  SchedulerCommands &
+  VaultCommands
+export type ExecuteSupported = <K extends keyof SupportedCommands>(
+  id: K,
+  input: SupportedCommands[K]['input'],
+) => Promise<SupportedCommands[K]['result']>
+export type DomainQueries = {
+  list: (
+    kind: EntryKind,
+    page?: number,
+    limit?: number,
+  ) => Promise<EntryRecord[]>
+  get: (kind: EntryKind, id: string) => Promise<EntryRecord | null>
+  references: (
+    kind: EntryKind,
+    options?: { q?: string; ids?: string[]; cursor?: string; limit?: number },
+  ) => Promise<ReadPage<EntityReference>>
+  container: (
+    kind: ReadContainerKind,
+    id: string,
+    options?: TaskPageOptions,
+  ) => Promise<ContainerDetail | null>
+  taskContext: (id: string) => Promise<TaskContext | null>
+}
+export type ApplicationServices = {
+  queries: DomainQueries
+  execute: ExecuteSupported
+}
+
+export type ExtensionContext = {
   readonly id: string
-  readonly sdkVersion: typeof SDK_VERSION
-  readonly services: S
-  readonly commands: {
-    register: (definition: CommandDefinition, options?: Override) => Disposable
-    execute: (id: string, input: unknown) => Promise<unknown>
-  }
+  readonly services: ApplicationServices
   readonly actions: {
     register: <I extends TSchema, O extends TSchema>(
-      action: Action<I, O, S>,
-      options?: Override,
+      action: Action<I, O, ApplicationServices>,
     ) => Disposable
   }
-  readonly workflows: {
-    register: (definition: WorkflowDefinition, options?: Override) => Disposable
+  readonly commands: {
+    register: (definition: CommandDefinition) => Disposable
+    /** Runs any registered command or workflow by ID. */
     execute: (id: string, input: unknown) => Promise<unknown>
+  }
+  readonly workflows: {
+    register: (definition: WorkflowDefinition) => Disposable
   }
   readonly events: {
     on: (
@@ -61,72 +106,26 @@ export type ExtensionContext<S> = {
     info: (message: string) => void
     error: (message: string, error: unknown) => void
   }
-  /** Additional resources acquired by activation share the plugin's lifetime. */
+  /** Ties another resource's cleanup to the extension's lifetime. */
   readonly own: (dispose: Disposable) => Disposable
 }
-export type Extension<S, Extra extends object = object> = {
-  id: string
-  sdkVersion: number
-  activate: (api: ExtensionContext<S> & Extra) => void | Disposable
+export type Extension<Extra extends object = object> = {
+  activate: (api: ExtensionContext & Extra) => void | Disposable
 }
 
-export type SupportedCommands =
-  import('@c/workflows/contracts').MutationCommands &
-    import('@c/scheduler/contracts').SchedulerCommands &
-    import('@c/vault/contracts').VaultCommands
-export type ExecuteSupported = <K extends keyof SupportedCommands>(
-  id: K,
-  input: SupportedCommands[K]['input'],
-) => Promise<SupportedCommands[K]['result']>
-export type DomainQueries = {
-  list: (
-    kind: import('@c/workflows/contracts').EntryKind,
-    page?: number,
-    limit?: number,
-  ) => Promise<import('@c/workflows/contracts').EntryRecord[]>
-  get: (
-    kind: import('@c/workflows/contracts').EntryKind,
-    id: string,
-  ) => Promise<import('@c/workflows/contracts').EntryRecord | null>
-  references: (
-    kind: import('@c/workflows/contracts').EntryKind,
-    options?: { q?: string; ids?: string[]; cursor?: string; limit?: number },
-  ) => Promise<
-    import('@c/types/readModels').ReadPage<
-      import('@c/types/readModels').EntityReference
-    >
-  >
-  container: (
-    kind: import('@c/types/readModels').ReadContainerKind,
-    id: string,
-    options?: import('@c/types/readModels').TaskPageOptions,
-  ) => Promise<import('@c/types/readModels').ContainerDetail | null>
-  taskContext: (
-    id: string,
-  ) => Promise<import('@c/types/Hydrated').TaskContext | null>
-}
-export type ApplicationServices = {
-  queries: DomainQueries
-  execute: ExecuteSupported
-}
 export type AtomicDomain = {
   mutations: {
-    apply: (
-      input: import('@c/workflows/contracts').MutationInput,
-    ) => import('@c/workflows/contracts').MutationResult
-    get: (
-      kind: import('@c/workflows/contracts').EntryKind,
-      id: string,
-    ) => import('@c/workflows/contracts').EntryRecord | undefined
+    apply: (input: MutationInput) => MutationResult
+    get: (kind: EntryKind, id: string) => EntryRecord | undefined
   }
 }
 export type AtomicContributions = {
   atomic: {
-    action: <I extends TSchema, O extends TSchema>(
-      action: AtomicAction<I, O, AtomicDomain>,
-      options?: Override,
-    ) => Disposable
-    command: (definition: CommandDefinition, options?: Override) => Disposable
-    execute: (id: string, input: unknown) => Promise<unknown>
+    actions: {
+      register: <I extends TSchema, O extends TSchema>(
+        action: AtomicAction<I, O, AtomicDomain>,
+      ) => Disposable
+    }
+    commands: { register: (definition: CommandDefinition) => Disposable }
   }
 }

@@ -230,15 +230,16 @@ To work on the frontend in a browser, run `bun run server` in one terminal and
 
 Environment variables (see `.env.template`):
 
-| Variable                     | Used by  | Meaning                                            |
-| ---------------------------- | -------- | -------------------------------------------------- |
-| `DB_FILE_URL`                | server   | SQLite file (the desktop app sets it)              |
-| `DB_MIGRATIONS_DIR`          | server   | Migrations folder (the desktop app sets it)        |
-| `VITE_DB_SERVER_PORT`        | both     | API port, default `3456`                           |
-| `VITE_LOG_LEVEL`, `NODE_ENV` | both     | Logging level / environment                        |
-| `VITE_SEARCH_RESULTS_COUNT`  | server   | Max rows per `/search/:term` (default 20)          |
-| `VITE_FETCH_LIMIT_<KIND>`    | frontend | Page size per list (e.g. `VITE_FETCH_LIMIT_TASKS`) |
-| `DB_SERVER_BUILD_DIR`        | build    | Where `build:server` writes the sidecar binary     |
+| Variable                     | Used by  | Meaning                                                 |
+| ---------------------------- | -------- | ------------------------------------------------------- |
+| `DB_FILE_URL`                | server   | SQLite file (the desktop app sets it)                   |
+| `DB_MIGRATIONS_DIR`          | server   | Migrations folder (the desktop app sets it)             |
+| `VITE_DB_SERVER_PORT`        | both     | API port, default `3456`                                |
+| `VITE_LOG_LEVEL`, `NODE_ENV` | both     | Logging level / environment                             |
+| `VITE_SEARCH_RESULTS_COUNT`  | server   | Max rows per `/search/:term` (default 20)               |
+| `VITE_FETCH_LIMIT_<KIND>`    | frontend | Page size per list (e.g. `VITE_FETCH_LIMIT_TASKS`)      |
+| `DB_SERVER_BUILD_DIR`        | build    | Where `build:server` writes the sidecar binary          |
+| `EXTENSIONS_DIR`             | both     | Where extensions are discovered (default: `extensions`) |
 
 ### Architecture at a glance
 
@@ -289,6 +290,10 @@ Shared row types (`Read` / `Write` / `Update`) and hydrated shapes live in
 ---
 
 ## How data flows
+
+The reference for this section is [docs/workflows.md](docs/workflows.md).
+How commands are defined and compiled is in
+[docs/command-composition.md](docs/command-composition.md).
 
 ### A write, end to end
 
@@ -409,7 +414,8 @@ updates or cancels plan rows and occurrences of changed or deleted tasks.
 ## Backend (`src-db-server/`)
 
 ```
-bootstrap.ts         wires executor and extension adapters, owns disposal
+bootstrap.ts         wires executor, extension host and extension manager, owns disposal
+extensions/          host adapter, discovery/activation manager, bundler, queries, settings
 server.ts            Elysia app: gzip mapResponse, swagger, cors, /health, routes, /events, /telemetry
 database/
   UnHussleDB.ts      singleton; getDb() opens SQLite, sets pragmas, runs migrations
@@ -421,18 +427,22 @@ routes/
   routegenerator.ts  generic CRUD routes per kind; mutations execute commands
   <kind>.ts          one routeGenerator call per kind; tags/urls add GET /:id/items
   scheduler.ts       /scheduler reads + commands
+  extensions.ts      /extensions list, rescan, enable, folder, frontend bundles
   events.ts          SSE forwarder (numbered frames, replay buffer, resync)
   telemetry.ts       http spans, x-operation-id header, GET /telemetry
-workflows/
+workflows/           see docs/workflows.md
   execution.ts       registers all command families in one composition registry
   kernel.ts          transactions, compensation and committed publication
-  registerMutations.ts / registerStateful.ts   domain action/definition registration
+  composition.ts     mutation and scheduler/vault definitions, row output bindings
+  registerMutations.ts / registerStateful.ts   actions, boundaries and definitions per family
+  domainBoundary.ts  the extension atomic boundary
   commandHandlers.ts command → ordered action names
   commandActions.ts  named action adapters over domain services
   contracts.ts       backend-only action, transaction and publication types
   schedulerHandlers.ts / schedulerActions.ts   scheduler command → actions over a carried state
+  vaultHandlers.ts / vaultActions.ts           vault command → actions over a carried state
   scheduler.ts       composeDay, readDay, readNext, previewWeek (reads, never write)
-  unitOfWork.ts      one transaction for a list of synchronous work units
+  unitOfWork.ts      one synchronous transaction per command
 domain/
   entries.ts         normalized row persistence, server-owned field protection
   tasks.ts           stored-task validation, lifecycle and overnight stop validation
@@ -448,7 +458,7 @@ domain/
 **Routes.** `routeGenerator` gives every kind `GET /`,
 `GET /paginated/:page/:pageSize`, `GET /:id`, `GET /search/:term` (a leading
 `#` is ignored), `POST /`, `PATCH /:id`, `DELETE /:id` and `DELETE /all`
-(`{ deleted: n }`). Reads call the repository directly. Writes call
+. Reads call the repository directly. Writes call
 `${commandHeadForKind[kind]}.add|change|delete|deleteAll` and return the
 hydrated row.
 
@@ -489,7 +499,8 @@ so enum imports do not pull the schema graph into runtime dependencies.
 
 Each family has `add`, `change`, `delete` and `deleteAll`. Private row actions
 are bound explicitly in compiled definitions. Missing actions, invalid bindings
-and recursive definitions are rejected at registration. Per-kind names such as
+and recursive definitions are rejected at registration (see
+[docs/command-composition.md](docs/command-composition.md)). Per-kind names such as
 `tasks.change` are events; public commands use the correct family for their kind. Scheduler commands run
 `expireOccurrences → loadPlan → checkRevision → … → savePlan` over one
 `SchedulerState`. A stale `revision` gets a 409.
@@ -505,8 +516,8 @@ and recursive definitions are rejected at registration. Per-kind names such as
 `time_entries`. Starting work closes every other open interval and pauses its
 task.
 
-**Events.** After commit, the backend publishes the family event, the kind
-event and queued announcements. All are `MutationEvent`s carrying
+**Events.** After commit, the backend publishes queued announcements first,
+then the family event and the kind event. All are `MutationEvent`s carrying
 `operationId`. `announceAffectedEntities` publishes `<kind>.change` with
 `attachedIds` and no `result` for a collection's members. It runs **before**
 a delete, because the members' foreign keys are nulled afterwards. A failing
@@ -516,17 +527,20 @@ listener is logged and never fails the write.
 
 ## Common (`common/`)
 
-| Path                                   | What                                                                                                     |
-| -------------------------------------- | -------------------------------------------------------------------------------------------------------- |
-| `workflows/runtime.ts`                 | `createRuntime`: invokes registered plans; any number of event listeners (`on`, `onAny`), telemetry spans |
-| `workflows/contracts.ts`               | Public `EntryKind`, `commandHeadForKind`, `MutationInput/Event`, `MutationCommands`, `AppEvents`         |
-| `workflows/telemetry*.ts`              | span recorder, ring buffer, sinks, trace headers                                                         |
-| `scheduler/`                           | the pure planning engine shared by both sides (see below)                                                |
-| `taskSchedule.ts`                      | derive the missing one of start / end / estimate; validate end > start                                   |
-| `types/`                               | row types (`Read`/`Write`/`Update`), hydrated shapes, `ProgressStatus`, `Priority`, `AnchorType`         |
-| `datetimeUtils.ts`, `calendarUtils.ts` | time zone–aware millis, local dates, calendar date math (Temporal)                                       |
-| `Logger.ts`                            | `Logger.getInstance()`. Use it instead of `console`.                                                     |
-| `testing/test-setup.ts`                | Bun preload that resets the test DB after the run                                                        |
+| Path                                   | What                                                                                                              |
+| -------------------------------------- | ----------------------------------------------------------------------------------------------------------------- |
+| `workflows/runtime.ts`                 | `createRuntime`: invokes registered plans; any number of event listeners (`on`, `onAny`), telemetry spans         |
+| `workflows/composition.ts`             | the composition registry: definitions, bindings, compiled plans, boundaries ([docs](docs/command-composition.md)) |
+| `workflows/registration.ts`            | `registerCommandHandler` (leaf commands), `commandTracing` (nested command spans)                                 |
+| `workflows/contracts.ts`               | Public `EntryKind`, `commandHeadForKind`, `MutationInput/Event`, `MutationCommands`, `AppEvents`                  |
+| `extensions/`                          | extension SDK types, manifest schema and the host ([docs](docs/extensions-architecture.md))                       |
+| `workflows/telemetry*.ts`              | span recorder, ring buffer, sinks, trace headers                                                                  |
+| `scheduler/`                           | the pure planning engine shared by both sides (see below)                                                         |
+| `taskSchedule.ts`                      | derive the missing one of start / end / estimate; validate end > start                                            |
+| `types/`                               | row types (`Read`/`Write`/`Update`), hydrated shapes, `ProgressStatus`, `Priority`, `AnchorType`                  |
+| `datetimeUtils.ts`, `calendarUtils.ts` | time zone–aware millis, local dates, calendar date math (Temporal)                                                |
+| `Logger.ts`                            | `Logger.getInstance()`. Use it instead of `console`.                                                              |
+| `testing/test-setup.ts`                | Bun preload that resets the test DB after the run                                                                 |
 
 ### The scheduler
 
@@ -563,27 +577,19 @@ listener is logged and never fails the write.
 
 ## Trusted local extensions
 
-Version 1 provides separate [backend and frontend SDKs](docs/extensions.md).
-Extensions register actions, compiled commands, sequential workflows, public
-subscriptions, namespaced settings/logging, and frontend menus/views. The host
-owns disposal, including failed-activation cleanup and cached-plan invalidation.
-Transactional actions receive a synchronous domain facade, not SQLite or Drizzle;
-ordinary actions use asynchronous application services. Atomic mutations keep
-all built-in validation, tracking, relationship and vault guarantees. Workflows
-report partial failure without undoing earlier commits or retrying writes.
+Extensions are folders in the extensions folder, each with an `extension.json`
+and optional backend and frontend entries. They add commands, workflows, event
+listeners, settings, sidebar menus and pages. They run unsandboxed and stay off
+until turned on in **Preferences > Extensions**.
 
-The opt-in samples (`examples/extensions/backend.ts` and
-`examples/extensions/frontend.tsx`) use the same registration/compiler entry points as
-built-ins and are exercised by integration tests. They import public SDKs only.
-The host delegates to the executor's single registry; it owns namespaces and
-lifetimes, with no builtin relisting or proxy registrations. Application bootstrap
-wires the host adapters and owns disposal; the executors remain host-independent.
-No plugin loader, installer, sandbox, marketplace or workflow editor is included.
+- Writing one: [docs/extensions.md](docs/extensions.md)
+- How the host works: [docs/extensions-architecture.md](docs/extensions-architecture.md)
+- Working example: `examples/extensions/sample/`
 
 ## Frontend (`src/`)
 
 ```
-main.tsx / lib/router.ts   routes: / (Next task), /day, /week, /scheduler/settings, /projects, /areas, /goals, /tasks, /urls, /tags
+main.tsx / lib/router.ts   routes: / (Next task), /day, /week, /scheduler/settings, /projects, /areas, /goals, /tasks, /urls, /tags, /extensions/:id
 pages/                     HomePage, PlannerPages (Day/Week/Preferences), EntityPages (list pages)
 components/
   ui/                      shadcn/ui + ui/custom (pickers, forms, DataTable, …)
@@ -596,16 +602,20 @@ lib/
   hooks/                   autocomplete, related items, debounce
 services/
   database/                configured CRUD service instances (adds mutation headers)
-  scheduler.ts             HTTP client for /scheduler
+  scheduler.ts, vault.ts   HTTP clients for /scheduler and /vault
+  extensions.ts            HTTP client for /extensions
 store/                     Zustand UI state and mutation command facades; no server-derived rows
 bootstrap.ts               createFrontendRuntime / getFrontendRuntime; extension wiring
-workflows/
-  execution.ts             commands, reactions and query coordination
+extensions/                host adapter, loader, hooks, public SDK (unhussle/frontend)
+workflows/                 see docs/workflows.md
+  execution.ts             commands, queues, reactions and query coordination
+  commandTransport.ts      one send path: expected events, readiness, HTTP, settlement, recovery
   commandRegistry.ts       verb → service call (add→create, change→update, …)
   eventStream.ts           SSE clients (EventSource in the webview, fetch under Bun)
   operations.ts            waits for an operation's events to be handled
   reactionRegistry.ts      event → ordered reaction names
   reactions.ts             query invalidation, announced dependencies, schedule refresh, tracking cleanup
+  invalidation.ts          batches each operation's refresh into one
   queries.ts / hooks.ts    query coordinator + React hooks
   schedulerHooks.ts        useTodayPlan (auto-generates today, auto-starts wrap-up), useDayPlan, useSchedulerClock,
                            useSchedulerAction, useSkippedTasks ("Do something else", per day in localStorage)
@@ -620,7 +630,7 @@ exposes `data`, `isLoading`, `error`, `fetch`, `search`, `add`, `update`,
 `runtime.commands.execute(...)`. Slices never patch `data` themselves.
 
 **Frontend commands.** Besides the three mutation families and the scheduler
-commands, the frontend has two workflows of its own:
+and vault commands, the frontend has two commands of its own:
 
 - `task.transition`: serialized status changes. A `change` that includes a
   `status` is routed here. It keeps the local tracking session in step and
@@ -687,6 +697,8 @@ bun run test     # starts a server on .env.test, runs **/__tests__, stops it
 
 ## Extending
 
+The full list is in [docs/workflows.md](docs/workflows.md#changing-the-runtime).
+
 - **New backend side effect:** add an action to `commandActions.ts` and to
   `CommandAction` in `src-db-server/workflows/contracts.ts`. Put integrity
   behavior in a domain service and list the action under the
@@ -696,14 +708,18 @@ bun run test     # starts a server on .env.test, runs **/__tests__, stops it
   `ReactionName`. Then list it under the event in `reactionRegistry.ts`.
 - **New planning preference:** add a rule to `common/scheduler/rules.ts` and
   `planRuleNames`. Then place it in the cue lists in `ruleRegistry.ts`.
-- **New entity kind:** see the checklist in `AGENTS.md`.
+- **New entity kind:** follow the
+  [checklist](docs/workflows.md#adding-an-entry-kind).
+- **New command composed from existing actions:** see
+  [docs/command-composition.md](docs/command-composition.md), or write an
+  [extension](docs/extensions.md).
 
 ---
 
 ## Direction and caveats
 
-- **Extensions** should eventually register their own actions, reactions and
-  plan rules by merging into these registries.
+- **Extensions** register actions, commands and workflows in the shared
+  registry. They cannot yet add reactions or plan rules.
 - **Announcement events** share kind channels (`tasks.change`) and are told
   apart by payload (`attachedIds`, no `result`). They may get their own names.
 - **Derived counts** are recalculated across whole tables on each relevant
@@ -717,7 +733,6 @@ bun run test     # starts a server on .env.test, runs **/__tests__, stops it
 [VS Code](https://code.visualstudio.com/) +
 [Tauri](https://marketplace.visualstudio.com/items?itemName=tauri-apps.tauri-vscode) +
 [rust-analyzer](https://marketplace.visualstudio.com/items?itemName=rust-lang.rust-analyzer)
-
 
 Final verification, retained workarounds and baseline comparisons are recorded
 in [docs/final-verification.md](docs/final-verification.md). The test runner now

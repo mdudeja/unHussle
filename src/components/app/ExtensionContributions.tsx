@@ -1,4 +1,4 @@
-import { createElement, useState, useSyncExternalStore } from 'react'
+import { useState, useSyncExternalStore } from 'react'
 import { Link, useParams } from 'react-router'
 import { useWorkflowRuntime } from '@/workflows/hooks'
 import {
@@ -48,7 +48,11 @@ function MenuItem({ menu }: { menu: ExtensionMenu }) {
           {menu.label}
         </SidebarMenuButton>
       )}
-      {error && <span role="alert">Could not complete this action.</span>}
+      {error && (
+        <span role="alert">
+          Could not run this action. Try again or disable the extension.
+        </span>
+      )}
     </SidebarMenuItem>
   )
 }
@@ -73,7 +77,9 @@ export function ExtensionPage() {
   const { views } = useContributions()
   const view = views.find((view) => view.id === id)
   return view ? (
-    <section className="p-4">{createElement(view.component)}</section>
+    <section className="p-4">
+      <view.component />
+    </section>
   ) : (
     <p>This extension view is unavailable.</p>
   )

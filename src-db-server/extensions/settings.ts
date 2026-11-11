@@ -1,51 +1,57 @@
 import { eq } from 'drizzle-orm'
-import { appSettings } from '@d/database/schemas/app.settings.schema'
+import {
+  appSettings,
+  type AppSettings,
+} from '@d/database/schemas/app.settings.schema'
 import type { UnHussleDB } from '@d/database/UnHussleDB'
 import type { JsonValue } from '@c/extensions/sdk'
 
-/** Scoped JSON settings share the existing settings column; no schema migration is needed. */
+const SETTINGS_ID = 'default'
+
+const hasOwn = (value: object, key: string) =>
+  Object.prototype.hasOwnProperty.call(value, key)
+
+export async function readAppSettings(database: UnHussleDB) {
+  const db = await database.getDb()
+  return (
+    db.select().from(appSettings).where(eq(appSettings.id, SETTINGS_ID)).get()
+      ?.settings ?? {}
+  )
+}
+
+/** Read-modify-write in one transaction, so other settings are preserved. */
+export async function updateAppSettings(
+  database: UnHussleDB,
+  update: (settings: AppSettings) => AppSettings,
+) {
+  const db = await database.getDb()
+  db.transaction((tx) => {
+    const next = update(
+      tx.select().from(appSettings).where(eq(appSettings.id, SETTINGS_ID)).get()
+        ?.settings ?? {},
+    )
+    tx.insert(appSettings)
+      .values({ id: SETTINGS_ID, settings: next })
+      .onConflictDoUpdate({ target: appSettings.id, set: { settings: next } })
+      .run()
+  })
+}
+
+/** Per-extension JSON settings in `app_settings.settings.extensions[id]`. */
 export function extensionSettings(database: UnHussleDB) {
   return {
-    /** Retrieves the extension setting value configured for the given owner and key from the default application settings. */
     get: async (owner: string, key: string) => {
-      const db = await database.getDb()
-      const all = db
-        .select()
-        .from(appSettings)
-        .where(eq(appSettings.id, 'default'))
-        .get()?.settings.extensions
-      if (!all || !Object.prototype.hasOwnProperty.call(all, owner))
-        return undefined
-      const settings = all[owner]
-      return Object.prototype.hasOwnProperty.call(settings, key)
-        ? settings[key]
-        : undefined
+      const all = (await readAppSettings(database)).extensions
+      if (!all || !hasOwn(all, owner)) return undefined
+      return hasOwn(all[owner], key) ? all[owner][key] : undefined
     },
-    /** Stores or updates a setting value for a specific extension owner. */
-    set: async (owner: string, key: string, value: JsonValue) => {
-      const db = await database.getDb()
-      db.transaction((tx) => {
-        const settings =
-          tx
-            .select()
-            .from(appSettings)
-            .where(eq(appSettings.id, 'default'))
-            .get()?.settings ?? {}
-        const next = {
-          ...settings,
-          extensions: {
-            ...settings.extensions,
-            [owner]: { ...settings.extensions?.[owner], [key]: value },
-          },
-        }
-        tx.insert(appSettings)
-          .values({ id: 'default', settings: next })
-          .onConflictDoUpdate({
-            target: appSettings.id,
-            set: { settings: next },
-          })
-          .run()
-      })
-    },
+    set: (owner: string, key: string, value: JsonValue) =>
+      updateAppSettings(database, (settings) => ({
+        ...settings,
+        extensions: {
+          ...settings.extensions,
+          [owner]: { ...settings.extensions?.[owner], [key]: value },
+        },
+      })),
   }
 }

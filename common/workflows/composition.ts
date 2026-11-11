@@ -463,9 +463,7 @@ export function createCompositionRegistry<C>({
         throw error
       }
     },
-    /** Replaces an existing command definition and updates the compiled
-     * command set, preserving the prior definition if the update cannot be
-     * applied. */
+    /** Replaces a command definition; the previous plan stays if recompilation fails. */
     replaceCommand(definition: CommandDefinition) {
       const previous = definitions.get(definition.id)
       if (!previous) throw new Error(`Missing command: ${definition.id}`)
@@ -474,26 +472,6 @@ export function createCompositionRegistry<C>({
         recompile()
       } catch (error) {
         definitions.set(definition.id, previous)
-        recompile()
-        throw error
-      }
-    },
-    /** Replaces an existing action definition with an updated version of the
-     * same action, ensuring the actions restored input and output schemas are
-     * applied while preserving the previous definition if recompilation fails.
-     * */
-    replaceAction(action: ActionDefinition<C>) {
-      const previous = actions.get(action.id)
-      if (!previous) throw new Error(`Missing action: ${action.id}`)
-      actions.set(action.id, {
-        ...action,
-        input: restoreSchema(action.input),
-        output: restoreSchema(action.output),
-      })
-      try {
-        recompile()
-      } catch (error) {
-        actions.set(action.id, previous)
         recompile()
         throw error
       }
@@ -530,7 +508,6 @@ export function createCompositionRegistry<C>({
       plans.clear()
       return [...removedCommands]
     },
-    /** Determines whether an identifier refers to a workflow, a command, or an unknown definition. */
     clear() {
       actions.clear()
       definitions.clear()
@@ -539,7 +516,7 @@ export function createCompositionRegistry<C>({
       protectedDefinitions.clear()
       plans.clear()
     },
-    /** Determines whether the given identifier refers to a workflow, a command, or neither. */
+    /** The ID of the execution boundary a command runs in, if any. */
     boundary(id: string) {
       return boundaries.get(id)?.id
     },

@@ -1,0 +1,8 @@
+{
+  "id": "sample",
+  "name": "Sample",
+  "version": "1.0.0",
+  "description": "Captures tasks and lists their titles.",
+  "backend": "backend.ts",
+  "frontend": "frontend.tsx"
+}

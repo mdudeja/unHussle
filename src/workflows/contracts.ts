@@ -1,6 +1,6 @@
 import type {
-  AppEvents,
   EntryRecord,
+  FrontendEvents,
   MutationCommands,
 } from '@c/workflows/contracts'
 import type { ProgressStatus } from '@c/types/enums'
@@ -9,10 +9,7 @@ import type { MutationOptions } from '@/services/database/DbService'
 import type { SchedulerCommands } from '@c/scheduler/contracts'
 import type { VaultCommands } from '@c/vault/contracts'
 
-/** Backend events (received over SSE) plus frontend-only events. */
-export type FrontendEvents = AppEvents & {
-  'tracking.changed': { taskId: string | null }
-}
+export type { FrontendEvents } from '@c/workflows/contracts'
 
 export type Transition = {
   id: string

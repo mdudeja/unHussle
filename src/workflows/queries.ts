@@ -8,6 +8,7 @@ export type QueryDependency =
   | 'schedulerSettings'
   | 'resourceContent'
   | 'vault'
+  | 'extensions'
 
 export type QueryState<T = unknown> = {
   data: T | null

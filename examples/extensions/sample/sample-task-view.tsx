@@ -1,4 +1,4 @@
-import { useExtensionEntries } from '@/extensions/sdk'
+import { useExtensionEntries } from 'unhussle/frontend'
 
 export function SampleTaskView() {
   const tasks = useExtensionEntries('tasks')

@@ -16,9 +16,11 @@ import {
 } from '@/components/app'
 import { Logger } from '@c/Logger'
 import { WorkflowInspector } from '@/components/dev/WorkflowInspector'
+import { useExtensionActivation } from '@/extensions/hooks'
 
 function App() {
   const { isDBReady, checkDBReady, dbError } = useStore()
+  useExtensionActivation()
 
   useEffect(() => {
     if (isDBReady) {

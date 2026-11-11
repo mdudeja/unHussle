@@ -13,7 +13,6 @@ import {
 import { ReadModelsRepository } from '@d/database/repositories/readModels'
 import { getTaskContext } from '@d/database/repositories/taskContext'
 
-/** Creates a domain query interface that lets extensions access and query core domain data. */
 export function extensionQueries(database: UnHussleDB): DomainQueries {
   const repositories = {
     tasks: new TasksRepository(database),

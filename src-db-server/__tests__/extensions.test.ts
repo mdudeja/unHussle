@@ -6,7 +6,7 @@ import { join } from 'node:path'
 import { tmpdir } from 'node:os'
 import { createBackendRuntime } from '@d/bootstrap'
 import { UnHussleDB } from '@d/database/UnHussleDB'
-import { sampleBackendExtension } from '../../examples/extensions/backend'
+import sampleBackendExtension from '../../examples/extensions/sample/backend'
 import type { BackendExtension, AtomicDomain } from '@d/extensions/sdk'
 import { tasks, resources, appSettings } from '@d/database/schemas'
 import { WorkflowFailure } from '@c/workflows/composition'
@@ -16,7 +16,6 @@ const roots: string[] = []
 afterAll(() => {
   for (const root of roots) rmSync(root, { recursive: true, force: true })
 })
-/** Sets up an isolated test environment with an in-memory database, temporary vault directory, backend runtime, and the sample backend extension activated. */
 async function fixture() {
   const database = new UnHussleDB(':memory:')
   const root = mkdtempSync(join(tmpdir(), 'unhussle-extension-'))
@@ -25,10 +24,7 @@ async function fixture() {
   const runtime = createBackendRuntime(database, { vaultDir: root, telemetry })
   const db = await database.getDb()
   let api!: Api
-  /** Activates the extension so its functionality and contributions become available. */
-  const off = runtime.extensions.register({
-    ...sampleBackendExtension,
-    /** Activates the sample backend extension. */
+  const off = runtime.extensions.register('sample', {
     activate: (value) => {
       api = value
       sampleBackendExtension.activate(value)
@@ -40,7 +36,7 @@ async function fixture() {
 test('sample extension registers, invokes, composes and disposes through the public SDK', async () => {
   const f = await fixture()
   expect(
-    await f.api.workflows.execute('sample.captureAndDescribe', 'SDK task'),
+    await f.api.commands.execute('sample.captureAndDescribe', 'SDK task'),
   ).toBe('SDK task')
   const row = f.db.select().from(tasks).get()!
   expect(row.title).toBe('SDK task')
@@ -63,7 +59,10 @@ test('sample extension registers, invokes, composes and disposes through the pub
   expect(() => f.api.commands.execute('sample.describe', row.id)).toThrow(
     'disposed',
   )
-  const offAgain = f.runtime.extensions.register(sampleBackendExtension)
+  const offAgain = f.runtime.extensions.register(
+    'sample',
+    sampleBackendExtension,
+  )
   offAgain()
   f.runtime.dispose()
 })
@@ -75,12 +74,11 @@ test('custom atomic mutations preserve rollback, vault compensation and publicat
     events.push(name)
   })
   let leaked!: AtomicDomain
-  f.api.atomic.action({
+  f.api.atomic.actions.register({
     id: 'sample.rollbackAction',
     description: 'Exercise integrity',
     input: Type.Null(),
     output: Type.Null(),
-    /** Exercises the atomic domain’s mutation handling by applying valid and invalid mutations to verify correct application and validation behavior. */
     run: (_input, domain) => {
       leaked = domain
       expect(Object.keys(domain)).toEqual(['mutations'])
@@ -101,7 +99,7 @@ test('custom atomic mutations preserve rollback, vault compensation and publicat
       return null
     },
   })
-  f.api.atomic.command({
+  f.api.atomic.commands.register({
     id: 'sample.rollback',
     description: 'Rollback',
     input: Type.Null(),
@@ -111,7 +109,9 @@ test('custom atomic mutations preserve rollback, vault compensation and publicat
     ],
     result: { from: 'step', step: 'work' },
   })
-  await expect(f.api.atomic.execute('sample.rollback', null)).rejects.toThrow()
+  await expect(
+    f.api.commands.execute('sample.rollback', null),
+  ).rejects.toThrow()
   expect(f.db.select().from(resources).all()).toEqual([])
   expect(f.db.select().from(tasks).all()).toEqual([])
   expect(readdirSync(f.root).filter((name) => name.endsWith('.md'))).toEqual([])
@@ -128,14 +128,14 @@ test('custom atomic mutations preserve rollback, vault compensation and publicat
 
 test('atomic action output validation and promises fail before commit', async () => {
   const f = await fixture()
-  f.api.atomic.action({
+  f.api.atomic.actions.register({
     id: 'sample.asyncAction',
     description: 'Invalid async action',
     input: Type.Null(),
     output: Type.Unknown(),
     run: () => Promise.resolve('not synchronous'),
   })
-  f.api.atomic.command({
+  f.api.atomic.commands.register({
     id: 'sample.async',
     description: 'Reject promises',
     input: Type.Null(),
@@ -145,7 +145,7 @@ test('atomic action output validation and promises fail before commit', async ()
     ],
     result: { from: 'step', step: 'async' },
   })
-  await expect(f.api.atomic.execute('sample.async', null)).rejects.toThrow(
+  await expect(f.api.commands.execute('sample.async', null)).rejects.toThrow(
     'synchronous',
   )
   f.runtime.dispose()
@@ -190,7 +190,7 @@ test('workflow partial failure reports committed steps without replaying or roll
     result: { from: 'step', step: 'failure' },
   })
   try {
-    await f.api.workflows.execute('sample.partial', 'Keep committed')
+    await f.api.commands.execute('sample.partial', 'Keep committed')
     throw new Error('Expected failure')
   } catch (error) {
     expect(error).toBeInstanceOf(WorkflowFailure)
@@ -220,20 +220,13 @@ test('namespaced settings persist independently and preserve application setting
   await f.api.settings.set('theme', { compact: true })
   expect(await f.api.settings.get('toString')).toBeUndefined()
   f.off()
-  /** Activates the extension and initializes its contributions through the provided API. */
-  const off = f.runtime.extensions.register({
-    id: 'other',
-    sdkVersion: 1,
-    /** Activates the extension and initializes its functionality. */
+  const off = f.runtime.extensions.register('other', {
     activate: (api) => {
       expect(api.id).toBe('other')
     },
   })
   let reloaded!: Api
-  /** Activates the extension and registers its contributions with the runtime. */
-  f.runtime.extensions.register({
-    ...sampleBackendExtension,
-    /** Activates the extension by initializing its backend integration with the provided extension context. */
+  f.runtime.extensions.register('sample', {
     activate: (api) => {
       reloaded = api
       sampleBackendExtension.activate(api)
@@ -251,12 +244,11 @@ test('invalid custom action output rolls its domain writes back before publicati
   f.runtime.events.onAny((name) => {
     events.push(name)
   })
-  f.api.atomic.action({
+  f.api.atomic.actions.register({
     id: 'sample.badOutputAction',
     description: 'Invalid output',
     input: Type.Null(),
     output: Type.Number(),
-    /** Creates a task titled Never committed through the domain’s mutation system and yields an intentionally invalid result. */
     run: (_input, domain) => {
       domain.mutations.apply({
         kind: 'tasks',
@@ -266,7 +258,7 @@ test('invalid custom action output rolls its domain writes back before publicati
       return 'wrong' as unknown as number
     },
   })
-  f.api.atomic.command({
+  f.api.atomic.commands.register({
     id: 'sample.badOutput',
     description: 'Validate before commit',
     input: Type.Null(),
@@ -280,9 +272,9 @@ test('invalid custom action output rolls its domain writes back before publicati
     ],
     result: { from: 'step', step: 'work' },
   })
-  await expect(f.api.atomic.execute('sample.badOutput', null)).rejects.toThrow(
-    'output',
-  )
+  await expect(
+    f.api.commands.execute('sample.badOutput', null),
+  ).rejects.toThrow('output')
   expect(f.db.select().from(tasks).all()).toEqual([])
   expect(events).toEqual([])
   f.runtime.dispose()
@@ -294,18 +286,17 @@ test('compatible atomic commands inline without nested commits and keep one trac
   f.runtime.events.onAny((name) => {
     events.push(name)
   })
-  f.api.atomic.action({
+  f.api.atomic.actions.register({
     id: 'sample.failInlineAction',
     description: 'Check uncommitted row then fail',
     input: Type.Object({ id: Type.String() }),
     output: Type.Null(),
-    /** Checks that a task mutation has the expected title and intentionally fails with an inline error. */
     run: (input, domain) => {
       expect(domain.mutations.get('tasks', input.id)?.title).toBe('Inline task')
       throw new Error('inline failed')
     },
   })
-  f.api.atomic.command({
+  f.api.atomic.commands.register({
     id: 'sample.inline',
     description: 'Inline compatible capture',
     input: Type.String(),
@@ -321,16 +312,12 @@ test('compatible atomic commands inline without nested commits and keep one trac
     result: { from: 'step', step: 'fail' },
   })
   await expect(
-    f.api.atomic.execute('sample.inline', 'Inline task'),
+    f.api.commands.execute('sample.inline', 'Inline task'),
   ).rejects.toThrow('inline failed')
   expect(f.db.select().from(tasks).all()).toEqual([])
   expect(events).toEqual([])
   expect(
-    /** Executes the traced capture-and-describe workflow. */
-    await f.api.workflows.execute(
-      'sample.captureAndDescribe',
-      'Traced capture',
-    ),
+    await f.api.commands.execute('sample.captureAndDescribe', 'Traced capture'),
   ).toBe('Traced capture')
   const workflow = f.telemetry
     .recent({ kind: 'command' })
@@ -342,37 +329,13 @@ test('compatible atomic commands inline without nested commits and keep one trac
   f.runtime.dispose()
 })
 
-test('schema-breaking overrides preserve the valid cached workflow', async () => {
-  const f = await fixture()
-  const task = (await f.api.atomic.execute('sample.capture', 'Original')) as {
-    id: string
-  }
-  expect(() =>
-    f.api.actions.register(
-      {
-        id: 'sample.describeAction',
-        description: 'Incompatible replacement',
-        input: Type.String(),
-        output: Type.Number(),
-        run: () => 1,
-      },
-      { override: true },
-    ),
-  ).toThrow('Incompatible')
-  expect(await f.api.commands.execute('sample.describe', task.id)).toBe(
-    'Original',
-  )
-  f.runtime.dispose()
-})
-
 test('unsupported entity content never enters SDK mutation events or replay payloads', async () => {
   const f = await fixture()
   const payloads: unknown[] = []
   f.runtime.events.onAny((_name, payload) => {
     payloads.push(payload)
   })
-  /** Creates a sample resource to illustrate that entity writes should contain only safe index metadata. */
-  f.api.atomic.action({
+  f.api.atomic.actions.register({
     id: 'sample.safeContentAction',
     description: 'Only index metadata belongs in entity writes',
     input: Type.Null(),
@@ -386,7 +349,7 @@ test('unsupported entity content never enters SDK mutation events or replay payl
       return null
     },
   })
-  f.api.atomic.command({
+  f.api.atomic.commands.register({
     id: 'sample.safeContent',
     description: 'Save metadata only',
     input: Type.Null(),
@@ -400,7 +363,7 @@ test('unsupported entity content never enters SDK mutation events or replay payl
     ],
     result: { from: 'step', step: 'work' },
   })
-  await f.api.atomic.execute('sample.safeContent', null)
+  await f.api.commands.execute('sample.safeContent', null)
   await f.runtime.commands.execute('entity.add', {
     kind: 'resources',
     action: 'create',
@@ -435,9 +398,9 @@ test('built-ins and extension definitions share the application catalog without 
   await expect(
     f.runtime.commands.invoke('sample.capture', 'Gone'),
   ).rejects.toThrow('Missing command')
-  await expect(f.api.atomic.execute('sample.capture', 'Gone')).rejects.toThrow(
-    'Missing command',
-  )
+  await expect(
+    f.api.commands.execute('sample.capture', 'Gone'),
+  ).rejects.toThrow('Missing command')
   expect(f.db.select().from(tasks).all()).toEqual([])
   f.runtime.dispose()
 })
@@ -458,7 +421,9 @@ test('extension compositions cannot invoke private kernel actions or mix executi
     ],
     result: { from: 'step' as const, step: 'write' },
   }
-  expect(() => f.api.atomic.command(definition)).toThrow('not exposed')
+  expect(() => f.api.atomic.commands.register(definition)).toThrow(
+    'not exposed',
+  )
   expect(() =>
     f.api.commands.register({
       ...definition,
@@ -466,7 +431,7 @@ test('extension compositions cannot invoke private kernel actions or mix executi
     }),
   ).toThrow('Incompatible execution boundary')
   expect(() =>
-    f.api.atomic.command({
+    f.api.atomic.commands.register({
       ...definition,
       steps: [
         {
@@ -496,12 +461,10 @@ test('extension compositions cannot invoke private kernel actions or mix executi
 test('compatible atomic commands from different extensions inline in one transaction', async () => {
   const f = await fixture()
   let consumer!: Api
-  f.runtime.extensions.register({
-    id: 'consumer',
-    sdkVersion: 1,
+  f.runtime.extensions.register('consumer', {
     activate: (api) => {
       consumer = api
-      api.atomic.action({
+      api.atomic.actions.register({
         id: 'consumer.fail',
         description: 'Read the uncommitted row and fail',
         input: Type.Object({ id: Type.String() }),
@@ -511,7 +474,7 @@ test('compatible atomic commands from different extensions inline in one transac
           throw new Error('Consumer failed')
         },
       })
-      api.atomic.command({
+      api.atomic.commands.register({
         id: 'consumer.capture',
         description: 'Compose an exposed provider command',
         input: Type.String(),
@@ -533,12 +496,12 @@ test('compatible atomic commands from different extensions inline in one transac
     },
   })
   await expect(
-    consumer.atomic.execute('consumer.capture', 'Cross-scope'),
+    consumer.commands.execute('consumer.capture', 'Cross-scope'),
   ).rejects.toThrow('Consumer failed')
   expect(f.db.select().from(tasks).all()).toEqual([])
   f.off()
   await expect(
-    consumer.atomic.execute('consumer.capture', 'Gone'),
+    consumer.commands.execute('consumer.capture', 'Gone'),
   ).rejects.toThrow('Missing command')
   f.runtime.dispose()
 })
@@ -591,7 +554,7 @@ test('a registered workflow invokes mutation, vault and scheduler definitions on
     ],
     result: { from: 'step', step: 'plan' },
   })
-  await f.api.workflows.execute('sample.shared', null)
+  await f.api.commands.execute('sample.shared', null)
   expect(
     f.db
       .select()

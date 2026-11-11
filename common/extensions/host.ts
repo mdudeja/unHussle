@@ -1,5 +1,7 @@
 import { Type } from '@sinclair/typebox'
 import { Value } from '@sinclair/typebox/value'
+import type { Logger } from '@c/Logger'
+import type { TraceMeta } from '@c/workflows/runtime'
 import type { SpanScope, Telemetry } from '@c/workflows/telemetry'
 import type {
   ActionDefinition,
@@ -8,13 +10,16 @@ import type {
   createCompositionRegistry,
 } from '@c/workflows/composition'
 import type {
+  ApplicationServices,
   Disposable,
+  DomainQueries,
   Extension,
   ExtensionContext,
   JsonValue,
-  Override,
-} from './sdk'
-import { SDK_VERSION } from './sdk'
+  SupportedCommands,
+} from '@c/extensions/sdk'
+import { assertExtensionId } from '@c/extensions/manifest'
+import { AppEvents, FrontendEvents } from '@c/workflows/contracts'
 
 export type ExtensionScope = {
   id: string
@@ -23,12 +28,15 @@ export type ExtensionScope = {
   assertId: (id: string) => void
 }
 
-/** Internal scoped access to the application registry; never exported by the SDK. */
+/** Registry access for platform-specific contributions; not part of the SDK. */
 export type ScopedRegistrations<C> = {
-  action: (action: ActionDefinition<C>, options?: Override) => Disposable
+  action: (
+    action: Omit<ActionDefinition<C>, 'run'> & {
+      run: (input: unknown, context: C, span?: SpanScope) => unknown
+    },
+  ) => Disposable
   command: (
     definition: CommandDefinition,
-    options?: Override,
     boundary?: CommandBoundary<C>,
   ) => Disposable
 }
@@ -44,106 +52,102 @@ const jsonSchema = Type.Recursive((self) =>
   ]),
 )
 
-/** Owns extension lifetimes. Compilation and execution belong to the supplied application registry. */
+/** Owns extension lifetimes; compilation and execution stay in the registry. */
 export function createExtensionHost<
-  S,
   Extra extends object,
   C extends { trace?: SpanScope },
 >(options: {
   registry: ReturnType<typeof createCompositionRegistry<C>>
-  execute: (id: string, input: unknown) => Promise<unknown>
-  services: (scope: ExtensionScope, trace?: SpanScope) => S
+  /** Typed built-in commands, for `services.execute`. */
+  execute: <K extends keyof SupportedCommands>(
+    id: K,
+    input: SupportedCommands[K]['input'],
+    meta?: TraceMeta,
+  ) => Promise<SupportedCommands[K]['result']>
+  /** Any registered command by ID, for `api.commands.execute`. */
+  invoke: (id: string, input: unknown) => Promise<unknown>
+  queries: DomainQueries
+  /** Applied to every query result before an extension sees it. */
+  detach?: <T>(value: T) => T
   telemetry?: Telemetry
   on: (
-    name: string,
+    name: keyof AppEvents | keyof FrontendEvents,
     listener: (payload: unknown) => void | Promise<void>,
   ) => Disposable
   settings: {
     get: (owner: string, key: string) => Promise<JsonValue | undefined>
     set: (owner: string, key: string, value: JsonValue) => Promise<void>
   }
-  log: (owner: string, message: string, error?: unknown) => void
+  logger: Logger
   extra?: (
     scope: ExtensionScope,
     registrations: ScopedRegistrations<C>,
   ) => Extra
 }) {
-  const { registry } = options
-  const owners = new Map<
-    string,
-    { owner: string; token: symbol; kind: 'action' | 'command' }
-  >()
-  const plugins = new Map<string, Disposable>()
+  const { registry, telemetry, logger } = options
+  // Tokens stop a stale disposer from removing a later registration of the same ID.
+  const registered = new Map<string, { token: symbol; isAction: boolean }>()
+  const active = new Map<string, Disposable>()
   let disposed = false
-  /** Ensures the extension host is available and has not been disposed before use. */
-  const checkHost = () => {
-    if (disposed) throw new Error('Extension host is disposed')
-  }
 
-  /** Registers an extension action or command in a scope while enforcing ownership and explicit override rules to prevent collisions. */
   const register = (
     scope: ExtensionScope,
     id: string,
-    kind: 'action' | 'command',
-    override: Override | undefined,
-    install: (replacing: boolean) => void,
+    isAction: boolean,
+    install: () => void,
   ) => {
     scope.check()
     scope.assertId(id)
-    const old = owners.get(id)
-    if (
-      old &&
-      (!override?.override || old.owner !== scope.id || old.kind !== kind)
-    )
-      throw new Error(
-        `Registration collision: ${id}; an override must be explicit and owned`,
-      )
-    install(!!old)
+    install()
     const token = Symbol(id)
-    owners.set(id, { owner: scope.id, kind, token })
+    registered.set(id, { token, isAction })
     return scope.own(() => {
-      if (owners.get(id)?.token !== token) return
-      const revoked = registry.remove(
-        kind === 'action' ? [id] : [],
-        kind === 'command' ? [id] : [],
-      )
-      for (const dependent of revoked) owners.delete(dependent)
-      owners.delete(id)
+      if (registered.get(id)?.token !== token) return
+      const revoked = isAction
+        ? registry.remove([id])
+        : registry.remove([], [id])
+      for (const dependent of revoked) registered.delete(dependent)
+      registered.delete(id)
     })
   }
 
+  const queriesFor = (scope: ExtensionScope) =>
+    Object.fromEntries(
+      Object.entries(options.queries).map(([name, read]) => [
+        name,
+        (...args: unknown[]) => {
+          scope.check()
+          const result = (read as (...args: unknown[]) => Promise<unknown>)(
+            ...args,
+          )
+          return options.detach ? result.then(options.detach) : result
+        },
+      ]),
+    ) as DomainQueries
+
   return {
-    register: (extension: Extension<S, Extra>): Disposable => {
-      checkHost()
-      if (
-        !/^[a-z][a-z0-9_-]*$/.test(extension.id) ||
-        ['kernel', 'unhussle'].includes(extension.id)
-      )
-        throw new Error(`Invalid extension namespace: ${extension.id}`)
-      if (extension.sdkVersion !== SDK_VERSION)
-        throw new Error(`Unsupported SDK version: ${extension.sdkVersion}`)
-      if (plugins.has(extension.id))
-        throw new Error(`Extension already active: ${extension.id}`)
-      let active = true
+    register: (id: string, extension: Extension<Extra>): Disposable => {
+      if (disposed) throw new Error('Extension host is disposed')
+      assertExtensionId(id)
+      if (active.has(id)) throw new Error(`Extension already active: ${id}`)
+      let live = true
       const disposables: Disposable[] = []
 
       const scope: ExtensionScope = {
-        id: extension.id,
+        id,
         check: () => {
-          checkHost()
-          if (!active) throw new Error(`Extension is disposed: ${extension.id}`)
+          if (!live) throw new Error(`Extension is disposed: ${id}`)
         },
-        assertId: (id) => {
+        assertId: (registrationId) => {
           if (
-            !id.startsWith(`${extension.id}.`) ||
-            !/^[\w-]+(?:\.[\w-]+)+$/.test(id)
+            !registrationId.startsWith(`${id}.`) ||
+            !/^[\w-]+(?:\.[\w-]+)+$/.test(registrationId)
           )
-            throw new Error(`ID must belong to ${extension.id}: ${id}`)
+            throw new Error(`ID must belong to ${id}: ${registrationId}`)
         },
         own: (dispose) => {
           scope.check()
           let owned = true
-          /** Releases the currently owned resource by disposing it, if active. */
           const off = () => {
             if (!owned) return
             owned = false
@@ -154,122 +158,105 @@ export function createExtensionHost<
         },
       }
 
+      const queries = queriesFor(scope)
+      const services = (trace?: SpanScope): ApplicationServices => ({
+        queries,
+        execute: (commandId, input) => {
+          scope.check()
+          return options.execute(commandId, input, {
+            traceId: trace?.traceId,
+            parentId: trace?.spanId,
+          })
+        },
+      })
+
       const registrations: ScopedRegistrations<C> = {
-        action: (action, override) =>
-          register(scope, action.id, 'action', override, (replacing) => {
-            if (replacing) registry.replaceAction(action)
-            else registry.registerAction(action)
-          }),
-        command: (definition, override, boundary) =>
-          register(scope, definition.id, 'command', override, (replacing) => {
-            if (boundary && definition.execution === 'workflow')
-              throw new Error('Atomic commands cannot be workflows')
+        action: (action) =>
+          register(scope, action.id, true, () =>
+            registry.registerAction({
+              ...action,
+              run: (input, context) => {
+                scope.check()
+                const { trace } = context
+                const run = (span?: SpanScope) =>
+                  action.run(input, context, span)
+                return trace && telemetry
+                  ? telemetry.span('action', action.id, run, {
+                      traceId: trace.traceId,
+                      parentId: trace.spanId,
+                      attrs: { extension: id },
+                    })
+                  : run(trace)
+              },
+            }),
+          ),
+        command: (definition, boundary) =>
+          register(scope, definition.id, false, () => {
             for (const step of definition.steps)
-              if (step.action && owners.get(step.action)?.kind !== 'action')
+              if (step.action && !registered.get(step.action)?.isAction)
                 throw new Error(
                   `Action is not exposed to extensions: ${step.action}`,
                 )
-            if (
-              replacing &&
-              (registry.boundary(definition.id) !== boundary?.id ||
-                (registry.kind(definition.id) === 'workflow') !==
-                  (definition.execution === 'workflow'))
-            )
-              throw new Error(
-                `Cannot change execution boundary: ${definition.id}`,
-              )
-            if (replacing && boundary)
-              throw new Error(
-                'Atomic command replacement requires a new namespaced ID',
-              )
-            if (replacing) registry.replaceCommand(definition)
-            else registry.registerCommand(definition, undefined, boundary)
+            registry.registerCommand(definition, undefined, boundary)
           }),
       }
 
-      /** Executes the specified command or workflow after verifying it exists, matches the expected kind, and is permitted by the current scope. */
-      const execute = async (
-        id: string,
-        input: unknown,
-        kind: 'command' | 'workflow',
-      ) => {
-        scope.check()
-        if (registry.kind(id) !== kind)
-          throw new Error(`Missing ${kind}: ${id}`)
-        return options.execute(id, input)
-      }
-
-      /** Disposes the extension scope and releases its registered resources. */
       const dispose = () => {
-        if (!active) return
-        active = false
+        if (!live) return
+        live = false
         for (const off of disposables.reverse()) {
           try {
             off()
           } catch (error) {
-            options.log(scope.id, 'Extension cleanup failed', error)
+            logger.error(`[${id}] Extension cleanup failed`, { error })
           }
         }
-        plugins.delete(scope.id)
+        active.delete(id)
       }
+      active.set(id, dispose)
 
-      plugins.set(scope.id, dispose)
-
-      const api: ExtensionContext<S> & Extra = {
-        id: scope.id,
-        sdkVersion: SDK_VERSION,
-        services: options.services(scope),
+      const api: ExtensionContext & Extra = {
+        id,
+        services: services(),
         own: scope.own,
         actions: {
-          register: (action, override) =>
-            registrations.action(
-              {
-                ...action,
-                execution: 'application',
-                run: (input, { trace }) => {
-                  scope.check()
-                  /** Executes the configured action using services from the current scope. */
-                  const invoke = (actionTrace?: SpanScope) =>
-                    action.run(input, options.services(scope, actionTrace))
-                  return trace && options.telemetry
-                    ? options.telemetry.span('action', action.id, invoke, {
-                        traceId: trace.traceId,
-                        parentId: trace.spanId,
-                      })
-                    : invoke(trace)
-                },
-              },
-              override,
-            ),
+          register: (action) =>
+            registrations.action({
+              ...action,
+              execution: 'application',
+              run: (input, _context, span) => action.run(input, services(span)),
+            }),
         },
         commands: {
-          register: (definition, override) => {
+          register: (definition) => {
             if (definition.execution === 'workflow')
               throw new Error('Use workflows.register for workflow definitions')
-            return registrations.command(definition, override)
+            return registrations.command(definition)
           },
-          execute: (id, input) => execute(id, input, 'command'),
+          execute: (commandId, input) => {
+            scope.check()
+            return options.invoke(commandId, input)
+          },
         },
         workflows: {
-          register: (definition, override) => {
+          register: (definition) => {
             for (const step of definition.steps)
               if ('action' in step || registry.kind(step.command) !== 'command')
                 throw new Error(
                   `Workflow step ${step.id} needs a registered command`,
                 )
-            return registrations.command(
-              { ...definition, execution: 'workflow' },
-              override,
-            )
+            return registrations.command({
+              ...definition,
+              execution: 'workflow',
+            })
           },
-          execute: (id, input) => execute(id, input, 'workflow'),
         },
         events: {
           on: (name, listener) => {
             scope.check()
             return scope.own(
-              options.on(name, (payload) => {
-                if (active) return listener(payload)
+              options.on(name as keyof AppEvents, (payload) => {
+                if (live) return listener(payload)
               }),
             )
           },
@@ -277,23 +264,23 @@ export function createExtensionHost<
         settings: {
           get: (key) => {
             scope.check()
-            return options.settings.get(scope.id, key)
+            return options.settings.get(id, key)
           },
           set: (key, value) => {
             scope.check()
             if (!Value.Check(jsonSchema, value))
               throw new Error('Settings must be JSON values')
-            return options.settings.set(scope.id, key, value)
+            return options.settings.set(id, key, value)
           },
         },
         log: {
           info: (message) => {
             scope.check()
-            options.log(scope.id, message)
+            logger.info(`[${id}] ${message}`)
           },
           error: (message, error) => {
             scope.check()
-            options.log(scope.id, message, error)
+            logger.error(`[${id}] ${message}`, { error })
           },
         },
         ...(options.extra?.(scope, registrations) ?? ({} as Extra)),
@@ -311,7 +298,7 @@ export function createExtensionHost<
       return dispose
     },
     dispose: () => {
-      for (const off of [...plugins.values()].reverse()) off()
+      for (const off of [...active.values()].reverse()) off()
       disposed = true
     },
   }
