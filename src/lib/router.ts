@@ -4,12 +4,18 @@ import { AppErrorBoundary } from '@/components/app/AppErrorBoundary'
 import HomePage from '@/pages/HomePage'
 import { DayPage, WeekPage, SchedulerSettingsPage } from '@/pages/PlannerPages'
 import {
+  AreaDetailPage,
   AreasPage,
+  GoalDetailPage,
   GoalsPage,
+  ProjectDetailPage,
   ProjectsPage,
   ResourcesPage,
+  TagDetailPage,
   TagsPage,
+  TaskDetailPage,
   TasksPage,
+  UrlDetailPage,
   UrlsPage,
 } from '@/pages/EntityPages'
 import { entityRoutes } from '@/lib/entityRoutes'
@@ -27,11 +33,17 @@ const router = createBrowserRouter([
       { path: '/week', Component: WeekPage },
       { path: '/scheduler/settings', Component: SchedulerSettingsPage },
       { path: entityRoutes.projects, Component: ProjectsPage },
+      { path: `${entityRoutes.projects}/:id`, Component: ProjectDetailPage },
       { path: entityRoutes.areas, Component: AreasPage },
+      { path: `${entityRoutes.areas}/:id`, Component: AreaDetailPage },
       { path: entityRoutes.goals, Component: GoalsPage },
+      { path: `${entityRoutes.goals}/:id`, Component: GoalDetailPage },
       { path: entityRoutes.tasks, Component: TasksPage },
+      { path: `${entityRoutes.tasks}/:id`, Component: TaskDetailPage },
       { path: entityRoutes.urls, Component: UrlsPage },
+      { path: `${entityRoutes.urls}/:id`, Component: UrlDetailPage },
       { path: entityRoutes.tags, Component: TagsPage },
+      { path: `${entityRoutes.tags}/:id`, Component: TagDetailPage },
       { path: entityRoutes.resources, Component: ResourcesPage },
       // The editor is loaded on demand, so MDXEditor stays out of the main bundle.
       {

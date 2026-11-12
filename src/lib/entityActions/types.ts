@@ -23,3 +23,9 @@ export type EntityAction<T> = {
     confirmLabel: string
   }
 }
+
+/** An action run on several selected items at once. */
+export type BulkAction<T> = EntityAction<T[]>
+
+export const visibleActions = <T>(actions: EntityAction<T>[], item: T) =>
+  actions.filter((action) => !action.isVisible || action.isVisible(item))

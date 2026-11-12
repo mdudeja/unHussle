@@ -94,7 +94,7 @@ test('relation badges render supplied labels without a paginated entity list', (
       }),
     ),
   )
-  expect(markup).toContain('Referenced project')
-  expect(markup).toContain('/projects?id=outside-current-page')
+  expect(markup).toContain('Referenced')
+  expect(markup).toContain('/projects/outside-current-page')
   expect(markup).toContain('#123456')
 })

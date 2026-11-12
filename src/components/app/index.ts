@@ -5,6 +5,5 @@ export { AppSidebarComponent } from './AppSidebar'
 export { EntityActionBar } from './EntityActionBar'
 export { EntityEditDialogHost } from './EntityEditDialogHost'
 export { OvernightDialogHost } from './OvernightDialogHost'
-export { RelatedEntityTable } from './RelatedEntityTable'
 
 export { CreateEntityButton } from './CreateEntityButton'

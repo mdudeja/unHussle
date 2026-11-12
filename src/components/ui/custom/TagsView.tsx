@@ -9,7 +9,7 @@ export default function TagsView({ tags }: { tags: Tag['Read'][] }) {
       {tags.map((tag, idx) => (
         <Link
           key={tag.id ?? idx}
-          to={`${getEntityItemRoute('tags', tag.id)}&related=1`}
+          to={getEntityItemRoute('tags', tag.id)}
           onClick={(e) => e.stopPropagation()}
         >
           <Badge

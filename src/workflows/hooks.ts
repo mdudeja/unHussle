@@ -49,6 +49,15 @@ export function useWorkflowQuery<T>(
     isLoading:
       enabled &&
       (state.isLoading || (state.data === null && state.error === null)),
+    /** Reloads now; failures land in `error`. */
+    retry: () => {
+      queries.markStale(key)
+      queries
+        .ensure(key)
+        .catch((error) =>
+          Logger.getInstance().error(`Failed to reload ${key}`, { error }),
+        )
+    },
   }
 }
 

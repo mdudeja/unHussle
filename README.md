@@ -133,16 +133,22 @@ The sidebar's **Your pace** section has the planner views.
 ### Library pages
 
 The sidebar also lists your recent Projects, Areas, Goals, Tasks, Resources,
-URLs and Tags. Each heading opens its page: a searchable, filterable table with a create
-button.
+URLs and Tags. Each heading opens its page: a list with search, filters, sort
+and pages, plus a create button. The list's search, filters, sort and page are
+kept in the URL, so refresh and Back return to the same view.
 
-When you select a row, an action bar appears with **Edit** and **Delete**. Tasks
-also have **Start**, **Pause**, **Complete** and **Cancel**. Projects, areas and
-goals can show their **related tasks**. Projects include directly assigned tasks;
-goals also include their projects' tasks; areas include tasks through their
-projects, goals and those goals' projects. Tags and URLs show directly attached
-items plus tasks from attached collections and their descendants. Duplicate
-task paths appear once. A resource attachment returns that resource without
+Each row has a menu with **Edit** and **Delete**. Tasks also show **Start** or
+**Pause** on the row, with **Complete** and **Cancel** in the menu. **Select**
+lets you tick rows on the current page and delete them together.
+
+Clicking a title opens that item's page: its details, its actions and, for
+projects, areas, goals, tags and URLs, tabs of **related items**. Tasks list
+their own and inherited resources, links and tags. Resources open in their
+editor. The Tasks tab of a project includes directly assigned tasks; goals also
+include their projects' tasks; areas include tasks through their projects,
+goals and those goals' projects. Tags and URLs show directly attached items
+plus tasks from attached collections and their descendants. Duplicate task
+paths appear once. A resource attachment returns that resource without
 following its links backward to tasks.
 
 ### Resources and links
@@ -281,8 +287,7 @@ read their code.
   `binaries/db-server-<triple>`. It passes the app-data DB path and the bundled
   `resources/drizzle_migrations`. On exit it sends SIGTERM to the sidecar, then
   kills it if needed.
-- **Frontend**: React 19, React Router 7, Zustand, Tailwind CSS 4, shadcn/ui,
-  TanStack Table.
+- **Frontend**: React 19, React Router 7, Zustand, Tailwind CSS 4, shadcn/ui.
 - **Backend**: Elysia on Bun with TypeBox validation (generated from the Drizzle
   schemas with `drizzle-typebox`). Responses are gzipped. Swagger is at
   `http://localhost:3456/api`.

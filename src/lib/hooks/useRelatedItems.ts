@@ -1,5 +1,5 @@
 import { dependencies } from '@/bootstrap'
-import { useWorkflowQuery, useWorkflowRuntime } from '@/workflows/hooks'
+import { useWorkflowQuery } from '@/workflows/hooks'
 import { fetchContainerDetail } from '@/services/readModels'
 import type { ReadContainerKind, TaskPageOptions } from '@c/types/readModels'
 
@@ -9,10 +9,8 @@ export function useContainerDetail(
   id: string,
   options: TaskPageOptions = {},
 ) {
-  const { queries } = useWorkflowRuntime()
-  const key = `related:${kind}:${id}:${JSON.stringify(options)}`
-  const query = useWorkflowQuery({
-    key,
+  return useWorkflowQuery({
+    key: `related:${kind}:${id}:${JSON.stringify(options)}`,
     dependencies: [
       ...new Set([
         ...dependencies(kind),
@@ -27,11 +25,4 @@ export function useContainerDetail(
     ],
     load: () => fetchContainerDetail(kind, id, options),
   })
-  return {
-    ...query,
-    retry: () => {
-      queries.markStale(key)
-      return queries.ensure(key)
-    },
-  }
 }

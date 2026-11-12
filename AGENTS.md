@@ -101,11 +101,12 @@
 - Validate inline on blur; summarise errors on submit.
 - Use appropriate input types (date pickers, dropdowns) to reduce errors.
 
-### Tables
+### Lists
 
-- Sortable and searchable by default; actions column non-sortable.
+- Searchable, filterable and sortable from a toolbar; active filters shown as removable chips.
 - Paginate large datasets; never render unbounded lists.
-- Clear headers, with numbers and text both left-aligned.
+- One primary action per row; the rest in its menu.
+- The title opens the item's page; related items live in tabs there, not under the list.
 
 ### Actions
 

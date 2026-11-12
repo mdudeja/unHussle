@@ -10,21 +10,21 @@ export const entityRoutes = {
 
 export type EntityRouteKey = keyof typeof entityRoutes
 
-// Query params understood by entity list pages. Column filters use the
-// column id as their param name (e.g. `?status=planned`).
+// Query params understood by entity lists. Filters use their id as their
+// param name (e.g. `?status=planned`).
 export const entitySearchParams = {
-  id: 'id',
   search: 'q',
-  // Present when the selected item's related items are shown.
-  related: 'related',
+  sort: 'sort',
+  dir: 'dir',
+  page: 'page',
+  // The open tab on a detail page.
+  tab: 'tab',
 } as const
 
-// A resource opens in its editor; other items are selected on their list page.
+// Every item has its own page; for a resource that page is its editor.
 export const getEntityItemRoute = (entity: EntityRouteKey, id: string) =>
-  entity === 'resources'
-    ? getResourceRoute(id)
-    : `${entityRoutes[entity]}?${new URLSearchParams({ [entitySearchParams.id]: id })}`
+  `${entityRoutes[entity]}/${encodeURIComponent(id)}`
 
 /** Generates the route path for a specific resource. */
 export const getResourceRoute = (id: string) =>
-  `${entityRoutes.resources}/${encodeURIComponent(id)}`
+  getEntityItemRoute('resources', id)
