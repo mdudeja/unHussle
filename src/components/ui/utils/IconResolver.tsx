@@ -18,7 +18,7 @@ export function IconResolver({
     <DynamicIcon
       name={icon as IconName}
       color={color}
-      size={size ?? 12}
+      size={size ?? 16}
       className={className}
     />
   )

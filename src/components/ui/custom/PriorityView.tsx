@@ -1,14 +1,18 @@
 import { Priority } from '@c/types/enums'
-import { AlertCircle, Minus, ChevronDown } from 'lucide-react'
+import { ChevronsLeftRight, ChevronsDown, ChevronsUp } from 'lucide-react'
 import { toLabel } from '@/components/ui/utils/misc'
 
-export const priorityIcon = ({ priority }: { priority: Priority }) => {
+export const getPriorityIcon = (priority: string): React.ReactNode => {
+  return <PriorityIcon priority={priority as Priority} />
+}
+
+export const PriorityIcon = ({ priority }: { priority: Priority }) => {
   return priority === Priority.HIGH ? (
-    <AlertCircle className="h-3 w-3 text-destructive" />
+    <ChevronsUp className="h-4 w-4 text-destructive" />
   ) : priority === Priority.MEDIUM ? (
-    <Minus className="h-3 w-3 text-muted-foreground" />
+    <ChevronsLeftRight className="h-4 w-4 text-primary" />
   ) : (
-    <ChevronDown className="h-3 w-3 text-muted-foreground" />
+    <ChevronsDown className="h-4 w-4 text-muted-foreground" />
   )
 }
 export default function PriorityView({
@@ -24,7 +28,7 @@ export default function PriorityView({
     <span
       className={`flex items-center gap-1 ${priority === Priority.HIGH ? 'text-destructive' : 'text-muted-foreground'}`}
     >
-      {priorityIcon({ priority: priority })}
+      {PriorityIcon({ priority: priority })}
       {toLabel(priority)}
     </span>
   )

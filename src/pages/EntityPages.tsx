@@ -4,6 +4,7 @@ import {
   GitGraph,
   Goal as GoalIcon,
   Hash,
+  Link,
   ListTodo,
   Tags,
 } from 'lucide-react'
@@ -19,8 +20,16 @@ import { useNavigate } from 'react-router'
 import { getEntityItemRoute } from '@/lib/entityRoutes'
 import { Button } from '@/components/ui/button'
 import { DataTable } from '@/components/ui/custom/table/DataTable'
-import type { ColumnFiltersState, SortingState } from '@tanstack/react-table'
-import type { ReadContainerKind, ContainerDetail } from '@c/types/readModels'
+import type {
+  ColumnDef,
+  ColumnFiltersState,
+  SortingState,
+} from '@tanstack/react-table'
+import type {
+  ReadContainerKind,
+  ContainerDetail,
+  EntityReference,
+} from '@c/types/readModels'
 import {
   dateColumn,
   dateTimeColumn,
@@ -47,17 +56,19 @@ import {
   HydratedResource,
   HydratedTask,
 } from '@c/types/Hydrated'
+import { getStatusIcon } from '@/components/ui/custom/StatusView'
+import { getPriorityIcon } from '@/components/ui/custom/PriorityView'
 
 const statusFilter = {
   columnId: 'status',
   label: 'Status',
-  options: enumFilterOptions(ProgressStatus),
+  options: enumFilterOptions(ProgressStatus, getStatusIcon),
 }
 
 const priorityFilter = {
   columnId: 'priority',
   label: 'Priority',
-  options: enumFilterOptions(Priority),
+  options: enumFilterOptions(Priority, getPriorityIcon),
 }
 
 const updatedAtColumn = <TData extends { updated_at: number }>() =>
@@ -77,14 +88,21 @@ const projectsConfig: EntityListPageConfig<HydratedProject> = {
     titleColumn(FolderKanban),
     statusColumn(),
     priorityColumn(),
-    entityRefColumn('areas', 'Area', (row) => row.area),
-    entityRefColumn('goals', 'Goal', (row) => row.goal),
+    entityRefColumn(
+      ['areas', 'goals'],
+      'Collections',
+      (row) =>
+        [
+          { ...row.area, kind: 'areas' },
+          { ...row.goal, kind: 'goals' },
+        ] as EntityReference[],
+    ),
     dateColumn('due_date', 'Due', (row) => row.due_date),
     hashtagColumn((row) => row.tags),
     updatedAtColumn(),
   ],
   filters: [statusFilter, priorityFilter],
-  hiddenColumns: ['updated_at'],
+  hiddenColumns: ['updated_at', 'priority', 'status'],
 }
 
 const areasConfig: EntityListPageConfig<HydratedArea> = {
@@ -96,13 +114,13 @@ const areasConfig: EntityListPageConfig<HydratedArea> = {
     render: (item) => <RelatedTasks key={item.id} kind="areas" id={item.id} />,
   },
   columns: [
-    titleColumn(GitGraph),
+    titleColumn(GitGraph, true, false),
     priorityColumn(),
     hashtagColumn((row) => row.tags),
     updatedAtColumn(),
   ],
   filters: [priorityFilter],
-  hiddenColumns: ['updated_at'],
+  hiddenColumns: ['updated_at', 'priority'],
 }
 
 const goalsConfig: EntityListPageConfig<HydratedGoal> = {
@@ -117,13 +135,17 @@ const goalsConfig: EntityListPageConfig<HydratedGoal> = {
     titleColumn(GoalIcon),
     statusColumn(),
     priorityColumn(),
-    entityRefColumn('areas', 'Area', (row) => row.area),
+    entityRefColumn(
+      ['areas'],
+      'Collections',
+      (row) => [{ ...row.area, kind: 'areas' }] as EntityReference[],
+    ),
     dateColumn('due_date', 'Due', (row) => row.due_date),
     hashtagColumn((row) => row.tags),
     updatedAtColumn(),
   ],
   filters: [statusFilter, priorityFilter],
-  hiddenColumns: ['updated_at'],
+  hiddenColumns: ['updated_at', 'priority', 'status'],
 }
 
 const tasksConfig: EntityListPageConfig<HydratedTask> = {
@@ -131,12 +153,19 @@ const tasksConfig: EntityListPageConfig<HydratedTask> = {
   title: 'Tasks',
   useActions: useTaskActions,
   columns: [
-    textColumn('title', 'Title', (row) => row.title),
+    titleColumn(ListTodo),
     statusColumn(),
     priorityColumn(),
-    entityRefColumn('projects', 'Project', (row) => row.project),
-    entityRefColumn('areas', 'Area', (row) => row.area),
-    entityRefColumn('goals', 'Goal', (row) => row.goal),
+    entityRefColumn(
+      ['projects', 'areas', 'goals'],
+      'Collections',
+      (row) =>
+        [
+          { ...row.project, kind: 'projects' },
+          { ...row.area, kind: 'areas' },
+          { ...row.goal, kind: 'goals' },
+        ] as EntityReference[],
+    ),
     ...taskFlagColumns<Task['Read']>(),
     dateColumn('due_date', 'Due', (row) => row.due_date),
     dateTimeColumn('scheduled_start', 'Start', (row) => row.scheduled_start),
@@ -144,7 +173,7 @@ const tasksConfig: EntityListPageConfig<HydratedTask> = {
     updatedAtColumn(),
   ],
   filters: [statusFilter, priorityFilter, ...taskFlagFilters],
-  hiddenColumns: [...hiddenTaskFlagColumns, 'updated_at'],
+  hiddenColumns: [...hiddenTaskFlagColumns, 'updated_at', 'priority', 'status'],
 }
 
 const urlsConfig: EntityListPageConfig<Url['Read']> = {
@@ -156,7 +185,7 @@ const urlsConfig: EntityListPageConfig<Url['Read']> = {
     render: (item) => <SupporterItems key={item.id} kind="urls" id={item.id} />,
   },
   columns: [
-    textColumn('title', 'Title', (row) => row.title),
+    titleColumn(Link, false, false) as ColumnDef<Url['Read'], unknown>,
     urlColumn('url', 'URL', (row) => row.url),
     textColumn('description', 'Description', (row) => row.description),
     updatedAtColumn(),
@@ -170,7 +199,7 @@ const resourcesConfig: EntityListPageConfig<HydratedResource> = {
   description: 'Markdown notes in your vault, linked to tasks and collections.',
   useActions: useResourceActions,
   columns: [
-    titleColumn(FileText),
+    titleColumn(FileText, false, false),
     textColumn('links', 'Linked to', (row) =>
       row.links?.map((link) => link.title).join(', '),
     ),
@@ -193,7 +222,7 @@ const tagsConfig: EntityListPageConfig<Tag['Read']> = {
     render: (item) => <SupporterItems key={item.id} kind="tags" id={item.id} />,
   },
   columns: [
-    titleColumn(Hash),
+    titleColumn(Hash, false, false),
     textColumn('description', 'Description', (row) => row.description),
     updatedAtColumn(),
   ],

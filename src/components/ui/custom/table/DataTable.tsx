@@ -32,7 +32,11 @@ import { Input } from '@/components/ui/input'
 import { Button } from '@/components/ui/button'
 import { cn } from '@/lib/utils'
 
-export type DataTableFilterOption = { label: string; value: string }
+export type DataTableFilterOption = {
+  label: string
+  value: string
+  icon?: React.ReactNode
+}
 
 export type DataTableFilter = {
   columnId: string
@@ -198,6 +202,7 @@ export function DataTable<TData extends { id: string }>({
               <SelectItem value={ALL_FILTER_VALUE}>All</SelectItem>
               {filter.options.map((option) => (
                 <SelectItem key={option.value} value={option.value}>
+                  {option.icon && option.icon}
                   {option.label}
                 </SelectItem>
               ))}

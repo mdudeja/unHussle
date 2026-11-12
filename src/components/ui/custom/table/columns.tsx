@@ -19,9 +19,9 @@ import {
   formatMillisAsDdMmYyyyHhMm,
 } from '@c/datetimeUtils'
 import IconBadge from '@/components/ui/custom/IconBadge'
-import StatusView from '@/components/ui/custom/StatusView'
+import StatusView, { StatusIcon } from '@/components/ui/custom/StatusView'
 import { toLabel } from '@/components/ui/utils/misc'
-import PriorityView from '@/components/ui/custom/PriorityView'
+import PriorityView, { PriorityIcon } from '@/components/ui/custom/PriorityView'
 import EntityRefBadge, {
   EntityRefKind,
 } from '@/components/ui/custom/EntityRefBadge'
@@ -30,8 +30,13 @@ import UrlView from '@/components/ui/custom/UrlView'
 
 export const enumFilterOptions = (
   values: Record<string, string>,
+  icon?: (value: string) => React.ReactNode,
 ): DataTableFilterOption[] =>
-  Object.values(values).map((value) => ({ label: toLabel(value), value }))
+  Object.values(values).map((value) => ({
+    label: toLabel(value),
+    value,
+    icon: icon?.(value),
+  }))
 
 export const booleanFilterOptions: DataTableFilterOption[] = [
   { label: 'Yes', value: 'true' },
@@ -106,31 +111,57 @@ export const hashtagColumn = <TData,>(
 
 // Title with the record's own icon/color, falling back to a default icon.
 export const titleColumn = <
-  TData extends { title: string; icon?: string | null; color?: string | null },
+  TData extends {
+    title: string
+    icon?: string | null
+    color?: string | null
+    priority?: Priority | null
+    status?: ProgressStatus | null
+  },
 >(
   fallbackIcon: LucideIcon,
+  hasPriority: boolean = true,
+  hasStatus: boolean = true,
 ): ColumnDef<TData, unknown> => ({
   id: 'title',
   accessorFn: (row) => row.title,
-  header: ({ column }) => <SortableHeader column={column} title="Title" />,
+  header: ({ column }) =>
+    !hasPriority && !hasStatus ? (
+      <SortableHeader column={column} title="Title" />
+    ) : (
+      <SortableHeader
+        column={column}
+        title={`Title${hasStatus ? ' (Status | ' : ' ('}${hasPriority ? 'Priority)' : ')'}`}
+      />
+    ),
   cell: ({ row }) => {
     const { icon, color, title } = row.original
     const FallbackIcon = fallbackIcon
     return (
       <div className="flex items-center gap-2 font-medium">
-        {icon ? (
-          <IconResolver
-            icon={icon}
-            color={color ?? undefined}
-            className="h-4 w-4 shrink-0"
-          />
-        ) : (
-          <FallbackIcon
-            className="h-4 w-4 shrink-0"
-            color={color ?? undefined}
-          />
-        )}
-        <span className="line-clamp-1">{title}</span>
+        <div className="flex h-6 w-6 items-center justify-center rounded-full border border-muted-foreground/30">
+          {icon ? (
+            <IconResolver
+              icon={icon}
+              color={color ?? undefined}
+              className="h-4 w-4 shrink-0"
+            />
+          ) : (
+            <FallbackIcon
+              className="h-4 w-4 shrink-0"
+              color={color ?? undefined}
+            />
+          )}
+        </div>
+        <div className="flex-1 min-w-0">
+          <span className="line-clamp-1">{title}</span>
+          <div className="flex gap-1 items-center text-xs text-muted-foreground">
+            {row.original.status && <StatusIcon status={row.original.status} />}
+            {row.original.priority && (
+              <PriorityIcon priority={row.original.priority} />
+            )}
+          </div>
+        </div>
       </div>
     )
   },
@@ -199,17 +230,29 @@ export const dateTimeColumn = <TData,>(
 
 // Link to a related project/area/goal. Filterable by id, not sortable.
 export const entityRefColumn = <TData,>(
-  kind: EntityRefKind,
+  _kind: EntityRefKind[],
   title: string,
-  accessor: (row: TData) => EntityReference | null | undefined,
+  accessor: (row: TData) => (EntityReference | null | undefined)[],
 ): ColumnDef<TData, unknown> => ({
-  id: `${kind}_ref`,
+  id: `collections_ref`,
   accessorFn: (row) => accessor(row) ?? undefined,
   header: title,
   enableSorting: false,
   cell: ({ getValue }) => {
-    const record = getValue<EntityReference | undefined>()
-    return record ? <EntityRefBadge kind={kind} record={record} /> : null
+    const records = getValue<(EntityReference | undefined)[]>()
+    return (
+      <div className="flex flex-wrap gap-1">
+        {records?.map((record) =>
+          record && record.id && record.kind ? (
+            <EntityRefBadge
+              key={record.id}
+              kind={record.kind}
+              record={record}
+            />
+          ) : null,
+        )}
+      </div>
+    )
   },
 })
 

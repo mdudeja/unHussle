@@ -6,11 +6,13 @@ import type {
   HydratedGoal,
   HydratedResource,
 } from './Hydrated'
+import { EntityRefKind } from '@/components/ui/custom/EntityRefBadge'
 
 /** Labels for selectors and badges, independent of loaded entity lists. */
 export type EntityReference = {
   id: string
   title: string
+  kind?: EntityRefKind
   icon?: string | null
   color?: string | null
   tags?: Pick<Tag['Read'], 'id' | 'title'>[]

@@ -1,10 +1,10 @@
 import type { EntityReference } from '@c/types/readModels'
 import { FolderKanban, GitGraph, Goal } from 'lucide-react'
-import { Link } from 'react-router'
 import IconBadge from '@/components/ui/custom/IconBadge'
 import { IconResolver } from '@/components/ui/utils/IconResolver'
 import { getEntityItemRoute } from '@/lib/entityRoutes'
 import { trimString } from '@/components/ui/utils/misc'
+import { Link } from 'react-router'
 
 const entityRefConfig = {
   projects: { variant: 'project', icon: FolderKanban },
@@ -17,7 +17,8 @@ export type EntityRefKind = keyof typeof entityRefConfig
 export default function EntityRefBadge({
   kind,
   record,
-}: {
+  ...props
+}: Omit<React.ComponentProps<typeof Link>, 'to'> & {
   kind: EntityRefKind
   record: EntityReference
 }) {
@@ -29,6 +30,7 @@ export default function EntityRefBadge({
     <Link
       to={getEntityItemRoute(kind, record.id)}
       onClick={(e) => e.stopPropagation()}
+      {...props}
     >
       <IconBadge
         variant={variant}
@@ -45,7 +47,7 @@ export default function EntityRefBadge({
           borderColor: record.color ?? undefined,
         }}
       >
-        {trimString(record.title, 24)}
+        {record.title && trimString(record.title, 16)}
       </IconBadge>
     </Link>
   )
