@@ -2,7 +2,7 @@ import { ExtensionPage } from '@/components/app/ExtensionContributions'
 import App from '@/App'
 import { AppErrorBoundary } from '@/components/app/AppErrorBoundary'
 import HomePage from '@/pages/HomePage'
-import { DayPage, WeekPage, SchedulerSettingsPage } from '@/pages/PlannerPages'
+import { DayPage, WeekPage } from '@/pages/PlannerPages'
 import {
   AreaDetailPage,
   AreasPage,
@@ -20,6 +20,7 @@ import {
 } from '@/pages/EntityPages'
 import { entityRoutes } from '@/lib/entityRoutes'
 import { createBrowserRouter } from 'react-router'
+import { SettingsPage } from '@/pages/SettingsPage'
 
 const router = createBrowserRouter([
   {
@@ -31,7 +32,7 @@ const router = createBrowserRouter([
       { path: '/extensions/:id', Component: ExtensionPage },
       { path: '/day', Component: DayPage },
       { path: '/week', Component: WeekPage },
-      { path: '/scheduler/settings', Component: SchedulerSettingsPage },
+      { path: '/settings', Component: SettingsPage },
       { path: entityRoutes.projects, Component: ProjectsPage },
       { path: `${entityRoutes.projects}/:id`, Component: ProjectDetailPage },
       { path: entityRoutes.areas, Component: AreasPage },

@@ -118,9 +118,9 @@ export const AppSidebarComponent = () => {
         <SidebarGroup>
           <SidebarGroupLabel>Settings</SidebarGroupLabel>
           <SidebarMenu>
-            <SidebarMenuItem key="/scheduler/settings">
-              <SidebarMenuButton isActive={pathname === '/scheduler/settings'}>
-                <Link to="/scheduler/settings" className="px-2 py-1 w-full">
+            <SidebarMenuItem key="/settings">
+              <SidebarMenuButton isActive={pathname === '/settings'}>
+                <Link to="/settings" className="px-2 py-1 w-full">
                   Preferences
                 </Link>
               </SidebarMenuButton>

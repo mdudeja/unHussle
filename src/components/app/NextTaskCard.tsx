@@ -488,7 +488,7 @@ export const NextTaskCardComponent = () => {
         <div className="flex gap-4 text-sm text-muted-foreground">
           <Link to="/day">Day view</Link>
           <Link to="/week">Week view</Link>
-          <Link to="/scheduler/settings">Preferences</Link>
+          <Link to="/settings">Preferences</Link>
         </div>
       </CardContent>
     </Card>
