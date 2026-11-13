@@ -47,6 +47,7 @@ import {
   waterfall,
   type TraceSummary,
 } from './inspectorModel'
+import { useHotkey } from '@/hooks/use-keydown-mgr'
 
 const serverUrl = apiAddress()
 const kindOptions = ['command', 'reaction', 'query', 'signal', 'error', 'all']
@@ -376,17 +377,9 @@ function Summary({ spans }: { spans: Span[] }) {
 export function WorkflowInspector() {
   const [open, setOpen] = useState(false)
   const spans = useFrontendSpans(open)
-
-  useEffect(() => {
-    const toggle = (event: KeyboardEvent) => {
-      if (event.ctrlKey && event.shiftKey && event.key.toLowerCase() === 'o') {
-        event.preventDefault()
-        setOpen((current) => !current)
-      }
-    }
-    window.addEventListener('keydown', toggle)
-    return () => window.removeEventListener('keydown', toggle)
-  }, [])
+  useHotkey('workflow-inspector.toggle', () =>
+    setOpen((current) => !current),
+  )
 
   return (
     <Sheet open={open} onOpenChange={setOpen}>

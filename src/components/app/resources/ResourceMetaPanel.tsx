@@ -1,4 +1,4 @@
-import { useState } from 'react'
+import { useRef, useState } from 'react'
 import { isTauri } from '@tauri-apps/api/core'
 import { revealItemInDir } from '@tauri-apps/plugin-opener'
 import { FolderOpen, Link2, Tag as TagIcon, Type } from 'lucide-react'
@@ -14,6 +14,7 @@ import { useStore } from '@/store'
 import type { HydratedResource } from '@c/types/Hydrated'
 import type { TagInput } from '@c/types'
 import { Logger } from '@c/Logger'
+import { useHotkey } from '@/hooks/use-keydown-mgr'
 
 /** Title, tags and links of a resource; each change is saved right away. */
 export function ResourceMetaPanel({
@@ -24,6 +25,7 @@ export function ResourceMetaPanel({
   path: string | null
 }) {
   const { update } = useStore((state) => state.resources)
+  const titleRef = useRef<HTMLInputElement>(null)
   const [title, setTitle] = useState(resource.title)
   const [error, setError] = useState<string | null>(null)
 
@@ -47,6 +49,14 @@ export function ResourceMetaPanel({
     if (next !== resource.title) void save({ title: next })
   }
 
+  // Blurring saves the title, see `onBlur`.
+  useHotkey('resource.title.save', () => titleRef.current?.blur(), titleRef)
+  useHotkey(
+    'resource.title.revert',
+    () => setTitle(resource.title),
+    titleRef,
+  )
+
   return (
     <aside className="flex w-full flex-col gap-4 lg:w-72">
       <div className="space-y-2">
@@ -58,11 +68,8 @@ export function ResourceMetaPanel({
           id="resource-title"
           value={title}
           onChange={(event) => setTitle(event.target.value)}
+          ref={titleRef}
           onBlur={saveTitle}
-          onKeyDown={(event) => {
-            if (event.key === 'Enter') event.currentTarget.blur()
-            if (event.key === 'Escape') setTitle(resource.title)
-          }}
         />
         <p className="text-xs text-muted-foreground">
           Renaming also renames the file.

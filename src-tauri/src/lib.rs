@@ -1,14 +1,53 @@
-use std::sync::Mutex;
+use std::collections::hash_map::RandomState;
+use std::hash::{BuildHasher, Hasher};
+use std::io::Write;
+use std::net::{SocketAddr, TcpStream};
+use std::sync::atomic::{AtomicBool, Ordering};
+use std::sync::{Arc, Mutex};
 use std::thread;
-use std::time::Duration;
+use std::time::{Duration, Instant, SystemTime};
 use tauri::path::BaseDirectory;
 use tauri::{AppHandle, Manager};
 use tauri_plugin_shell::process::CommandChild;
 use tauri_plugin_shell::ShellExt;
 
-struct DbServer(Mutex<Option<CommandChild>>);
+// Matches the server's default in src-db-server/server.ts.
+const DEFAULT_DB_SERVER_PORT: u16 = 3456;
+const SHUTDOWN_CONNECT_TIMEOUT: Duration = Duration::from_secs(1);
+const SHUTDOWN_EXIT_TIMEOUT: Duration = Duration::from_secs(5);
+const SHUTDOWN_POLL_INTERVAL: Duration = Duration::from_millis(100);
 
-fn start_db_server(app: &AppHandle) -> Result<CommandChild, String> {
+struct DbServerProcess {
+    child: CommandChild,
+    /// Set once the sidecar's process has ended.
+    exited: Arc<AtomicBool>,
+    port: u16,
+    shutdown_token: String,
+}
+
+struct DbServer(Mutex<Option<DbServerProcess>>);
+
+fn db_server_port() -> u16 {
+    std::env::var("VITE_DB_SERVER_PORT")
+        .ok()
+        .and_then(|port| port.parse().ok())
+        .unwrap_or(DEFAULT_DB_SERVER_PORT)
+}
+
+/// A new secret per launch, so only this app can ask the server to shut down.
+fn new_shutdown_token() -> String {
+    let part = |salt: u64| {
+        let mut hasher = RandomState::new().build_hasher();
+        hasher.write_u64(salt);
+        if let Ok(elapsed) = SystemTime::now().duration_since(SystemTime::UNIX_EPOCH) {
+            hasher.write_u128(elapsed.as_nanos());
+        }
+        hasher.finish()
+    };
+    format!("{:016x}{:016x}", part(0), part(1))
+}
+
+fn start_db_server(app: &AppHandle) -> Result<DbServerProcess, String> {
     // Get app data directory and resource directory
     let db_path = app
         .path()
@@ -35,17 +74,24 @@ fn start_db_server(app: &AppHandle) -> Result<CommandChild, String> {
     println!("Migrations path: {:?}", migrations_path.to_str().unwrap());
     println!("Vault path: {:?}", vault_path.to_str().unwrap());
 
+    let port = db_server_port();
+    let shutdown_token = new_shutdown_token();
     let sidecar_command = app
         .shell()
         .sidecar("db-server")
         .unwrap()
         .env("DB_FILE_URL", db_path.to_str().unwrap())
         .env("DB_MIGRATIONS_DIR", migrations_path.to_str().unwrap())
-        .env("VAULT_DIR", vault_path.to_str().unwrap());
+        .env("VAULT_DIR", vault_path.to_str().unwrap())
+        .env("VITE_DB_SERVER_PORT", port.to_string())
+        .env("DB_SERVER_SHUTDOWN_TOKEN", &shutdown_token);
 
     let (mut rx, child) = sidecar_command
         .spawn()
         .map_err(|e| format!("Failed to spawn database server sidecar: {}", e))?;
+
+    let exited = Arc::new(AtomicBool::new(false));
+    let exited_writer = Arc::clone(&exited);
 
     // Spawn an async task to read and print sidecar output
     tauri::async_runtime::spawn(async move {
@@ -66,6 +112,7 @@ fn start_db_server(app: &AppHandle) -> Result<CommandChild, String> {
                         "[DB Server] Process terminated with code: {:?}",
                         payload.code
                     );
+                    exited_writer.store(true, Ordering::SeqCst);
                     break;
                 }
                 _ => {}
@@ -73,48 +120,62 @@ fn start_db_server(app: &AppHandle) -> Result<CommandChild, String> {
         }
     });
 
-    Ok(child)
+    Ok(DbServerProcess {
+        child,
+        exited,
+        port,
+        shutdown_token,
+    })
 }
 
-fn shutdown_db_server(child: CommandChild) {
+/// Asks the server to close the database and exit. An HTTP request rather
+/// than SIGTERM, because Windows has no signals to send.
+fn request_shutdown(port: u16, token: &str) -> std::io::Result<()> {
+    let address = SocketAddr::from(([127, 0, 0, 1], port));
+    let mut stream = TcpStream::connect_timeout(&address, SHUTDOWN_CONNECT_TIMEOUT)?;
+    write!(
+        stream,
+        "POST /shutdown HTTP/1.1\r\nHost: 127.0.0.1:{port}\r\nX-Shutdown-Token: {token}\r\nContent-Length: 0\r\nConnection: close\r\n\r\n"
+    )?;
+    stream.flush()
+}
+
+/// Returns whether the process exited before the timeout.
+fn wait_for_exit(exited: &AtomicBool) -> bool {
+    let deadline = Instant::now() + SHUTDOWN_EXIT_TIMEOUT;
+    while Instant::now() < deadline {
+        if exited.load(Ordering::SeqCst) {
+            return true;
+        }
+        thread::sleep(SHUTDOWN_POLL_INTERVAL);
+    }
+    exited.load(Ordering::SeqCst)
+}
+
+fn shutdown_db_server(process: DbServerProcess) {
+    let DbServerProcess {
+        child,
+        exited,
+        port,
+        shutdown_token,
+    } = process;
     let pid = child.pid();
     println!("Initiating database server shutdown (PID: {})...", pid);
 
-    // First, try graceful shutdown with SIGTERM
-    #[cfg(unix)]
-    {
-        use std::process::Command;
-        let sigterm_result = Command::new("kill")
-            .arg("-TERM")
-            .arg(pid.to_string())
-            .status();
-
-        match sigterm_result {
-            Ok(_) => {
-                println!("Sent SIGTERM to database server, waiting for graceful shutdown...");
-                // Wait up to 5 seconds for graceful shutdown
-                for i in 0..10 {
-                    thread::sleep(Duration::from_millis(500));
-                    // Check if process is still running
-                    let check = Command::new("kill").arg("-0").arg(pid.to_string()).status();
-
-                    if check.is_err() || !check.unwrap().success() {
-                        println!("Database server shut down gracefully.");
-                        return;
-                    }
-
-                    if i == 9 {
-                        println!("Database server did not respond to SIGTERM, forcing shutdown...");
-                    }
-                }
+    match request_shutdown(port, &shutdown_token) {
+        Ok(()) => {
+            println!("Requested database server shutdown, waiting for it to exit...");
+            if wait_for_exit(&exited) {
+                println!("Database server shut down gracefully.");
+                return;
             }
-            Err(e) => {
-                println!("Failed to send SIGTERM: {}, forcing shutdown...", e);
-            }
+            println!("Database server did not exit in time, forcing shutdown...");
+        }
+        Err(e) => {
+            eprintln!("Failed to request shutdown: {}, forcing shutdown...", e);
         }
     }
 
-    // Force kill if graceful shutdown failed or on non-Unix systems
     match child.kill() {
         Ok(_) => println!("Database server terminated successfully (PID: {}).", pid),
         Err(e) => eprintln!("Failed to kill database server (PID: {}): {}", pid, e),
@@ -133,10 +194,10 @@ pub fn run() {
 
             // Start the database server sidecar
             match start_db_server(handle) {
-                Ok(child) => {
-                    let pid = child.pid();
+                Ok(process) => {
+                    let pid = process.child.pid();
                     let state = handle.state::<DbServer>();
-                    *state.0.lock().unwrap() = Some(child);
+                    *state.0.lock().unwrap() = Some(process);
                     println!(
                         "Database server initialized successfully. Process id {}",
                         pid
@@ -162,8 +223,8 @@ pub fn run() {
                 println!("Application exit detected, cleaning up...");
                 if let Some(state) = app_handle.try_state::<DbServer>() {
                     if let Ok(mut child_lock) = state.0.lock() {
-                        if let Some(child) = child_lock.take() {
-                            shutdown_db_server(child);
+                        if let Some(process) = child_lock.take() {
+                            shutdown_db_server(process);
                         } else {
                             println!("Database server was not running.");
                         }

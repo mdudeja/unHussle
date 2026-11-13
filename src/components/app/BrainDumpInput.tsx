@@ -1,6 +1,6 @@
 import { useEntityReferences } from '@/lib/hooks/useEntityReferences'
 import { useWorkflowRuntime } from '@/workflows/hooks'
-import React, { useState, useRef, useMemo } from 'react'
+import { useState, useRef, useMemo } from 'react'
 import { Input } from '@/components/ui/input'
 import { Textarea } from '@/components/ui/textarea'
 import { Button } from '@/components/ui/button'
@@ -51,6 +51,7 @@ import TagsView from '@/components/ui/custom/TagsView'
 import { DateTimePicker } from '@/components/ui/custom/DateTimePicker'
 import UrlView from '@/components/ui/custom/UrlView'
 import { Logger } from '@c/Logger'
+import { useHotkey } from '@/hooks/use-keydown-mgr'
 
 const starterParsedData: ParsedData = {
   task: {
@@ -86,8 +87,8 @@ const defaultRecurranceRule: RecurranceRule = { type: 'daily', data: {} }
 
 // Formats a JS Date (local time) as DD/MM/YYYY.
 export const BrainDumpInputComponent = () => {
-  const inputRef = useRef<HTMLInputElement>(null)
-  const textareaRef = useRef<HTMLTextAreaElement>(null)
+  // Wraps the input or textarea, whichever is shown, to scope the hotkeys.
+  const fieldRef = useRef<HTMLDivElement>(null)
 
   const [inputValue, setInputValue] = useState('')
   const [isExpanded, setIsExpanded] = useState(false)
@@ -241,22 +242,9 @@ export const BrainDumpInputComponent = () => {
     }
   }
 
-  const handleKeyDown = (
-    e: React.KeyboardEvent<HTMLInputElement | HTMLTextAreaElement>,
-  ) => {
-    // Let the autocomplete consume navigation and selection keys when open.
-    if (autocomplete.onKeyDown(e)) {
-      return
-    }
-
-    if (e.key === 'Enter' && (e.ctrlKey || e.metaKey)) {
-      e.preventDefault()
-      void handleSubmit()
-    } else if (e.key === 'Escape') {
-      e.preventDefault()
-      resetForm()
-    }
-  }
+  // The autocomplete handles its keys first; ones it consumes skip these hotkeys.
+  useHotkey('brain-dump.submit', () => void handleSubmit(), fieldRef)
+  useHotkey('brain-dump.cancel', resetForm, fieldRef)
 
   const toggleExpand = () => {
     setIsExpanded(!isExpanded)
@@ -279,14 +267,13 @@ export const BrainDumpInputComponent = () => {
           {submissionError}
         </p>
       )}
-      <div className="relative">
+      <div ref={fieldRef} className="relative">
         {!isExpanded ? (
           <div className="flex gap-2 items-center">
             <Input
-              ref={inputRef}
               value={inputValue}
               onChange={(e) => setInputValue(e.target.value)}
-              onKeyDown={handleKeyDown}
+              onKeyDown={autocomplete.onKeyDown}
               placeholder="Quick brain dump... #tags, links (Ctrl+Enter to save, Esc to cancel)"
               className="flex-1"
               disabled={isSubmitting}
@@ -318,10 +305,9 @@ export const BrainDumpInputComponent = () => {
               </Button>
             </div>
             <Textarea
-              ref={textareaRef}
               value={inputValue}
               onChange={(e) => setInputValue(e.target.value)}
-              onKeyDown={handleKeyDown}
+              onKeyDown={autocomplete.onKeyDown}
               placeholder="Write your extended thoughts here... Use # for tags/projects/areas/goals. Include links (https://... or www....) to attach them. Add time estimates like 'est: 30m' or 'et: 1h 30m'. End with a due date like 'due tomorrow' or 'due 4th January'. Set priority, flags and times with the buttons below."
               rows={8}
               disabled={isSubmitting}

@@ -40,6 +40,8 @@ try {
 }
 
 const PORT = parseInt(process.env.VITE_DB_SERVER_PORT || '3456', 10)
+// Set by the app per launch; without it, POST /shutdown is refused.
+const SHUTDOWN_TOKEN = process.env.DB_SERVER_SHUTDOWN_TOKEN
 
 const app = new Elysia()
   .decorate('logger', logger)
@@ -107,6 +109,17 @@ const app = new Elysia()
     }
   })
 
+  // Only the app knows the token, so other local pages cannot stop the server.
+  .post('/shutdown', ({ headers, set }) => {
+    if (!SHUTDOWN_TOKEN || headers['x-shutdown-token'] !== SHUTDOWN_TOKEN) {
+      set.status = 403
+      return 'Forbidden'
+    }
+    // Answer first; stopping aborts open requests, this one included.
+    setTimeout(() => void shutdown('shutdown request'), 0)
+    set.status = 202
+    return 'Shutting down'
+  })
   .get('/health', ({ set, logger }) => {
     if (process.env.NODE_ENV === 'test' && process.env.UNHUSSLE_TEST_RUN_ID)
       set.headers['x-test-server-id'] = process.env.UNHUSSLE_TEST_RUN_ID
@@ -147,5 +160,27 @@ const app = new Elysia()
 logger.debug(
   `🦊 Elysia is running at ${app.server?.hostname}:${app.server?.port}`,
 )
+
+// The app asks via POST /shutdown on quit (see src-tauri/src/lib.rs), since
+// Windows has no SIGTERM; Ctrl+C sends SIGINT. Closing the database leaves
+// no -wal or -shm files behind.
+let shuttingDown = false
+async function shutdown(reason: string) {
+  if (shuttingDown) return
+  shuttingDown = true
+  logger.info(`Received ${reason}, shutting down...`)
+  try {
+    // Abort open requests too, e.g. the `/events` stream that never ends.
+    await app.stop(true)
+    uDB.close()
+    logger.info('Database closed.')
+    process.exit(0)
+  } catch (error) {
+    logger.error('Could not shut down cleanly', { error })
+    process.exit(1)
+  }
+}
+process.once('SIGTERM', (signal) => void shutdown(signal))
+process.once('SIGINT', (signal) => void shutdown(signal))
 
 export type App = typeof app

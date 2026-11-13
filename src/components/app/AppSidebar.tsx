@@ -118,13 +118,18 @@ export const AppSidebarComponent = () => {
         <SidebarGroup>
           <SidebarGroupLabel>Settings</SidebarGroupLabel>
           <SidebarMenu>
-            <SidebarMenuItem key="/settings">
-              <SidebarMenuButton isActive={pathname === '/settings'}>
-                <Link to="/settings" className="px-2 py-1 w-full">
-                  Preferences
-                </Link>
-              </SidebarMenuButton>
-            </SidebarMenuItem>
+            {[
+              ['/settings', 'Preferences'],
+              ['/keyboard-shortcuts', 'Keyboard shortcuts'],
+            ].map(([path, label]) => (
+              <SidebarMenuItem key={path}>
+                <SidebarMenuButton isActive={pathname === path}>
+                  <Link to={path} className="px-2 py-1 w-full">
+                    {label}
+                  </Link>
+                </SidebarMenuButton>
+              </SidebarMenuItem>
+            ))}
           </SidebarMenu>
         </SidebarGroup>
         <ExtensionMenus />

@@ -21,6 +21,7 @@ import {
 import { entityRoutes } from '@/lib/entityRoutes'
 import { createBrowserRouter } from 'react-router'
 import { SettingsPage } from '@/pages/SettingsPage'
+import { KeyboardShortcutsPage } from '@/pages/keyboard-shortcuts-page'
 
 const router = createBrowserRouter([
   {
@@ -33,6 +34,7 @@ const router = createBrowserRouter([
       { path: '/day', Component: DayPage },
       { path: '/week', Component: WeekPage },
       { path: '/settings', Component: SettingsPage },
+      { path: '/keyboard-shortcuts', Component: KeyboardShortcutsPage },
       { path: entityRoutes.projects, Component: ProjectsPage },
       { path: `${entityRoutes.projects}/:id`, Component: ProjectDetailPage },
       { path: entityRoutes.areas, Component: AreasPage },

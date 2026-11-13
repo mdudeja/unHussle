@@ -1,5 +1,5 @@
 import { useState } from 'react'
-import { Link } from 'react-router'
+import { Link, useNavigate } from 'react-router'
 import { addDaysToDate } from '@c/calendarUtils'
 import type { DayPlan, PlanEntry } from '@c/scheduler/contracts'
 import type { ProgressStatus } from '@c/types/enums'
@@ -21,6 +21,9 @@ import { getEntityItemRoute } from '@/lib/entityRoutes'
 import { formatSpentTime } from '@c/datetimeUtils'
 import { useWorkflowRuntime } from '@/workflows/hooks'
 import { adjustEntry } from '@/workflows/plan-entry-commands'
+import { visibleActions } from '@/lib/entityActions'
+import { useHotkey } from '@/hooks/use-keydown-mgr'
+import { HOTKEY_BUSY_MESSAGE, HOTKEYS, HotkeyId } from '@/lib/hotkeys'
 
 // Shown as buttons, in this order; the rest go in the menu.
 const BUTTON_IDS = ['start', 'pause', 'done']
@@ -62,6 +65,33 @@ export function NextTaskFocus({
   }).filter((action) => CARD_ACTION_IDS.has(action.id))
   const runner = useRunAction(item)
   const time = entryTimeOf(item)
+  const navigate = useNavigate()
+
+  // Hotkeys only run what the buttons and menu offer right now.
+  const runAction = (hotkeyId: HotkeyId, ...actionIds: string[]) => {
+    if (blocker) return 'Answer the question on the card first.'
+    if (runner.pendingId !== null) return HOTKEY_BUSY_MESSAGE
+    const action = visibleActions(actions, item).find(({ id }) =>
+      actionIds.includes(id),
+    )
+    if (!action || action.isDisabled?.(item)) {
+      return `${HOTKEYS[hotkeyId].title} isn’t available for the current task.`
+    }
+    runner.trigger(action)
+  }
+  useHotkey('next-task.start', () => runAction('next-task.start', 'start'))
+  useHotkey('next-task.pause', () => runAction('next-task.pause', 'pause'))
+  useHotkey('next-task.done', () => runAction('next-task.done', 'done'))
+  useHotkey('next-task.skip', () => runAction('next-task.skip', 'skip'))
+  useHotkey('next-task.later', () => runAction('next-task.later', 'later'))
+  useHotkey('next-task.another-day', () =>
+    runAction('next-task.another-day', 'defer', 'defer-occurrence'),
+  )
+  useHotkey('next-task.edit', () => runAction('next-task.edit', 'edit'))
+  useHotkey(
+    'next-task.details',
+    () => void navigate(getEntityItemRoute('tasks', item.taskId)),
+  )
 
   return (
     <section className="flex flex-col gap-4" aria-label="Task to do now">

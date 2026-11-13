@@ -28,9 +28,12 @@ import {
 import type { DayModeChange, DayPlan } from '@c/scheduler/contracts'
 import { useWorkflowRuntime } from '@/workflows/hooks'
 import { NextTaskFocus } from '@/components/app/next-task-focus'
+import { UnavailableHotkeys } from '@/components/app/unavailable-hotkeys'
+import { HOTKEY_BUSY_MESSAGE, TASK_HOTKEY_IDS } from '@/lib/hotkeys'
 import { isRunning } from '@/lib/day-plan'
 import { getEntityItemRoute } from '@/lib/entityRoutes'
 import { cn } from '@/lib/utils'
+import { useHotkey } from '@/hooks/use-keydown-mgr'
 
 const timeOf = (millis: number) => formatHhMm(new Date(millis))
 
@@ -43,6 +46,10 @@ const wrapMessage = (plan: DayPlan) =>
       : 'You’re wrapping up, so only chores are left.'
 
 const WAITING_STATUSES = ['planned', 'paused']
+
+const PREPARING_MESSAGE = 'Your stack is still being prepared.'
+const END_BREAK_MESSAGE = 'End your break first.'
+const NO_TASK_MESSAGE = 'There’s no task to act on right now.'
 
 export const NextTaskCardComponent = () => {
   const {
@@ -105,6 +112,24 @@ export const NextTaskCardComponent = () => {
       // Starting a break or wrap-up re-plans the stack.
       if (change !== 'endBreak') clearSkipped()
     })
+  // Each hotkey runs only when its button is shown and enabled.
+  useHotkey('next-task.break', () => {
+    if (busy) return HOTKEY_BUSY_MESSAGE
+    if (!plan?.saved) return PREPARING_MESSAGE
+    void changeMode(onBreak ? 'endBreak' : 'startBreak')
+  })
+  useHotkey('next-task.wrap', () => {
+    if (busy) return HOTKEY_BUSY_MESSAGE
+    if (!plan?.saved) return PREPARING_MESSAGE
+    if (onBreak) return END_BREAK_MESSAGE
+    if (mode === 'wrap') return 'You’re already wrapping up.'
+    void changeMode('startWrap')
+  })
+  useHotkey('next-task.reschedule', () => {
+    if (busy) return HOTKEY_BUSY_MESSAGE
+    if (onBreak) return END_BREAK_MESSAGE
+    void replan('fresh')
+  })
   const overdueAppointments =
     plan?.entries.filter(
       (entry) =>
@@ -217,6 +242,12 @@ export const NextTaskCardComponent = () => {
         active && 'ring-primary',
       )}
     >
+      {!item && (
+        <UnavailableHotkeys
+          ids={TASK_HOTKEY_IDS}
+          message={onBreak ? END_BREAK_MESSAGE : NO_TASK_MESSAGE}
+        />
+      )}
       <CardHeader className="flex flex-wrap items-center justify-between gap-2">
         <p className="flex items-center gap-2 text-sm font-medium text-muted-foreground">
           {onBreak ? 'Break time' : active ? 'Current focus' : 'Next up'}

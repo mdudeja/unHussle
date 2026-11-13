@@ -1,6 +1,6 @@
 import { WorkflowWarnings } from '@/components/app/WorkflowWarnings'
 import '@/styles/App.css'
-import { Outlet } from 'react-router'
+import { Outlet, useNavigate } from 'react-router'
 import { useStore } from '@/store'
 import { useEffect } from 'react'
 import {
@@ -12,15 +12,20 @@ import { TooltipProvider } from '@/components/ui/tooltip'
 import {
   AppSidebarComponent,
   EntityEditDialogHost,
+  HotkeyNoticeHost,
   OvernightDialogHost,
 } from '@/components/app'
 import { Logger } from '@c/Logger'
 import { WorkflowInspector } from '@/components/dev/WorkflowInspector'
 import { useExtensionActivation } from '@/extensions/hooks'
+import { useHotkey, useHotkeyListener } from '@/hooks/use-keydown-mgr'
 
 function App() {
   const { isDBReady, checkDBReady, dbError } = useStore()
+  const navigate = useNavigate()
   useExtensionActivation()
+  useHotkeyListener()
+  useHotkey('app.home', () => void navigate('/'))
 
   useEffect(() => {
     if (isDBReady) {
@@ -54,6 +59,7 @@ function App() {
           <Outlet />
           <EntityEditDialogHost />
           <OvernightDialogHost />
+          <HotkeyNoticeHost />
           {import.meta.env.DEV && <WorkflowInspector />}
         </SidebarInset>
       </SidebarProvider>

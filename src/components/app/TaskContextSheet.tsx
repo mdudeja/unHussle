@@ -12,6 +12,7 @@ import {
 import { TaskContextList } from '@/components/app/task-context-list'
 import { contextCountOf } from '@/lib/task-context'
 import { useTaskContext } from '@/workflows/hooks'
+import { useHotkey } from '@/hooks/use-keydown-mgr'
 
 /**
  * A chip on the task card that opens everything the task brings along: its
@@ -26,6 +27,10 @@ export function TaskContextSheet({ taskId }: { taskId: string }) {
     ? contextCountOf(data.own) +
       data.inherited.reduce((sum, group) => sum + contextCountOf(group), 0)
     : 0
+  useHotkey('next-task.resources', () => {
+    if (count === 0) return 'The current task has no resources.'
+    setOpen(true)
+  })
   if (!data || count === 0) return null
 
   return (
