@@ -3,11 +3,14 @@ import type { SQLiteColumn } from 'drizzle-orm/sqlite-core'
 import type { SyncTx } from '@d/database/repositories/helpers'
 import type {
   EntityCollectionKind,
+  EntityKind,
   EntryKind,
   MutationInput,
 } from '@c/workflows/contracts'
 import type { PublicationContext } from '@d/workflows/contracts'
 import * as tables from '@d/database/schemas'
+import { ProgressStatus } from '@c/types'
+import { taskMembershipPredicate } from '@d/database/repositories/taskMembership'
 
 /**
  * Rows that belong to each collection kind, with the foreign key pointing at
@@ -67,4 +70,141 @@ export function announceCollectionMembers(
         result: undefined,
       })
   }
+}
+
+export function updateGoalProjectStatus(
+  tx: SyncTx,
+  { kind, action, id, changes }: MutationInput,
+  { operationId, announce }: PublicationContext,
+) {
+  if (
+    kind !== 'tasks' ||
+    !id ||
+    !changes ||
+    !['create', 'update'].includes(action)
+  )
+    return
+  if (!changes.status || changes.status !== ProgressStatus.IN_PROGRESS) return
+
+  const task = tx
+    .select()
+    .from(tables.tasks)
+    .where(eq(tables.tasks.id, id))
+    .get()
+  const { project_id, goal_id } = task ?? {}
+
+  const collections = [
+    { kind: 'projects', id: project_id },
+    { kind: 'goals', id: goal_id },
+  ]
+
+  const getTable = (kind: 'goals' | 'projects') => tables[kind]
+
+  collections.forEach(({ kind, id }) => {
+    if (!id) return
+    const collection = tx
+      .select()
+      .from(getTable(kind as 'goals' | 'projects'))
+      .where(eq(getTable(kind as 'goals' | 'projects').id, id))
+      .get()
+
+    if (collection && collection.status !== ProgressStatus.IN_PROGRESS) {
+      tx.update(getTable(kind as 'goals' | 'projects'))
+        .set({ status: ProgressStatus.IN_PROGRESS })
+        .where(eq(getTable(kind as 'goals' | 'projects').id, id))
+        .run()
+
+      if (kind === 'projects') {
+        const project = tx
+          .select()
+          .from(tables.projects)
+          .where(eq(tables.projects.id, id))
+          .get()
+
+        if (project && project.goal_id) {
+          collections.push({ kind: 'goals', id: project.goal_id })
+        }
+      }
+
+      const actionName = `${kind as EntityKind}.change` as const
+
+      announce(actionName, {
+        kind: kind as EntityKind,
+        operationId,
+        id,
+        action: 'update',
+        changes: { status: ProgressStatus.IN_PROGRESS },
+        result: undefined,
+      })
+
+      announce('entityCollection.change', {
+        kind: kind as EntityKind,
+        action: 'update',
+        id,
+        operationId,
+        changes: { status: ProgressStatus.IN_PROGRESS },
+        result: undefined,
+      })
+    }
+  })
+}
+
+export function updateGoalProjectCompletionData(
+  tx: SyncTx,
+  { kind, action, id, changes }: MutationInput,
+  { operationId, announce }: PublicationContext,
+) {
+  if (
+    !['goals', 'projects'].includes(kind) ||
+    !id ||
+    !action ||
+    action !== 'update'
+  )
+    return
+  if (
+    !changes ||
+    !changes.status ||
+    changes.status !== ProgressStatus.COMPLETED
+  )
+    return
+
+  const getTable = (kind: 'goals' | 'projects') => tables[kind]
+  const whereCondition = taskMembershipPredicate(tx, {
+    kind: kind as EntityCollectionKind,
+    id,
+  })
+
+  const tasks = tx
+    .select({ time: tables.tasks.spent_minutes })
+    .from(tables.tasks)
+    .where(whereCondition)
+    .all()
+  const totalSpentMinutes = tasks.reduce(
+    (sum, task) => sum + (task.time ?? 0),
+    0,
+  )
+
+  tx.update(getTable(kind as 'goals' | 'projects'))
+    .set({ completed_at: Date.now(), spent_minutes: totalSpentMinutes })
+    .where(eq(getTable(kind as 'goals' | 'projects').id, id))
+    .run()
+  const actionName = `${kind}.change` as const
+
+  announce(actionName, {
+    kind,
+    operationId,
+    action: 'update',
+    id,
+    changes: { completed_at: Date.now(), spent_minutes: totalSpentMinutes },
+    result: undefined,
+  })
+
+  announce('entityCollection.change', {
+    kind,
+    operationId,
+    action: 'update',
+    id,
+    changes: { completed_at: Date.now(), spent_minutes: totalSpentMinutes },
+    result: undefined,
+  })
 }

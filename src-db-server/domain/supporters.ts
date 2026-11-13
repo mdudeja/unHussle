@@ -241,11 +241,23 @@ export function updateSupporters(tx: SyncTx, input: MutationInput) {
   }
 
   if (!capability) return
+
+  let updatedTags = tags as TagInput[] | undefined
+  if (tags && capability.tags && changes.color) {
+    updatedTags = (tags as TagInput[]).map(
+      (tag) =>
+        ({
+          ...tag,
+          color: tag.color ?? changes.color,
+        }) as TagInput,
+    )
+  }
+
   syncSupporters(
     tx,
     id,
     {
-      tags: tags as TagInput[] | undefined,
+      tags: updatedTags,
       urls: urls as UrlInput[] | undefined,
       time_entries: time_entries as TimeEntryInput[] | undefined,
     },

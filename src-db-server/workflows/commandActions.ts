@@ -16,7 +16,11 @@ import {
   deleteAllEntries,
 } from '@d/domain/entries'
 import { validateTask, trackTaskTransition } from '@d/domain/tasks'
-import { announceCollectionMembers } from '@d/domain/collections'
+import {
+  announceCollectionMembers,
+  updateGoalProjectStatus,
+  updateGoalProjectCompletionData,
+} from '@d/domain/collections'
 import {
   updateSupporters,
   deleteSupporterJunctions,
@@ -88,7 +92,13 @@ export function createCommandActions<
       deleteSupporterJunctions(tx, input),
     ),
     updateSupporterCounts: action(({ tx }) => recomputeSupporterCounts(tx)),
+    updateGoalProjectStatus: action(({ tx }, input, context) =>
+      updateGoalProjectStatus(tx, input, context),
+    ),
     updateCollectionCounts: action(({ tx }) => recomputeCollectionCounts(tx)),
+    updateGoalProjectCompletionData: action(({ tx }, input, context) =>
+      updateGoalProjectCompletionData(tx, input, context),
+    ),
     updateResourceLinks: action(({ tx }, input, context) =>
       updateResourceLinks(tx, input, context),
     ),

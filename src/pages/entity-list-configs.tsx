@@ -33,6 +33,7 @@ import { getStatusIcon } from '@/components/ui/custom/StatusView'
 import { getPriorityIcon } from '@/components/ui/custom/PriorityView'
 import TagsView from '@/components/ui/custom/TagsView'
 import UrlView from '@/components/ui/custom/UrlView'
+import { useCompleteAction } from '@/lib/entityActions/useCompleteAction'
 
 type WithStatus = { status?: ProgressStatus | null }
 type WithPriority = { priority?: Priority | null }
@@ -101,6 +102,7 @@ export const projectsList: EntityListConfig<HydratedProject> = {
   kind: 'projects',
   title: 'Projects',
   icon: FolderKanban,
+  useActions: () => useCompleteAction('projects'),
   renderMeta: (row) => (
     <>
       <EntityRefs
@@ -111,8 +113,7 @@ export const projectsList: EntityListConfig<HydratedProject> = {
       />
       {row.status === ProgressStatus.COMPLETED ? (
         <>
-          (
-          <DateMeta label="Completed" millis={row.completed_at} />)
+          <DateMeta label="Completed" millis={row.completed_at} />
           <SpentTimeMeta millis={row.spent_minutes} />
         </>
       ) : (
@@ -142,6 +143,7 @@ export const goalsList: EntityListConfig<HydratedGoal> = {
   kind: 'goals',
   title: 'Goals',
   icon: GoalIcon,
+  useActions: () => useCompleteAction('goals'),
   renderMeta: (row) => (
     <>
       <EntityRefs refs={[row.area && { ...row.area, kind: 'areas' }]} />

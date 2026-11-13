@@ -39,7 +39,7 @@ function toRowValues(kind: EntryKind, changes: Record<string, unknown>) {
   } = changes
 
   // Status transitions are tracked here, so their time totals are backend-owned.
-  if (kind === 'tasks' && 'status' in values) {
+  if (['tasks', 'goals', 'projects'].includes(kind) && 'status' in values) {
     delete values.spent_minutes
     delete values.started_at
     delete values.completed_at
