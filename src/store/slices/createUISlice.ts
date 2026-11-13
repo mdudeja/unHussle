@@ -10,6 +10,8 @@ export type EditingEntity = { kind: EntityRouteKey; id: string }
 // A task action waiting on "did you stop at some point?" (see OvernightDialogHost).
 export type OvernightPrompt = {
   taskId: string
+  /** Set when the interval belongs to a recurring task's occurrence. */
+  occurrenceId?: string | null
   startedAt: number
   then: 'pause' | 'complete' | 'cancel'
 }

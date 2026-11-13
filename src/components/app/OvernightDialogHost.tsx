@@ -11,6 +11,7 @@ import type { OvernightPrompt } from '@/store/slices/createUISlice'
 import { useWorkflowQuery, useWorkflowRuntime } from '@/workflows/hooks'
 import { suggestedStop } from '@/workflows/schedulerHooks'
 import { cancelTask, completeTask, pauseTask } from '@/workflows/taskCommands'
+import { ProgressStatus } from '@c/types/enums'
 import { getTimeZoneId } from '@c/datetimeUtils'
 import { Logger } from '@c/Logger'
 import { OvernightCheck } from './OvernightCheck'
@@ -20,6 +21,12 @@ const actions = {
   complete: completeTask,
   cancel: cancelTask,
 } satisfies Record<OvernightPrompt['then'], (id: string) => Promise<void>>
+
+const occurrenceStatuses = {
+  pause: ProgressStatus.PAUSED,
+  complete: ProgressStatus.COMPLETED,
+  cancel: ProgressStatus.CANCELLED,
+} satisfies Record<OvernightPrompt['then'], ProgressStatus>
 
 /**
  * The app-wide "did you stop at some point?" dialog for task actions outside
@@ -48,6 +55,14 @@ const OvernightDialog = ({ prompt }: { prompt: OvernightPrompt }) => {
   const [busy, setBusy] = useState(false)
   const [error, setError] = useState<string | null>(null)
   const timezone = getTimeZoneId()
+  const occurrenceId = prompt.occurrenceId ?? null
+  const finish = () =>
+    occurrenceId
+      ? runtime.commands.execute('scheduler.occurrence.transition', {
+          id: occurrenceId,
+          status: occurrenceStatuses[prompt.then],
+        })
+      : actions[prompt.then](prompt.taskId)
 
   const run = async (work: () => Promise<unknown>) => {
     setBusy(true)
@@ -82,19 +97,16 @@ const OvernightDialog = ({ prompt }: { prompt: OvernightPrompt }) => {
             }
             busy={busy}
             stillWorkingLabel="I worked the whole time"
-            onStillWorking={() =>
-              run(() => actions[prompt.then](prompt.taskId))
-            }
+            onStillWorking={() => run(finish)}
             onStopped={(at) =>
               run(async () => {
                 // Stopping the interval already pauses the task.
                 await runtime.commands.execute('scheduler.tracking.stop', {
                   taskId: prompt.taskId,
-                  occurrenceId: null,
+                  occurrenceId,
                   at,
                 })
-                if (prompt.then !== 'pause')
-                  await actions[prompt.then](prompt.taskId)
+                if (prompt.then !== 'pause') await finish()
               })
             }
           />

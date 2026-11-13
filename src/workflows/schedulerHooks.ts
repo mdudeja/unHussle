@@ -57,6 +57,7 @@ export function useDayPlan(date: string, timezone: string) {
     runtime.queries.markStale(key)
     await runtime.queries.ensure(key)
   }, [runtime, key])
+
   useEffect(() => {
     /** Refreshes the current data when focus is received. */
     const onFocus = () => {
@@ -65,6 +66,7 @@ export function useDayPlan(date: string, timezone: string) {
     window.addEventListener('focus', onFocus)
     return () => window.removeEventListener('focus', onFocus)
   }, [refresh])
+
   return { ...query, refresh }
 }
 

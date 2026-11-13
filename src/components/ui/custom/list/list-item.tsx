@@ -12,7 +12,8 @@ import { cn } from '@/lib/utils'
 type ListItemProps = {
   title: string
   href: string
-  media: React.ReactNode
+  /** Hidden when compact. */
+  media?: React.ReactNode
   /** Shown next to the title, e.g. status and priority icons. */
   indicators?: React.ReactNode
   /** The muted second line, e.g. dates and collections. */
@@ -21,6 +22,9 @@ type ListItemProps = {
   error?: string | null
   /** Present while the list is in selection mode. */
   selection?: { isSelected: boolean; onToggle: () => void }
+  /** A denser row, e.g. for a day in the week view. */
+  isCompact?: boolean
+  className?: string
 }
 
 /**
@@ -36,15 +40,18 @@ export function ListItem({
   actions,
   error,
   selection,
+  isCompact = false,
+  className,
 }: ListItemProps) {
   return (
     <li>
       <Item
         variant="outline"
-        size="sm"
+        size={isCompact ? 'xs' : 'sm'}
         className={cn(
           'rounded-lg border-border/60 bg-card shadow-calm-sm hover:shadow-calm',
           selection?.isSelected && 'border-primary bg-primary/5 shadow-calm',
+          className,
         )}
       >
         {selection && (
@@ -54,7 +61,7 @@ export function ListItem({
             aria-label={`Select ${title}`}
           />
         )}
-        <ItemMedia>{media}</ItemMedia>
+        {media && !isCompact && <ItemMedia>{media}</ItemMedia>}
         <ItemContent className="min-w-0">
           <ItemTitle className="w-full">
             <Link to={href} className="truncate hover:underline">
