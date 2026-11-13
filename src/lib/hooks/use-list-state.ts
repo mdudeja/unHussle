@@ -3,6 +3,7 @@ import { useSearchParams } from 'react-router'
 import { entitySearchParams } from '@/lib/entityRoutes'
 import {
   initialListState,
+  LIST_PAGE_SIZE,
   ListSort,
   ListState,
   patchListState,
@@ -40,6 +41,8 @@ export function useUrlListState(
       ? searchParams.get(dir) === DESC
       : initialSort.desc,
     page: Number.isInteger(pageParam) && pageParam > 1 ? pageParam : 1,
+    pageSize:
+      Number(searchParams.get(entitySearchParams.pageSize)) || LIST_PAGE_SIZE,
   }
 
   const update = (patch: Partial<ListState>) => {
@@ -54,6 +57,10 @@ export function useUrlListState(
         set(sort, next.sort === initialSort.sort ? null : next.sort)
         set(dir, next.desc === initialSort.desc ? null : next.desc ? DESC : ASC)
         set(page, next.page > 1 ? String(next.page) : null)
+        set(
+          entitySearchParams.pageSize,
+          next.pageSize === LIST_PAGE_SIZE ? null : String(next.pageSize),
+        )
         return params
       },
       { replace: true },

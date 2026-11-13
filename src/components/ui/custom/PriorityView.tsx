@@ -1,6 +1,7 @@
 import { Priority } from '@c/types/enums'
 import { ChevronsLeftRight, ChevronsDown, ChevronsUp } from 'lucide-react'
 import { toLabel } from '@/components/ui/utils/misc'
+import IconBadge from '@/components/ui/custom/IconBadge'
 
 export const getPriorityIcon = (priority: string): React.ReactNode => {
   return <PriorityIcon priority={priority as Priority} />
@@ -25,11 +26,12 @@ export default function PriorityView({
   }
 
   return (
-    <span
+    <IconBadge
+      icon={<PriorityIcon priority={priority} />}
+      variant={priority === Priority.HIGH ? 'outline' : 'ghost'}
       className={`flex items-center gap-1 ${priority === Priority.HIGH ? 'text-destructive' : 'text-muted-foreground'}`}
     >
-      {PriorityIcon({ priority: priority })}
       {toLabel(priority)}
-    </span>
+    </IconBadge>
   )
 }

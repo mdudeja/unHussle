@@ -27,6 +27,7 @@ export type ListState = {
   sort: string
   desc: boolean
   page: number
+  pageSize: number
 }
 
 export type ListSort = Pick<ListState, 'sort' | 'desc'>
@@ -37,6 +38,7 @@ export const initialListState = (sort: ListSort): ListState => ({
   q: '',
   filters: {},
   page: 1,
+  pageSize: LIST_PAGE_SIZE,
   ...sort,
 })
 
@@ -125,5 +127,8 @@ export const applyListState = <T>(
     sorts.find((option) => option.id === state.sort),
     state.desc,
   )
-  return { ...paginate(sorted, state.page), total: filtered.length }
+  return {
+    ...paginate(sorted, state.page, state.pageSize),
+    total: filtered.length,
+  }
 }

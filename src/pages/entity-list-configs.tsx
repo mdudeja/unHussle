@@ -26,6 +26,7 @@ import {
   enumFilterOptions,
   TaskFlags,
   taskFlagFilterOptions,
+  SpentTimeMeta,
 } from '@/components/ui/custom/list/fields'
 import { parseTaskFlagFilter, TASK_FLAG_FILTER_ID } from '@/lib/task-flags'
 import { getStatusIcon } from '@/components/ui/custom/StatusView'
@@ -108,7 +109,17 @@ export const projectsList: EntityListConfig<HydratedProject> = {
           row.goal && { ...row.goal, kind: 'goals' },
         ]}
       />
-      <DateMeta label="Due" millis={row.due_date} />
+      {row.status === ProgressStatus.COMPLETED ? (
+        <>
+          (
+          <DateMeta label="Completed" millis={row.completed_at} />)
+          <SpentTimeMeta millis={row.spent_minutes} />
+        </>
+      ) : (
+        <>
+          <DateMeta label="Due" millis={row.due_date} />
+        </>
+      )}
       {row.tags && <TagsView tags={row.tags} />}
     </>
   ),
@@ -134,7 +145,16 @@ export const goalsList: EntityListConfig<HydratedGoal> = {
   renderMeta: (row) => (
     <>
       <EntityRefs refs={[row.area && { ...row.area, kind: 'areas' }]} />
-      <DateMeta label="Due" millis={row.due_date} />
+      {row.status === ProgressStatus.COMPLETED ? (
+        <>
+          <DateMeta label="Completed" millis={row.completed_at} />
+          <SpentTimeMeta millis={row.spent_minutes} />
+        </>
+      ) : (
+        <>
+          <DateMeta label="Due" millis={row.due_date} />
+        </>
+      )}
       {row.tags && <TagsView tags={row.tags} />}
     </>
   ),
@@ -159,8 +179,17 @@ export const tasksList: EntityListConfig<HydratedTask> = {
         ]}
       />
       <TaskFlags task={row} />
-      <DateMeta label="Due" millis={row.due_date} />
-      <DateMeta label="Starts" millis={row.scheduled_start} withTime />
+      {row.status === ProgressStatus.COMPLETED ? (
+        <>
+          <DateMeta label="Completed" millis={row.completed_at} />
+          <SpentTimeMeta millis={row.spent_minutes} />
+        </>
+      ) : (
+        <>
+          <DateMeta label="Due" millis={row.due_date} />
+          <DateMeta label="Starts" millis={row.scheduled_start} withTime />
+        </>
+      )}
     </>
   ),
   filters: [statusFilter, priorityFilter, taskFlagFilter],

@@ -94,6 +94,20 @@ export const formatTimeDuration = (durationSeconds: number): string => {
   return `${pad(minutes)}:${pad(seconds)}`
 }
 
+export const formatSpentTime = (spentMinutes: number): string => {
+  const hours = Math.floor(spentMinutes / 60)
+  const minutes = Math.floor(spentMinutes % 60)
+
+  // Format parts to always be at least 2 digits (00)
+  const pad = (n: number) => n.toString().padStart(2, '0')
+
+  if (hours > 0) {
+    return `${hours} hour${hours > 1 ? 's' : ''}, ${pad(minutes)} minute${minutes > 1 ? 's' : ''}`
+  }
+
+  return `${pad(minutes)} minute${minutes > 1 ? 's' : ''}`
+}
+
 /** Converts an epoch timestamp in milliseconds into a local date and time string. */
 export const formatDateTime = (millis: number): string => {
   const instant = Temporal.Instant.fromEpochMilliseconds(millis)

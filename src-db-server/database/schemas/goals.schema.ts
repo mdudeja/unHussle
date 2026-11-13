@@ -24,6 +24,8 @@ export const goals = sqliteTable(
     area_id: text().references(() => areas.id, { onDelete: 'set null' }),
     due_date: integer({ mode: 'number' }),
     progress: real().notNull().default(0),
+    completed_at: integer({ mode: 'number' }),
+    spent_minutes: integer({ mode: 'number' }),
   },
   (table) => [
     index('goals_title_idx').on(table.title),

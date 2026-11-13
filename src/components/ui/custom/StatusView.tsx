@@ -1,5 +1,4 @@
 import { ProgressStatus } from '@c/types/enums'
-import { Badge } from '@/components/ui/badge'
 import { cn } from '@/lib/utils'
 import { toLabel } from '@/components/ui/utils/misc'
 import {
@@ -13,6 +12,7 @@ import {
   PauseCircle,
   Route,
 } from 'lucide-react'
+import IconBadge from '@/components/ui/custom/IconBadge'
 
 export const getStatusIcon = (status: string): React.ReactNode => {
   return <StatusIcon status={status as ProgressStatus} />
@@ -53,14 +53,15 @@ export default function StatusView({
   }
 
   return (
-    <Badge
-      variant={status === ProgressStatus.COMPLETED ? 'secondary' : 'outline'}
+    <IconBadge
+      icon={<StatusIcon status={status} />}
+      variant={status === ProgressStatus.COMPLETED ? 'secondary' : 'ghost'}
       className={cn(
         status === ProgressStatus.CANCELLED &&
           'text-muted-foreground line-through',
       )}
     >
       {toLabel(status)}
-    </Badge>
+    </IconBadge>
   )
 }

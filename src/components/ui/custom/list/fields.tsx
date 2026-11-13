@@ -4,6 +4,7 @@ import { Priority, ProgressStatus } from '@c/types/enums'
 import {
   formatMillisAsDdMmYyyy,
   formatMillisAsDdMmYyyyHhMm,
+  formatSpentTime,
 } from '@c/datetimeUtils'
 import type { ListFilterOption } from '@/lib/list-view'
 import {
@@ -119,6 +120,14 @@ export function DateMeta({
         : formatMillisAsDdMmYyyy(millis)}
     </span>
   )
+}
+
+export function SpentTimeMeta({ millis: minutes }: { millis?: number | null }) {
+  if (minutes === null || minutes === undefined) {
+    return null
+  }
+
+  return <span>Spent {formatSpentTime(minutes)}</span>
 }
 
 export function EntityRefs({

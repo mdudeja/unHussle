@@ -111,7 +111,7 @@ export function EntityList<T extends EntityRow>({
 
   const hasCriteria =
     state.q.trim() !== '' || Object.keys(state.filters).length > 0
-  const summary = `${total} ${total === 1 ? label : noun}`
+  const summary = `Showing ${items.length} of ${total} ${total === 1 ? label : noun}`
 
   const renderBody = () => {
     if (items.length > 0) {
@@ -243,9 +243,11 @@ export function EntityList<T extends EntityRow>({
       {renderBody()}
       <ListPagination
         summary={summary}
+        total={total}
         page={page}
         pageCount={pageCount}
         onPageChange={(page) => update({ page })}
+        onPageSizeChange={(pageSize) => update({ pageSize })}
         isLoading={isLoading}
       />
     </section>

@@ -17,6 +17,7 @@ export const entitySearchParams = {
   sort: 'sort',
   dir: 'dir',
   page: 'page',
+  pageSize: 'psize',
   // The open tab on a detail page.
   tab: 'tab',
 } as const
