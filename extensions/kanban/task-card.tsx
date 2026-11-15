@@ -13,8 +13,6 @@ import {
   CardFooter,
   CardTitle,
   CheckCircle2,
-  ChevronLeft,
-  ChevronRight,
   Link,
   Loader2,
   Pencil,
@@ -26,8 +24,7 @@ import {
 } from 'unhussle/frontend'
 import type { Stage } from './boards'
 import type { BoardTask } from './use-board-tasks'
-
-export const TASK_DRAG_TYPE = 'application/x-unhussle-task'
+import { MoveButton } from './kanban-board'
 
 type TaskCardProps = {
   task: BoardTask
@@ -59,13 +56,7 @@ export function TaskCard({
   const canComplete = task.status !== ProgressStatus.COMPLETED
 
   return (
-    <li
-      draggable={!isPending}
-      onDragStart={(event) => {
-        event.dataTransfer.setData(TASK_DRAG_TYPE, task.id)
-        event.dataTransfer.effectAllowed = 'move'
-      }}
-    >
+    <>
       <Card size="sm">
         <CardContent className="flex flex-col gap-2">
           <CardTitle>
@@ -81,19 +72,12 @@ export function TaskCard({
           )}
         </CardContent>
         <CardFooter className="justify-between gap-1">
-          <Button
-            type="button"
-            variant="ghost"
-            size="icon-sm"
-            disabled={!previous || isPending}
-            aria-label={previous ? `Move to ${previous.name}` : 'First stage'}
-            title={
-              previous ? `Move to ${previous.name}` : 'This is the first stage'
-            }
-            onClick={() => previous && onMove(previous)}
-          >
-            <ChevronLeft />
-          </Button>
+          <MoveButton
+            direction="previous"
+            stage={previous}
+            disabled={isPending}
+            onMove={onMove}
+          />
           <div className="flex gap-1">
             {isPending && (
               <Loader2
@@ -150,17 +134,12 @@ export function TaskCard({
               <Trash2 />
             </Button>
           </div>
-          <Button
-            type="button"
-            variant="ghost"
-            size="icon-sm"
-            disabled={!next || isPending}
-            aria-label={next ? `Move to ${next.name}` : 'Last stage'}
-            title={next ? `Move to ${next.name}` : 'This is the last stage'}
-            onClick={() => next && onMove(next)}
-          >
-            <ChevronRight />
-          </Button>
+          <MoveButton
+            direction="next"
+            stage={next}
+            disabled={isPending}
+            onMove={onMove}
+          />
         </CardFooter>
       </Card>
       <AlertDialog open={isConfirming} onOpenChange={setIsConfirming}>
@@ -186,6 +165,6 @@ export function TaskCard({
           </AlertDialogFooter>
         </AlertDialogContent>
       </AlertDialog>
-    </li>
+    </>
   )
 }

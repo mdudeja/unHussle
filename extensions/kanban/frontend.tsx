@@ -1,9 +1,11 @@
 import type { FrontendExtension } from 'unhussle/frontend'
 import { ApiContext } from './api-context'
 import { KanbanView } from './kanban-view'
+import { kanbanExports } from './exports'
 
 const extension: FrontendExtension = {
   activate: (api) => {
+    api.exports.provide(kanbanExports)
     api.views.register({
       id: 'kanban.boards',
       label: 'Kanban',

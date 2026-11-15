@@ -31,24 +31,20 @@ export const DEFAULT_STAGES: Stage[] = STAGE_STATUSES.map((status) => ({
   status,
 }))
 
-export type BoardErrors = {
-  name?: string
-  sources?: string
+export type StageErrors = {
   stages?: string
   /** One message per stage row, in order. */
   stageNames: (string | undefined)[]
 }
+export type BoardErrors = StageErrors & { name?: string; sources?: string }
 
-export function boardErrors(board: Board): BoardErrors {
-  const names = board.stages.map((stage) => stage.name.trim().toLowerCase())
+/** Every status needs a stage, and stage names must be unique. */
+export function stageErrors(stages: Stage[]): StageErrors {
+  const names = stages.map((stage) => stage.name.trim().toLowerCase())
   const missing = STAGE_STATUSES.filter(
-    (status) => !board.stages.some((stage) => stage.status === status),
+    (status) => !stages.some((stage) => stage.status === status),
   )
   return {
-    name: board.name.trim() ? undefined : 'Enter a board name.',
-    sources: board.sources.length
-      ? undefined
-      : 'Pick at least one project, area, goal or tag.',
     stages: missing.length
       ? `Add a stage for: ${missing.map((status) => STATUS_LABELS[status]).join(', ')}.`
       : undefined,
@@ -59,6 +55,16 @@ export function boardErrors(board: Board): BoardErrors {
           ? 'Use a different name for each stage.'
           : undefined,
     ),
+  }
+}
+
+export function boardErrors(board: Board): BoardErrors {
+  return {
+    ...stageErrors(board.stages),
+    name: board.name.trim() ? undefined : 'Enter a board name.',
+    sources: board.sources.length
+      ? undefined
+      : 'Pick at least one project, area, goal or tag.',
   }
 }
 

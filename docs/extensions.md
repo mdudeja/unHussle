@@ -409,11 +409,19 @@ extension:
 
 [`extensions/kanban/`](../extensions/kanban) is a built-in extension: it
 comes with the app and stays off until the user turns it on. It is a full
-view, a kanban board of tasks.
+view, a kanban board of tasks, and it shares its board with other extensions.
 
-- `extension.json` declares a frontend entry only.
-- `frontend.tsx` registers the view and its menu, and passes `api` to the
-  view through `api-context.ts`.
+- `extension.json` declares a frontend entry only, with `"exports": true`.
+- `frontend.tsx` provides `exports.ts`, registers the view and its menu, and
+  passes `api` to the view through `api-context.ts`.
+- `exports.ts` lists what Kanban shares, and the `KanbanExports` type:
+  - `KanbanBoard`, columns of any items: you give it the items, the stages,
+    each item's column, what a move does, and how a card looks;
+  - `MoveButton`, which moves a card one stage back or forward;
+  - `StageEditor` and `stageErrors`, for editing and checking stages;
+  - `DEFAULT_STAGES`, `boardStatus`, `columnFor` and `moveChanges`, for
+    items with a status and Kanban's stage in `custom_data`.
+- `board-columns.tsx` is Kanban's own task board, built on `KanbanBoard`.
 - `boards.ts` describes and checks boards. `use-boards.ts` saves them with
   `api.settings`.
 - `use-board-tasks.ts` reads each source with `useExtensionContainers`.

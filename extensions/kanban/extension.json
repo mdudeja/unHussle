@@ -3,5 +3,6 @@
   "name": "Kanban",
   "version": "1.0.0",
   "description": "Shows tasks from projects, areas, goals and tags as columns of stages.",
-  "frontend": "frontend.tsx"
+  "frontend": "frontend.tsx",
+  "exports": true
 }

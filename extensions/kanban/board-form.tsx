@@ -1,7 +1,5 @@
 import { useState } from 'react'
 import {
-  ArrowDown,
-  ArrowUp,
   Button,
   Dialog,
   DialogContent,
@@ -13,32 +11,16 @@ import {
   Input,
   Label,
   Loader2,
-  Plus,
-  Select,
-  SelectContent,
-  SelectItem,
-  SelectTrigger,
-  SelectValue,
-  Trash2,
-  ProgressStatus,
   type EntityRef,
 } from 'unhussle/frontend'
 import {
-  STAGE_STATUSES,
-  STATUS_LABELS,
   SOURCE_KINDS,
   boardErrors,
   hasErrors,
   type Board,
   type BoardSource,
-  type Stage,
-  type StageStatus,
 } from './boards'
-
-const statusItems = STAGE_STATUSES.map((status) => ({
-  value: status,
-  label: STATUS_LABELS[status],
-}))
+import { StageEditor } from './stage-editor'
 
 type BoardFormProps = {
   initial: Board
@@ -54,20 +36,6 @@ export function BoardForm({ initial, isNew, onSave, onClose }: BoardFormProps) {
   const [saveError, setSaveError] = useState<string>()
   const errors = boardErrors(board)
   const visible = showErrors ? errors : { stageNames: [] }
-
-  const setStages = (stages: Stage[]) => setBoard({ ...board, stages })
-  const updateStage = (index: number, stage: Partial<Stage>) =>
-    setStages(
-      board.stages.map((current, at) =>
-        at === index ? { ...current, ...stage } : current,
-      ),
-    )
-  const moveStage = (index: number, offset: number) => {
-    const stages = [...board.stages]
-    const [stage] = stages.splice(index, 1)
-    stages.splice(index + offset, 0, stage)
-    setStages(stages)
-  }
 
   const submit = async (event: React.SubmitEvent) => {
     event.preventDefault()
@@ -148,102 +116,11 @@ export function BoardForm({ initial, isNew, onSave, onClose }: BoardFormProps) {
             )}
           </div>
 
-          <fieldset className="flex flex-col gap-2">
-            <legend className="text-sm font-medium">Stages</legend>
-            <p className="text-sm text-muted-foreground">
-              Columns, from left to right. Each stage matches a task status.
-            </p>
-            <ol className="flex flex-col gap-2">
-              {board.stages.map((stage, index) => (
-                <li key={index} className="flex flex-col gap-1">
-                  <div className="flex items-center gap-2">
-                    <Input
-                      aria-label={`Stage ${index + 1} name`}
-                      value={stage.name}
-                      aria-invalid={Boolean(visible.stageNames[index])}
-                      onChange={(event) =>
-                        updateStage(index, { name: event.target.value })
-                      }
-                    />
-                    <Select
-                      items={statusItems}
-                      value={stage.status}
-                      onValueChange={(status) =>
-                        updateStage(index, { status: status as StageStatus })
-                      }
-                    >
-                      <SelectTrigger
-                        className="w-36 shrink-0"
-                        aria-label={`Stage ${index + 1} status`}
-                      >
-                        <SelectValue />
-                      </SelectTrigger>
-                      <SelectContent>
-                        {statusItems.map((item) => (
-                          <SelectItem key={item.value} value={item.value}>
-                            {item.label}
-                          </SelectItem>
-                        ))}
-                      </SelectContent>
-                    </Select>
-                    <Button
-                      type="button"
-                      variant="ghost"
-                      size="icon-sm"
-                      disabled={index === 0}
-                      aria-label="Move stage up"
-                      onClick={() => moveStage(index, -1)}
-                    >
-                      <ArrowUp />
-                    </Button>
-                    <Button
-                      type="button"
-                      variant="ghost"
-                      size="icon-sm"
-                      disabled={index === board.stages.length - 1}
-                      aria-label="Move stage down"
-                      onClick={() => moveStage(index, 1)}
-                    >
-                      <ArrowDown />
-                    </Button>
-                    <Button
-                      type="button"
-                      variant="ghost"
-                      size="icon-sm"
-                      aria-label="Remove stage"
-                      onClick={() =>
-                        setStages(board.stages.filter((_, at) => at !== index))
-                      }
-                    >
-                      <Trash2 />
-                    </Button>
-                  </div>
-                  {visible.stageNames[index] && (
-                    <p className="text-sm text-destructive">
-                      {visible.stageNames[index]}
-                    </p>
-                  )}
-                </li>
-              ))}
-            </ol>
-            <Button
-              type="button"
-              variant="outline"
-              className="self-start"
-              onClick={() =>
-                setStages([
-                  ...board.stages,
-                  { name: '', status: ProgressStatus.IN_PROGRESS },
-                ])
-              }
-            >
-              <Plus />
-              Add stage
-            </Button>
-            {visible.stages && (
-              <p className="text-sm text-destructive">{visible.stages}</p>
-            )}
-          </fieldset>
+          <StageEditor
+            stages={board.stages}
+            errors={visible}
+            onChange={(stages) => setBoard({ ...board, stages })}
+          />
 
           {saveError && (
             <p className="text-sm text-destructive" role="alert">
