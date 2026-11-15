@@ -2,7 +2,11 @@
   "compilerOptions": {
     "target": "ES2020",
     "useDefineForClassFields": true,
-    "lib": ["ES2020", "DOM", "DOM.Iterable"],
+    "lib": [
+      "ES2020",
+      "DOM",
+      "DOM.Iterable"
+    ],
     "module": "ESNext",
     "skipLibCheck": true,
     /* Bundler mode */
@@ -15,11 +19,21 @@
     /* Path Aliases */
     "baseUrl": ".",
     "paths": {
-      "@/*": ["src/*"],
-      "@d/*": ["src-db-server/*"],
-      "@c/*": ["common/*"],
-      "unhussle/backend": ["src-db-server/extensions/sdk.ts"],
-      "unhussle/frontend": ["src/extensions/sdk.ts"]
+      "@/*": [
+        "src/*"
+      ],
+      "@d/*": [
+        "src-db-server/*"
+      ],
+      "@c/*": [
+        "common/*"
+      ],
+      "unhussle/backend": [
+        "src-db-server/extensions/sdk.ts"
+      ],
+      "unhussle/frontend": [
+        "src/extensions/sdk.ts"
+      ]
     },
     /* Linting */
     "strict": true,
@@ -28,7 +42,14 @@
     "noFallthroughCasesInSwitch": true,
     "noErrorTruncation": true
   },
-  "include": ["src", "src-db-server", "common", "scripts", "examples", "extensions"],
+  "include": [
+    "src",
+    "src-db-server",
+    "common",
+    "scripts",
+    "examples",
+    "extensions"
+  ],
   "references": [
     {
       "path": "./tsconfig.node.json"
