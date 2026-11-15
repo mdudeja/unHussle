@@ -18,7 +18,7 @@ import {
   Textarea,
   useExtensionContainers,
 } from 'unhussle/frontend'
-import { RATINGS, itemKey, type TrackedItem, type TrackerData } from './items'
+import { RATINGS, itemKey, type TrackerData, type TrackerItem } from './items'
 import type { useItemChanges } from './use-item-changes'
 
 const NO_RATING = 'none'
@@ -27,9 +27,9 @@ const KEEP = 'keep'
 const TASKS_READ = 100
 
 type FinishDialogProps = {
-  item: TrackedItem
-  /** Planned items of the same type, to hand a habit task on to. */
-  nextItems: TrackedItem[]
+  item: TrackerItem
+  /** Where its habit tasks can go, best first; see `nextItems`. */
+  nextItems: TrackerItem[]
   finish: ReturnType<typeof useItemChanges>['finish']
   onClose: () => void
 }
@@ -43,15 +43,20 @@ export function FinishDialog({
   const tasks = useExtensionContainers([
     { kind: item.kind, id: item.id, options: { limit: TASKS_READ } },
   ])
+  // Only tasks linked to this item itself, not those of a goal's projects.
   const habits = (tasks.data?.[0]?.tasks.items ?? []).filter(
     (task) =>
+      (item.kind === 'projects' ? task.project_id : task.goal_id) === item.id &&
       task.is_recurring &&
       task.status !== ProgressStatus.COMPLETED &&
       task.status !== ProgressStatus.CANCELLED,
   )
   const [rating, setRating] = useState(NO_RATING)
   const [summary, setSummary] = useState(item.tracker.summary ?? '')
-  const [handOver, setHandOver] = useState(KEEP)
+  // The best next item is suggested; the user can keep the task instead.
+  const [handOver, setHandOver] = useState(
+    nextItems[0] ? itemKey(nextItems[0]) : KEEP,
+  )
   const [isSaving, setIsSaving] = useState(false)
   const [error, setError] = useState<string>()
 
@@ -59,7 +64,7 @@ export function FinishDialog({
     event.preventDefault()
     setIsSaving(true)
     setError(undefined)
-    const result: Pick<TrackerData, 'rating' | 'summary'> = {
+    const result: TrackerData = {
       ...(rating !== NO_RATING && { rating: Number(rating) }),
       ...(summary.trim() && { summary: summary.trim() }),
     }
@@ -81,7 +86,10 @@ export function FinishDialog({
 
   const ratingItems = [
     { value: NO_RATING, label: 'No rating' },
-    ...RATINGS.map((value) => ({ value: String(value), label: `${value} / 5` })),
+    ...RATINGS.map((value) => ({
+      value: String(value),
+      label: `${value} / 5`,
+    })),
   ]
   const handOverItems = [
     { value: KEEP, label: `Keep it on ${item.title}` },

@@ -39,6 +39,9 @@ function toRowValues(kind: EntryKind, changes: Record<string, unknown>) {
     ...values
   } = changes
 
+  // Collections count time as their tasks' work closes; only that sets it.
+  if (['projects', 'areas', 'goals'].includes(kind)) delete values.spent_minutes
+
   // Status transitions are tracked here, so their time totals are backend-owned.
   if (['tasks', 'goals', 'projects'].includes(kind) && 'status' in values) {
     delete values.spent_minutes

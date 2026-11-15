@@ -1,14 +1,15 @@
 import { apiAddress } from '@/lib/apiAddress'
 import { makeJSONRequest } from '@/lib/server'
 import type { EntityCollectionKind, EntryKind } from '@c/workflows/contracts'
-import type {
-  ContainerDetail,
-  CollectionListItems,
-  CollectionListOptions,
-  EntityReference,
-  ReadContainerKind,
-  ReadPage,
-  TaskPageOptions,
+import {
+  encodeSources,
+  type ContainerDetail,
+  type CollectionListItems,
+  type CollectionListOptions,
+  type EntityReference,
+  type ReadContainerKind,
+  type ReadPage,
+  type TaskPageOptions,
 } from '@c/types/readModels'
 
 const address = apiAddress()
@@ -38,7 +39,10 @@ export const fetchCollections = <K extends EntityCollectionKind>(
   options: CollectionListOptions = {},
 ) =>
   makeJSONRequest<ReadPage<CollectionListItems[K]>>({
-    url: `${address}/${kind}/collections?${params(options)}`,
+    url: `${address}/${kind}/collections?${params({
+      ...options,
+      sources: options.sources && encodeSources(options.sources),
+    })}`,
     method: 'GET',
   })
 

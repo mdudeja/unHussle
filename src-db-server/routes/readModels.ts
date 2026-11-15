@@ -23,6 +23,8 @@ export const collectionsQuerySchema = t.Object({
   q: t.Optional(t.String({ maxLength: 500 })),
   status: t.Optional(t.String()),
   customKey: t.Optional(t.String({ maxLength: 100 })),
+  // `kind:id` pairs, comma-separated, such as `areas:abc,tags:def`.
+  sources: t.Optional(t.String({ maxLength: 10000 })),
   cursor: t.Optional(t.String()),
   limit: t.Optional(t.Numeric({ minimum: 1, maximum: 100 })),
 })

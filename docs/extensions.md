@@ -264,6 +264,9 @@ back as `cursor` for the next page. Filters:
 - `status`, for projects and goals (areas have none);
 - `customKey`, for items that hold `custom_data[key]`. Use your extension
   ID.
+- `sources`, a list of `{ kind, id }`: projects and goals in any of them. A
+  project is itself, a goal is itself and its projects, an area is its
+  goals and projects, and a tag is what's tagged with it.
 
 Pages hold up to `COLLECTION_PAGE_LIMIT` items. Backend extensions use
 `queries.collections(kind, options)`, which returns the same.
@@ -444,19 +447,20 @@ view, a kanban board of tasks, and it shares its board with other extensions.
   `entity.delete`, and tracks busy and failed cards.
 
 [`extensions/tracker/`](../extensions/tracker), the built-in Progress
-tracker, reuses Kanban's board and the app's count progress.
+tracker, reuses Kanban's board and the app's count progress. It reads and
+updates existing projects and goals, and never creates any.
 
 - `extension.json` lists `"requires": ["kanban"]`.
 - `frontend.tsx` gets Kanban's exports, checks their version, and passes
-  them with `api` to the view through `api-context.ts`.
-- `items.ts` reads `custom_data.tracker` (type, rating, summary) from
-  projects and goals alike. `use-items.ts` loads them with
-  `useExtensionCollections`, and task counts for items that don't count
-  units.
-- `item-types.ts` and `use-item-types.ts` keep the editable types in
-  `api.settings`.
-- `tracker-view.tsx` puts the items on Kanban's `KanbanBoard`, with search,
-  filters and a summary. The dialogs add, finish and edit types.
+  them with `api` to the views through `api-context.ts`.
+- `trackers.ts` and `use-trackers.ts` keep the trackers (name, type,
+  sources) in `api.settings`. `tracker-types.ts` is the fixed set of types.
+- `use-tracker-items.ts` reads each tracker's projects and goals with
+  `useExtensionCollections` and its `sources` filter. `items.ts` gives both
+  kinds one shape, with the rating and summary from `custom_data.tracker`.
+- `next-items.ts` picks where a finished item's habit task can go.
+- `tracker-view.tsx` picks, creates, edits and deletes trackers.
+  `tracker-board.tsx` puts one tracker's items on Kanban's `KanbanBoard`.
 
 To try Sample, point the app at the examples folder:
 `EXTENSIONS_DIR=$PWD/examples/extensions bun run server`. Kanban is listed

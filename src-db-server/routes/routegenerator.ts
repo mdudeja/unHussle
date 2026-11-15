@@ -12,7 +12,7 @@ import {
   entityReferenceSchema,
   selectContainerDetailSchema,
 } from '@d/database/validation'
-import type { ReadContainerKind } from '@c/types/readModels'
+import { decodeSources, type ReadContainerKind } from '@c/types/readModels'
 import { backendRuntime } from '@d/bootstrap'
 import { operationIdHeader, traceOf } from '@d/routes/telemetry'
 import {
@@ -243,7 +243,11 @@ export const routeGenerator = <
       '/collections',
       ({ query }) => {
         if (!isCollectionKind(config.kind)) throw new Error('NOT_FOUND')
-        return reads.collections(config.kind, query)
+        const { sources, ...options } = query
+        const decoded = sources === undefined ? undefined : decodeSources(sources)
+        if (decoded === null)
+          throw new ReadInputError('Sources must be kind:id pairs')
+        return reads.collections(config.kind, { ...options, sources: decoded })
       },
       {
         query: collectionsQuerySchema,

@@ -122,11 +122,9 @@ export function DateMeta({
   )
 }
 
-export function SpentTimeMeta({ millis: minutes }: { millis?: number | null }) {
-  if (minutes === null || minutes === undefined) {
-    return null
-  }
-
+/** Tracked time, hidden until there is some. */
+export function SpentTimeMeta({ minutes }: { minutes?: number | null }) {
+  if (!minutes) return null
   return <span>Spent {formatSpentTime(minutes)}</span>
 }
 

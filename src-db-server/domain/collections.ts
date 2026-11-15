@@ -10,7 +10,6 @@ import type {
 import type { PublicationContext } from '@d/workflows/contracts'
 import * as tables from '@d/database/schemas'
 import { ProgressStatus } from '@c/types'
-import { taskMembershipPredicate } from '@d/database/repositories/taskMembership'
 
 /**
  * Rows that belong to each collection kind, with the foreign key pointing at
@@ -168,26 +167,10 @@ export function updateGoalProjectCompletionData(
   )
     return
 
-  const getTable = (kind: 'goals' | 'projects') => tables[kind]
-  const whereCondition = taskMembershipPredicate(tx, {
-    kind: kind as EntityCollectionKind,
-    id,
-  })
-
-  const tasks = tx
-    .select({ time: tables.tasks.spent_minutes })
-    .from(tables.tasks)
-    .where(whereCondition)
-    .all()
-  const totalSpentMinutes = tasks.reduce(
-    (sum, task) => sum + (task.time ?? 0),
-    0,
-  )
-
-  tx.update(getTable(kind as 'goals' | 'projects'))
-    .set({ completed_at: Date.now(), spent_minutes: totalSpentMinutes })
-    .where(eq(getTable(kind as 'goals' | 'projects').id, id))
-    .run()
+  // Spent time is counted live as work closes; completing only dates it.
+  const table = tables[kind as 'goals' | 'projects']
+  const completed_at = Date.now()
+  tx.update(table).set({ completed_at }).where(eq(table.id, id)).run()
   const actionName = `${kind}.change` as const
 
   announce(actionName, {
@@ -195,7 +178,7 @@ export function updateGoalProjectCompletionData(
     operationId,
     action: 'update',
     id,
-    changes: { completed_at: Date.now(), spent_minutes: totalSpentMinutes },
+    changes: { completed_at },
     result: undefined,
   })
 
@@ -204,7 +187,7 @@ export function updateGoalProjectCompletionData(
     operationId,
     action: 'update',
     id,
-    changes: { completed_at: Date.now(), spent_minutes: totalSpentMinutes },
+    changes: { completed_at },
     result: undefined,
   })
 }

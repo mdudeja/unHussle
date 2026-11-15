@@ -63,6 +63,7 @@ export {
   SelectValue,
 } from '@/components/ui/select'
 export { ItemProgress } from '@/components/ui/custom/item-progress'
+export { SpentTimeMeta } from '@/components/ui/custom/list/fields'
 export {
   EntityRefsInput,
   type EntityRef,

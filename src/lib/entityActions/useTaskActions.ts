@@ -12,7 +12,10 @@ import {
 } from '@/workflows/taskCommands'
 import type { EntityAction } from './types'
 
-type TaskLike = Pick<HydratedTask, 'id' | 'status' | 'timeEntries'>
+type TaskLike = Pick<
+  HydratedTask,
+  'id' | 'status' | 'timeEntries' | 'is_recurring'
+>
 
 /**
  * Work running since an earlier day asks when the user stopped before an
@@ -30,6 +33,12 @@ const isClosed = (task: TaskLike) =>
   task.status === ProgressStatus.COMPLETED ||
   task.status === ProgressStatus.CANCELLED
 
+/**
+ * A recurring task's work is its occurrences, started from the Next task
+ * card or the day view; the task itself only completes or cancels.
+ */
+const isWorkable = (task: TaskLike) => !task.is_recurring
+
 /** Lifecycle actions for a task: start, pause, complete, cancel. */
 export const useTaskActions = <T extends TaskLike>(): EntityAction<T>[] => [
   {
@@ -38,7 +47,9 @@ export const useTaskActions = <T extends TaskLike>(): EntityAction<T>[] => [
     icon: Play,
     run: (task) => startTask(task.id),
     isVisible: (task) =>
-      !isClosed(task) && task.status !== ProgressStatus.IN_PROGRESS,
+      isWorkable(task) &&
+      !isClosed(task) &&
+      task.status !== ProgressStatus.IN_PROGRESS,
   },
   {
     id: 'pause',
@@ -47,7 +58,8 @@ export const useTaskActions = <T extends TaskLike>(): EntityAction<T>[] => [
     variant: 'outline',
     run: (task) =>
       askedOvernight(task, 'pause') ? undefined : pauseTask(task.id),
-    isVisible: (task) => task.status === ProgressStatus.IN_PROGRESS,
+    isVisible: (task) =>
+      isWorkable(task) && task.status === ProgressStatus.IN_PROGRESS,
   },
   {
     id: 'complete',

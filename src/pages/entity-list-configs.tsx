@@ -34,6 +34,7 @@ import { getPriorityIcon } from '@/components/ui/custom/PriorityView'
 import TagsView from '@/components/ui/custom/TagsView'
 import UrlView from '@/components/ui/custom/UrlView'
 import { ItemProgress } from '@/components/ui/custom/item-progress'
+import { Badge } from '@/components/ui/badge'
 import { useCompleteAction } from '@/lib/entityActions/useCompleteAction'
 
 type WithStatus = { status?: ProgressStatus | null }
@@ -114,15 +115,11 @@ export const projectsList: EntityListConfig<HydratedProject> = {
       />
       <ItemProgress item={row} />
       {row.status === ProgressStatus.COMPLETED ? (
-        <>
-          <DateMeta label="Completed" millis={row.completed_at} />
-          <SpentTimeMeta millis={row.spent_minutes} />
-        </>
+        <DateMeta label="Completed" millis={row.completed_at} />
       ) : (
-        <>
-          <DateMeta label="Due" millis={row.due_date} />
-        </>
+        <DateMeta label="Due" millis={row.due_date} />
       )}
+      <SpentTimeMeta minutes={row.spent_minutes} />
       {row.tags && <TagsView tags={row.tags} />}
     </>
   ),
@@ -135,7 +132,12 @@ export const areasList: EntityListConfig<HydratedArea> = {
   kind: 'areas',
   title: 'Areas',
   icon: GitGraph,
-  renderMeta: (row) => row.tags && <TagsView tags={row.tags} />,
+  renderMeta: (row) => (
+    <>
+      <SpentTimeMeta minutes={row.spent_minutes} />
+      {row.tags && <TagsView tags={row.tags} />}
+    </>
+  ),
   filters: [priorityFilter],
   sorts: [titleSort, prioritySort, updatedSort],
   initialSort,
@@ -151,15 +153,11 @@ export const goalsList: EntityListConfig<HydratedGoal> = {
       <EntityRefs refs={[row.area && { ...row.area, kind: 'areas' }]} />
       <ItemProgress item={row} />
       {row.status === ProgressStatus.COMPLETED ? (
-        <>
-          <DateMeta label="Completed" millis={row.completed_at} />
-          <SpentTimeMeta millis={row.spent_minutes} />
-        </>
+        <DateMeta label="Completed" millis={row.completed_at} />
       ) : (
-        <>
-          <DateMeta label="Due" millis={row.due_date} />
-        </>
+        <DateMeta label="Due" millis={row.due_date} />
       )}
+      <SpentTimeMeta minutes={row.spent_minutes} />
       {row.tags && <TagsView tags={row.tags} />}
     </>
   ),
@@ -183,11 +181,12 @@ export const tasksList: EntityListConfig<HydratedTask> = {
           row.goal && { ...row.goal, kind: 'goals' },
         ]}
       />
+      {row.is_recurring && <Badge variant="outline">Recurring</Badge>}
       <TaskFlags task={row} />
       {row.status === ProgressStatus.COMPLETED ? (
         <>
           <DateMeta label="Completed" millis={row.completed_at} />
-          <SpentTimeMeta millis={row.spent_minutes} />
+          <SpentTimeMeta minutes={row.spent_minutes} />
         </>
       ) : (
         <>

@@ -30,14 +30,12 @@ import {
   junctionTags,
   junctionUrls,
 } from '@d/database/schemas'
-import type {
-  EntityCollectionKind,
-  EntryKind,
-} from '@c/workflows/contracts'
+import type { EntityCollectionKind, EntryKind } from '@c/workflows/contracts'
 import {
   COLLECTION_PAGE_LIMIT,
   type CollectionListItems,
   type CollectionListOptions,
+  type CollectionSource,
   type ContainerDetail,
   type EntityReference,
   type ReadContainerKind,
@@ -69,6 +67,48 @@ const tables = {
 const statusColumns: Partial<Record<EntityCollectionKind, AnyColumn>> = {
   projects: projects.status,
   goals: goals.status,
+}
+
+/** The projects or goals a source holds; see `CollectionSource`. */
+function sourceMembers(
+  db: Awaited<ReturnType<UnHussleDB['getDb']>>,
+  kind: EntityCollectionKind,
+  source: CollectionSource,
+) {
+  const tagged = db
+    .select({ id: junctionTags.attachedToId })
+    .from(junctionTags)
+    .where(eq(junctionTags.refId, source.id))
+  if (kind === 'projects')
+    switch (source.kind) {
+      case 'projects':
+        return eq(projects.id, source.id)
+      case 'goals':
+        return eq(projects.goal_id, source.id)
+      case 'areas':
+        return or(
+          eq(projects.area_id, source.id),
+          inArray(
+            projects.goal_id,
+            db
+              .select({ id: goals.id })
+              .from(goals)
+              .where(eq(goals.area_id, source.id)),
+          ),
+        )
+      case 'tags':
+        return inArray(projects.id, tagged)
+    }
+  switch (source.kind) {
+    case 'projects':
+      return sql`0`
+    case 'goals':
+      return eq(goals.id, source.id)
+    case 'areas':
+      return eq(goals.area_id, source.id)
+    case 'tags':
+      return inArray(goals.id, tagged)
+  }
 }
 
 /** Represents an error raised when input cannot be read. */
@@ -184,12 +224,23 @@ export class ReadModelsRepository {
     const statusColumn = statusColumns[kind]
     if (options.status !== undefined) {
       if (!statusColumn) throw new ReadInputError(`${kind} have no status`)
-      if (!Object.values(ProgressStatus).includes(options.status as ProgressStatus))
+      if (
+        !Object.values(ProgressStatus).includes(
+          options.status as ProgressStatus,
+        )
+      )
         throw new ReadInputError('Unknown status')
     }
 
+    if (options.sources && kind === 'areas')
+      throw new ReadInputError('Areas have no sources')
     const table = tables[kind]
     const where = and(
+      options.sources
+        ? or(
+            ...options.sources.map((source) => sourceMembers(db, kind, source)),
+          )
+        : undefined,
       options.q
         ? or(
             like(table.title, `%${options.q}%`),

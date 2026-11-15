@@ -1,4 +1,4 @@
-import type { CountProgress, ProgressStatus } from 'unhussle/frontend'
+import type { CountProgress, Priority, ProgressStatus } from 'unhussle/frontend'
 
 /** The tracker's key in an item's `custom_data`: its extension ID. */
 export const TRACKER_KEY = 'tracker'
@@ -10,38 +10,54 @@ export const KIND_LABELS: Record<ItemKind, string> = {
   goals: 'Goal',
 }
 
-/** What the tracker saves under `custom_data.tracker`. */
-export type TrackerData = { type: string; rating?: number; summary?: string }
+/** What Finish saves under `custom_data.tracker`, shared by every tracker. */
+export type TrackerData = { rating?: number; summary?: string }
 
-/** A tracked project or goal, the same shape for both. */
-export type TrackedItem = CountProgress & {
+/** A project or goal on a tracker, the same shape for both. */
+export type TrackerItem = CountProgress & {
   kind: ItemKind
   id: string
   title: string
   status: ProgressStatus | null
+  priority: Priority | null
+  due_date: number | null
+  created_at: number
+  updated_at: number
   completed_at: number | null
+  /** Tracked time spent here, in minutes. */
+  spent_minutes: number | null
+  /** What a handoff stays within: a project's goal, a goal's area. */
+  parentId: string | null
+  tagIds: string[]
   custom_data: Record<string, unknown> | null
   tracker: TrackerData
 }
 
-type Row = Omit<TrackedItem, 'kind' | 'tracker'>
+type Row = Omit<TrackerItem, 'kind' | 'parentId' | 'tagIds' | 'tracker'> & {
+  area_id: string | null
+  goal_id?: string | null
+  tags?: { id: string }[]
+}
 
-/** Reads a row's tracker data; a malformed one shows as an unknown type. */
-export function toTrackedItem(kind: ItemKind, row: Row): TrackedItem {
-  const data = row.custom_data?.[TRACKER_KEY] as Partial<TrackerData> | undefined
+/** Reads a project or goal row; malformed tracker data is left out. */
+export function toTrackerItem(kind: ItemKind, row: Row): TrackerItem {
+  const { area_id, goal_id, tags, ...rest } = row
+  const data = row.custom_data?.[TRACKER_KEY] as
+    Partial<TrackerData> | undefined
   return {
-    ...row,
+    ...rest,
     kind,
+    parentId: (kind === 'projects' ? goal_id : area_id) ?? null,
+    tagIds: (tags ?? []).map(({ id }) => id),
     tracker: {
-      type: typeof data?.type === 'string' ? data.type : '',
       rating: typeof data?.rating === 'number' ? data.rating : undefined,
       summary: typeof data?.summary === 'string' ? data.summary : undefined,
     },
   }
 }
 
-/** Unique across projects and goals, which may share IDs' shapes. */
-export const itemKey = ({ kind, id }: Pick<TrackedItem, 'kind' | 'id'>) =>
+/** Unique across projects and goals. */
+export const itemKey = ({ kind, id }: Pick<TrackerItem, 'kind' | 'id'>) =>
   `${kind}:${id}`
 
-export const isCounting = (item: TrackedItem) => item.progress_total !== null
+export const isCounting = (item: TrackerItem) => item.progress_total !== null

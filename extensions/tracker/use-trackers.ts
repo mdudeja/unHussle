@@ -1,16 +1,16 @@
 import { useCallback, useEffect, useState } from 'react'
 import { useTracker } from './api-context'
-import { parseTypes, type ItemType } from './item-types'
+import { parseTrackers, type Tracker } from './trackers'
 
-const TYPES_KEY = 'types'
+const TRACKERS_KEY = 'trackers'
 
 type State =
   | { status: 'loading' }
   | { status: 'error'; message: string }
-  | { status: 'ready'; types: ItemType[] }
+  | { status: 'ready'; trackers: Tracker[] }
 
-/** Item types saved in the extension's settings; the defaults until saved. */
-export function useItemTypes() {
+/** Trackers saved in the extension's settings. */
+export function useTrackers() {
   const { api } = useTracker()
   const [state, setState] = useState<State>({ status: 'loading' })
 
@@ -18,16 +18,17 @@ export function useItemTypes() {
     let current = true
     setState({ status: 'loading' })
     api.settings
-      .get(TYPES_KEY)
+      .get(TRACKERS_KEY)
       .then((value) => {
-        if (current) setState({ status: 'ready', types: parseTypes(value) })
+        if (current)
+          setState({ status: 'ready', trackers: parseTrackers(value) })
       })
       .catch((error: unknown) => {
-        api.log.error('Could not load item types', error)
+        api.log.error('Could not load trackers', error)
         if (current)
           setState({
             status: 'error',
-            message: 'Could not load your item types. Try again.',
+            message: 'Could not load your trackers. Try again.',
           })
       })
     return () => {
@@ -38,9 +39,9 @@ export function useItemTypes() {
   useEffect(load, [load])
 
   /** Saves the whole list; throws so the caller can show the failure. */
-  const save = async (types: ItemType[]) => {
-    await api.settings.set(TYPES_KEY, types)
-    setState({ status: 'ready', types })
+  const save = async (trackers: Tracker[]) => {
+    await api.settings.set(TRACKERS_KEY, trackers)
+    setState({ status: 'ready', trackers })
   }
 
   return { state, retry: load, save }

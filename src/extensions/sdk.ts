@@ -30,8 +30,11 @@ export type {
 } from '@c/extensions/sdk'
 export type { ContainerDetail, TaskListItem } from '@c/types/readModels'
 export { COLLECTION_PAGE_LIMIT } from '@c/types/readModels'
-export type { CollectionListOptions } from '@c/types/readModels'
-export { ProgressInput, ProgressStatus } from '@c/types/enums'
+export type {
+  CollectionListOptions,
+  CollectionSource,
+} from '@c/types/readModels'
+export { Priority, ProgressInput, ProgressStatus } from '@c/types/enums'
 export type { CountProgress } from '@c/progress'
 
 export type ReadonlyData<T> = T extends object

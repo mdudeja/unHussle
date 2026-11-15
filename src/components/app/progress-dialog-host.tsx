@@ -116,7 +116,10 @@ const ProgressDialog = ({ prompt }: { prompt: ProgressPrompt }) => {
           <DialogHeader>
             <DialogTitle>Where did you get to?</DialogTitle>
             <DialogDescription>
-              Your time is saved. Adding where you got to is optional.
+              {fields.length
+                ? `Your time counts toward ${fields.map(({ item }) => item.title).join(' and ')}.`
+                : 'Your time is counted.'}{' '}
+              Adding where you got to is optional.
             </DialogDescription>
           </DialogHeader>
           {items.error ? (
@@ -188,7 +191,8 @@ const ProgressField = ({
   return (
     <section className="flex flex-col gap-2">
       <Label htmlFor={id}>
-        {item.title}: {position ? 'how far did you get?' : 'how much did you do?'}
+        {item.title}:{' '}
+        {position ? 'how far did you get?' : 'how much did you do?'}
       </Label>
       <div className="flex items-center gap-2">
         <Input

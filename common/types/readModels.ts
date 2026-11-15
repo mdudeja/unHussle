@@ -29,6 +29,34 @@ export type ReadContainerKind = 'projects' | 'areas' | 'goals' | 'tags' | 'urls'
 
 /** The most collections one page returns. */
 export const COLLECTION_PAGE_LIMIT = 100
+/** Where collections come from: an item and what it holds, or a tag. */
+export const COLLECTION_SOURCE_KINDS = [
+  'projects',
+  'areas',
+  'goals',
+  'tags',
+] as const
+export type CollectionSource = {
+  kind: (typeof COLLECTION_SOURCE_KINDS)[number]
+  id: string
+}
+
+/** Sources in a query string: `kind:id` pairs, comma-separated. */
+export const encodeSources = (sources: CollectionSource[]) =>
+  sources.map(({ kind, id }) => `${kind}:${id}`).join(',')
+/** The sources a query string holds, or `null` when one is malformed. */
+export function decodeSources(text: string): CollectionSource[] | null {
+  const sources = text.split(',').map((pair) => {
+    const [kind, id] = pair.split(':')
+    return { kind, id } as CollectionSource
+  })
+  return sources.every(
+    ({ kind, id }) => COLLECTION_SOURCE_KINDS.includes(kind) && Boolean(id),
+  )
+    ? sources
+    : null
+}
+
 /** Filters for a page of projects, areas or goals. */
 export type CollectionListOptions = {
   /** Title or tag match. */
@@ -37,6 +65,12 @@ export type CollectionListOptions = {
   status?: string
   /** Holds `custom_data[customKey]`, such as an extension's ID. */
   customKey?: string
+  /**
+   * Projects or goals in any of these. A project is itself; a goal is
+   * itself and its projects; an area is its goals and projects, including
+   * its goals' projects; a tag is the projects and goals tagged with it.
+   */
+  sources?: CollectionSource[]
   cursor?: string
   limit?: number
 }

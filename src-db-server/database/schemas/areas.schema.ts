@@ -1,4 +1,4 @@
-import { index, sqliteTable, unique } from 'drizzle-orm/sqlite-core'
+import { index, integer, sqliteTable, unique } from 'drizzle-orm/sqlite-core'
 import { relations } from 'drizzle-orm'
 import { entityCollectionSchema } from './common.schema'
 import type { EntityCollection, InferTableTypes } from '@c/types/index'
@@ -13,6 +13,7 @@ export const areas = sqliteTable(
   'areas',
   {
     ...entityCollectionSchema,
+    spent_minutes: integer({ mode: 'number' }),
   },
   (table) => [
     index('areas_title_idx').on(table.title),

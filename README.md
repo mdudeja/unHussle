@@ -155,7 +155,13 @@ and pages, plus a create button. The list's search, filters, sort and page are
 kept in the URL, so refresh and Back return to the same view.
 
 Each row has a menu with **Edit** and **Delete**. Tasks also show **Start** or
-**Pause** on the row, with **Complete** and **Cancel** in the menu. **Select**
+**Pause** on the row, with **Complete** and **Cancel** in the menu. Recurring
+tasks are marked **Recurring** and have no Start or Pause: you start each
+day's occurrence from the Next task card or the day view.
+
+Projects, areas and goals show **Spent**: the tracked time of the tasks they
+hold, counted as each stretch of work ends. Time stays where it was spent, so
+moving a task to another project later doesn't move its past time. **Select**
 lets you tick rows on the current page and delete them together.
 
 Clicking a title opens that item's page: its details, its actions and, for
@@ -671,26 +677,26 @@ one stage for each. Paused tasks show under in-progress stages.
 
 ### Progress tracker
 
-The built-in **Progress tracker** shows books, courses, lecture series and
-anything else you track on one board: Planned, In progress and Completed. It
-needs Kanban, so Preferences offers to turn Kanban on too.
+The built-in **Progress tracker** shows the projects and goals you're working
+through, such as books or courses, as a board: Planned, In progress and
+Completed. It needs Kanban, so Preferences offers to turn Kanban on too. It
+only reads and updates existing projects and goals; it never creates any.
 
-- **Track something** adds a project (one thing to finish, such as Dune) or a
-  goal (a target, such as 1000 pages this month). Give it a type, an optional
-  total, and the tasks that count for it, such as a daily "Read". With a
-  total, **Record** sets what you enter after each session: where you got to,
-  or how much you did. Goals start with how much you did; projects take their
-  type's choice.
-- With a total, the card shows the count ("140 / 350 pages"), recorded each
-  time you complete one of its tasks. Without one, it shows its finished
-  tasks, such as one task per lecture.
-- **Finish** saves an optional rating and summary, and can hand a recurring task
-  on to the next planned item of the same type. Dragging a card to Completed
-  asks the same.
-- **Edit types** changes the types, their unit and how progress is
-  recorded. Search and filters by type and by project or goal show as
-  removable chips.
-- **Stop tracking** takes an item off the board; the project or goal stays.
+- **New tracker** asks for a name, what it tracks (books, courses or lecture
+  series), and its sources: projects, areas, goals or tags. A project is
+  itself; a goal is itself and its projects; an area is its goals and
+  projects; a tag is the projects and goals tagged with it. Sources update
+  live, so a new project in a source area appears on its own. You can have
+  several trackers, such as one for reading and one for courses.
+- A card shows the item's count ("140 / 350 pages") when it counts units.
+  Otherwise it shows finished tasks in the tracker's unit ("4 / 12
+  lectures").
+- **Finish**, or dragging a card to Completed, saves an optional rating and
+  summary. If the item has a recurring task, such as a daily "Read", it
+  offers to hand it to the next planned item on the tracker: for a project,
+  one under the same goal (or sharing a tag if it has none); for a goal, one
+  in the same area (or sharing a tag). The soonest due comes first.
+- Search and a project/goal filter show as removable chips.
 
 ## Frontend (`src/`)
 

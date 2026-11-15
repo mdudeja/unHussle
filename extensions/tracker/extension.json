@@ -2,7 +2,7 @@
   "id": "tracker",
   "name": "Progress tracker",
   "version": "1.0.0",
-  "description": "Tracks books, courses, lecture series and more, as projects or goals on a board.",
+  "description": "Boards of the books, courses and lecture series in your projects, areas, goals and tags.",
   "frontend": "frontend.tsx",
   "requires": ["kanban"]
 }
