@@ -16,6 +16,7 @@ import {
 import { Project, WithSupporters } from '@c/types/index'
 import type { FieldConfig, FieldOption } from '../types'
 import { priorityOptions, statusOptions } from '../utils'
+import { createCountProgressFields } from './progressFields'
 
 /**
  * Builds the field config for a project. Relation fields (area/goal) are passed
@@ -94,6 +95,7 @@ export const createProjectFields = ({
       placeholder: 'No due date',
       icon: Calendar,
     },
+    ...createCountProgressFields<WithSupporters<Project['Write']>>(),
     {
       name: 'color',
       label: 'Color',

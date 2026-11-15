@@ -1,5 +1,10 @@
 import { createId } from '@paralleldrive/cuid2'
-import { AnchorType, Priority, ProgressStatus } from '@c/types/enums'
+import {
+  AnchorType,
+  Priority,
+  ProgressInput,
+  ProgressStatus,
+} from '@c/types/enums'
 import * as t from 'drizzle-orm/sqlite-core'
 import { getNowMillis } from '@c/datetimeUtils'
 
@@ -32,6 +37,14 @@ export const prioritySchema = {
 
 export const statusSchema = {
   status: customEnum<ProgressStatus>('status').default(ProgressStatus.PLANNED),
+}
+
+/** Count progress for projects and goals; it counts once it has a total. */
+export const countProgressSchema = {
+  progress_done: t.integer({ mode: 'number' }).notNull().default(0),
+  progress_total: t.integer({ mode: 'number' }),
+  progress_unit: t.text(),
+  progress_input: customEnum<ProgressInput>('progress_input'),
 }
 
 export const anchorTypeSchema = {

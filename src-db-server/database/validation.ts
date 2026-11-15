@@ -13,9 +13,16 @@ import {
   schedulerSettings,
   schedulingOverrides,
   taskOccurrences,
+  progressSessions,
 } from '@d/database/schemas/index'
 import { t } from 'elysia'
-import { AnchorType, ProgressStatus, Priority } from '@c/types/enums'
+import {
+  AnchorType,
+  ProgressInput,
+  ProgressStatus,
+  Priority,
+} from '@c/types/enums'
+import { PROGRESS_UNIT_MAX_LENGTH } from '@c/progress'
 import {
   adjustActions,
   dayModeChanges,
@@ -152,12 +159,26 @@ export const insertAreaSchema = Type.Object({
 export const updateAreaSchema = t.Partial(insertAreaSchema)
 export const selectAreaBaseSchema = createSelectSchema(areas)
 
+// Count progress; the domain checks that the fields fit together.
+const countProgressFields = {
+  progress_done: t.Optional(t.Integer({ minimum: 0 })),
+  progress_total: t.Optional(t.Union([t.Integer({ minimum: 1 }), t.Null()])),
+  progress_unit: t.Optional(
+    t.Union([
+      t.String({ minLength: 1, maxLength: PROGRESS_UNIT_MAX_LENGTH }),
+      t.Null(),
+    ]),
+  ),
+  progress_input: t.Optional(t.Union([t.Enum(ProgressInput), t.Null()])),
+}
+
 // Goals
 export const insertGoalSchema = Type.Object({
   ...createInsertSchema(goals, {
     status: t.Optional(t.Enum(ProgressStatus)),
     priority: t.Optional(t.Enum(Priority)),
     custom_data: customDataSchema,
+    ...countProgressFields,
   }).properties,
   ...attachmentsSchema,
 })
@@ -170,6 +191,7 @@ export const insertProjectSchema = Type.Object({
     status: t.Optional(t.Enum(ProgressStatus)),
     priority: t.Optional(t.Enum(Priority)),
     custom_data: customDataSchema,
+    ...countProgressFields,
   }).properties,
   ...attachmentsSchema,
 })
@@ -368,6 +390,17 @@ export const adjustPlanSchema = t.Object({
   action: t.UnionEnum(adjustActions),
   until: t.Optional(insertOverrideSchema.properties.availableDate),
   position: t.Optional(selectPlanItemSchema.properties.position),
+})
+export const selectProgressSessionSchema = createSelectSchema(progressSessions)
+export const logProgressSchema = t.Object({
+  values: t.Array(
+    t.Object({
+      sessionId: selectProgressSessionSchema.properties.id,
+      // Negative amounts undo a project's correction in the goal that follows it.
+      value: t.Integer(),
+    }),
+    { minItems: 1 },
+  ),
 })
 export const stopTrackingSchema = t.Object({
   taskId: selectTimeEntriesSchema.properties.task_id,

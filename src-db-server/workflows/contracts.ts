@@ -12,6 +12,8 @@ export type CommandAction =
   | 'updateRow'
   | 'validateTask'
   | 'trackTaskInterval'
+  | 'recordTaskProgress'
+  | 'validateCountProgress'
   | 'markPlansStale'
   | 'syncPlanMembership'
   | 'deleteRow'

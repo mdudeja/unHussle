@@ -24,6 +24,8 @@ export const schedulerHandlerRegistry: Record<
   'scheduler.occurrence.transition': [
     'transitionOccurrence',
     'trackOccurrenceInterval',
+    'recordOccurrenceProgress',
   ],
   'scheduler.tracking.stop': ['stopTracking'],
+  'scheduler.progress.log': ['logProgress'],
 }

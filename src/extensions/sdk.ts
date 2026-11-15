@@ -26,7 +26,8 @@ export type {
   WorkflowDefinition,
 } from '@c/extensions/sdk'
 export type { ContainerDetail, TaskListItem } from '@c/types/readModels'
-export { ProgressStatus } from '@c/types/enums'
+export { ProgressInput, ProgressStatus } from '@c/types/enums'
+export type { CountProgress } from '@c/progress'
 
 export type ReadonlyData<T> = T extends object
   ? { readonly [K in keyof T]: ReadonlyData<T[K]> }

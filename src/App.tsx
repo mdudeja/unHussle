@@ -14,6 +14,7 @@ import {
   EntityEditDialogHost,
   HotkeyNoticeHost,
   OvernightDialogHost,
+  ProgressDialogHost,
 } from '@/components/app'
 import { Logger } from '@c/Logger'
 import { WorkflowInspector } from '@/components/dev/WorkflowInspector'
@@ -59,6 +60,7 @@ function App() {
           <Outlet />
           <EntityEditDialogHost />
           <OvernightDialogHost />
+          <ProgressDialogHost />
           <HotkeyNoticeHost />
           {import.meta.env.DEV && <WorkflowInspector />}
         </SidebarInset>

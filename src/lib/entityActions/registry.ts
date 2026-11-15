@@ -1,6 +1,7 @@
 import { getResourceRoute } from '@/lib/entityRoutes'
 import { Priority, ProgressStatus } from '@c/types/enums'
 import { resolveTaskSchedule } from '@c/taskSchedule'
+import { resolveCountProgress } from '@/components/ui/custom/entityForms/configs/progressFields'
 import { StoreState } from '@/store'
 import {
   createAreaFields,
@@ -81,6 +82,7 @@ export const entityRegistry: Record<EntityKind, EntityRegistryEntry> = {
     createFields: ({ areas, goals }) =>
       createProjectFields({ areas: areas.data, goals: goals.data }),
     formDefaults: statusDefaults,
+    transformValues: resolveCountProgress,
   },
   areas: {
     createDefaults: { priority: Priority.MEDIUM },
@@ -97,6 +99,7 @@ export const entityRegistry: Record<EntityKind, EntityRegistryEntry> = {
     selectSlice: (state) => state.goals,
     createFields: ({ areas }) => createGoalFields({ areas: areas.data }),
     formDefaults: statusDefaults,
+    transformValues: resolveCountProgress,
   },
   tags: {
     createDescription: 'Add a new tag to label your tasks.',

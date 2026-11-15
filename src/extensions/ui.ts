@@ -52,6 +52,7 @@ export {
   SelectTrigger,
   SelectValue,
 } from '@/components/ui/select'
+export { ItemProgress } from '@/components/ui/custom/item-progress'
 export {
   EntityRefsInput,
   type EntityRef,

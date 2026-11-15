@@ -22,3 +22,9 @@ export enum AnchorType {
   any_before = 'any_before',
   any_after = 'any_after',
 }
+
+/** How progress is recorded: the position reached, or the amount done. */
+export enum ProgressInput {
+  POSITION = 'position',
+  AMOUNT = 'amount',
+}

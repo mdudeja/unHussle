@@ -7,6 +7,7 @@ import type {
   SchedulerDayPlan,
   TaskOccurrence,
   TimeEntry,
+  ProgressSession,
 } from '@c/types'
 
 export const scheduleCues = ['fresh', 'break', 'wrap', 'more'] as const
@@ -135,6 +136,15 @@ export type DayModeChange = (typeof dayModeChanges)[number]
 
 export const adjustActions = ['later', 'defer', 'pin', 'move'] as const
 export type AdjustAction = (typeof adjustActions)[number]
+/** Kinds that can count progress; areas never end, so they don't. */
+export type ProgressItemKind = 'projects' | 'goals'
+/** A session saved when completed work fed a counting project or goal. */
+export type RecordedProgressSession = {
+  id: string
+  kind: ProgressItemKind
+  itemId: string
+}
+
 export type SchedulerCommands = {
   'scheduler.generate': { input: PlanInput; result: DayPlan }
   'scheduler.replan': {
@@ -176,6 +186,14 @@ export type SchedulerCommands = {
     }
     result: TimeEntry['Read']
   }
+  /** Records the position reached or amount done for recorded sessions. */
+  'scheduler.progress.log': {
+    input: {
+      values: { sessionId: string; value: number }[]
+      operationId?: string
+    }
+    result: ProgressSession['Read'][]
+  }
 }
 export type SchedulerEvent = {
   operationId: string
@@ -188,6 +206,10 @@ export type SchedulerEvents = {
   'scheduler.settings.changed': SchedulerEvent
   'scheduler.occurrence.changed': SchedulerEvent
   'scheduler.tracking.stopped': SchedulerEvent
+  'scheduler.progress.recorded': SchedulerEvent & {
+    sessions: RecordedProgressSession[]
+  }
+  'scheduler.progress.logged': SchedulerEvent
 }
 
 /** The event each scheduler command publishes after it commits. */
@@ -199,6 +221,7 @@ export const schedulerCommandEvents = {
   'scheduler.settings.change': 'scheduler.settings.changed',
   'scheduler.occurrence.transition': 'scheduler.occurrence.changed',
   'scheduler.tracking.stop': 'scheduler.tracking.stopped',
+  'scheduler.progress.log': 'scheduler.progress.logged',
 } as const satisfies Record<keyof SchedulerCommands, keyof SchedulerEvents>
 
 export const schedulerCommandNames = Object.keys(

@@ -30,6 +30,7 @@ import {
   stopTracking,
   announceTaskChanges,
 } from '@d/domain/tasks'
+import { logProgress, recordOccurrenceProgress } from '@d/domain/progress'
 import type { PublicationContext } from './contracts'
 import {
   ScheduleConflict,
@@ -97,6 +98,8 @@ export type SchedulerActionName =
   | 'transitionOccurrence'
   | 'trackOccurrenceInterval'
   | 'stopTracking'
+  | 'recordOccurrenceProgress'
+  | 'logProgress'
 
 /** Synchronous; runs inside the command's transaction. */
 export type SchedulerAction = (
@@ -114,7 +117,8 @@ function dayRequest(state: SchedulerState): DayRequest['input'] {
   if (
     state.command === 'scheduler.settings.change' ||
     state.command === 'scheduler.occurrence.transition' ||
-    state.command === 'scheduler.tracking.stop'
+    state.command === 'scheduler.tracking.stop' ||
+    state.command === 'scheduler.progress.log'
   )
     throw new Error(`${state.command} does not plan a day`)
   return state.input
@@ -357,6 +361,19 @@ export const schedulerActions: {
       state.now,
       state.publication,
     )
+  },
+
+  recordOccurrenceProgress: (_name, state, { tx }) => {
+    if (state.command !== 'scheduler.occurrence.transition')
+      throw new Error('recordOccurrenceProgress only handles occurrences')
+    const { id, status } = state.input
+    recordOccurrenceProgress(tx, id, status, state.publication)
+  },
+
+  logProgress: (_name, state, { tx }) => {
+    if (state.command !== 'scheduler.progress.log')
+      throw new Error('logProgress only handles progress')
+    state.result = logProgress(tx, state.input.values, state.publication)
   },
 
   // The user says when they actually stopped, e.g. after a night away.

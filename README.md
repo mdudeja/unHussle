@@ -35,6 +35,23 @@ It works fully offline. All data lives in a SQLite database on your machine.
 On first start, unHussle creates a few example areas and goals with their own
 tags. One of them is the **Brain Dump** area, where uncategorised captures go.
 
+### Counting progress
+
+A project or goal can count progress, such as "350 pages" for a book or "1000
+pages" for a monthly reading goal. Set **Count progress up to**, a **Unit**,
+and what you **Record**: where you got to (a page) or how much you did (pages
+read). Areas don't count, because they never end.
+
+- Completing a task in a counting project or goal saves a session with the
+  time you spent. A task counts for its project, and for its own goal or else
+  its project's goal.
+- A recurring task, such as a daily "Read", saves a session each time you
+  complete it. Point it at the next book's project to keep the habit going.
+- After completing, a dialog asks **Where did you get to?** Entering a number
+  is optional; **Skip** keeps the session. A goal with the same unit as its
+  project follows the project, so you're only asked once.
+- Lists and item pages show the count, such as "140 / 350 pages".
+
 ### Next task (home)
 
 The home screen shows a single card: the task to do now.
@@ -304,6 +321,7 @@ read their code.
 | Collections | `projects`, `areas`, `goals`                                                                | Projects → area, goal. Goals → area. Derived `count_tasks` / `count_resources`.                                                                                             |
 | Supporters  | `tags`, `urls`, `time_entries`                                                              | Attached through junction tables (`attachedToId` → owner, `refId` → supporter). Derived `count_tasks` / `count_resources` / `count_pga`.                                    |
 | Scheduler   | `day_plans`, `plan_items`, `task_occurrences`, `scheduling_overrides`, `scheduler_settings` | Saved stacks per `timezone:date` with their day mode (`break_started_at`, `wrap_reason`, `auto_wrap`), recurring occurrences (`taskId:date:slot`), deferrals, and settings. |
+| Progress    | `progress_sessions`                                                                         | One row per completed task or occurrence that fed a counting project or goal (`progress_*` columns), with its minutes and the units added.                                  |
 
 Shared row types (`Read` / `Write` / `Update`) and hydrated shapes live in
 `common/types`. List reads include table projections and reference labels. Flat edit reads include direct attachments; task history stays in task detail reads.

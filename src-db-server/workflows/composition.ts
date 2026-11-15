@@ -16,6 +16,8 @@ import {
   schedulerSettingsSchema,
   transitionOccurrenceSchema,
   stopTrackingSchema,
+  logProgressSchema,
+  selectProgressSessionSchema,
   selectDayPlanSchema,
   selectOccurrenceSchema,
   selectTimeEntriesSchema,
@@ -51,6 +53,10 @@ export const stateCommandSchemas: Record<
   'scheduler.tracking.stop': {
     input: stopTrackingSchema,
     output: selectTimeEntriesSchema,
+  },
+  'scheduler.progress.log': {
+    input: logProgressSchema,
+    output: Type.Array(selectProgressSessionSchema),
   },
   'resource.content.save': {
     input: Type.Object({

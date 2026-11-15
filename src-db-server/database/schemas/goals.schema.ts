@@ -7,7 +7,11 @@ import {
   text,
 } from 'drizzle-orm/sqlite-core'
 import { relations } from 'drizzle-orm'
-import { entityCollectionSchema, statusSchema } from './common.schema'
+import {
+  countProgressSchema,
+  entityCollectionSchema,
+  statusSchema,
+} from './common.schema'
 import type { EntityCollection, InferTableTypes } from '@c/types/index'
 import { tasks } from './tasks.schema'
 import { junctionResources } from './junction.resources.schema'
@@ -26,6 +30,7 @@ export const goals = sqliteTable(
     progress: real().notNull().default(0),
     completed_at: integer({ mode: 'number' }),
     spent_minutes: integer({ mode: 'number' }),
+    ...countProgressSchema,
   },
   (table) => [
     index('goals_title_idx').on(table.title),

@@ -6,7 +6,11 @@ import {
   unique,
 } from 'drizzle-orm/sqlite-core'
 import { relations } from 'drizzle-orm'
-import { entityCollectionSchema, statusSchema } from './common.schema'
+import {
+  countProgressSchema,
+  entityCollectionSchema,
+  statusSchema,
+} from './common.schema'
 import { goals } from './goals.schema'
 import { areas } from './areas.schema'
 import type { EntityCollection, InferTableTypes } from '@c/types/index'
@@ -25,6 +29,7 @@ export const projects = sqliteTable(
     due_date: integer({ mode: 'number' }),
     completed_at: integer({ mode: 'number' }),
     spent_minutes: integer({ mode: 'number' }),
+    ...countProgressSchema,
   },
   (table) => [
     index('projects_title_idx').on(table.title),

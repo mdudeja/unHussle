@@ -4,6 +4,7 @@ import { EntityRouteKey } from '@/lib/entityRoutes'
 import { StateCreator } from 'zustand'
 import { Logger } from '@c/Logger'
 import { ModifierKey, RefObject } from 'react'
+import type { RecordedProgressSession } from '@c/scheduler/contracts'
 
 // The entity shown in the global edit dialog (see EntityEditDialogHost).
 export type EditingEntity = { kind: EntityRouteKey; id: string }
@@ -16,6 +17,9 @@ export type OvernightPrompt = {
   startedAt: number
   then: 'pause' | 'complete' | 'cancel'
 }
+
+// Sessions waiting on "where did you get to?" (see ProgressDialogHost).
+export type ProgressPrompt = { sessions: RecordedProgressSession[] }
 
 export type HotkeyModifier = Extract<
   ModifierKey,
@@ -50,6 +54,10 @@ export interface UISlice {
   overnightPrompt: OvernightPrompt | null
   askOvernight: (prompt: OvernightPrompt) => void
   closeOvernight: () => void
+  /** Prompts wait in order, so quick completions each get theirs. */
+  progressPrompts: ProgressPrompt[]
+  askProgress: (prompt: ProgressPrompt) => void
+  closeProgress: () => void
   hotkeys: {
     registry: Map<string, Hotkey[]>
     addHotkey: (hotkey: Hotkey) => void
@@ -105,6 +113,11 @@ export const createUISlice: StateCreator<UISlice> = (set) => ({
   overnightPrompt: null,
   askOvernight: (prompt) => set({ overnightPrompt: prompt }),
   closeOvernight: () => set({ overnightPrompt: null }),
+  progressPrompts: [],
+  askProgress: (prompt) =>
+    set((state) => ({ progressPrompts: [...state.progressPrompts, prompt] })),
+  closeProgress: () =>
+    set((state) => ({ progressPrompts: state.progressPrompts.slice(1) })),
   hotkeys: {
     registry: new Map<string, Hotkey[]>(),
     // Re-adding an id replaces the old entry.

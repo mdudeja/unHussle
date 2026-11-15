@@ -17,6 +17,10 @@ import {
 } from '@d/domain/entries'
 import { validateTask, trackTaskTransition } from '@d/domain/tasks'
 import {
+  recordTaskProgress,
+  validateCountProgress,
+} from '@d/domain/progress'
+import {
   announceCollectionMembers,
   updateGoalProjectStatus,
   updateGoalProjectCompletionData,
@@ -86,6 +90,12 @@ export function createCommandActions<
     validateTask: action(({ tx }, input) => validateTask(tx, input)),
     trackTaskInterval: action(({ tx }, input, context) =>
       trackTaskTransition(tx, input, (context.now ?? getNowMillis)(), context),
+    ),
+    recordTaskProgress: action(({ tx }, input, context) =>
+      recordTaskProgress(tx, input, context),
+    ),
+    validateCountProgress: action(({ tx }, input) =>
+      validateCountProgress(tx, input),
     ),
     updateSupporters: action(({ tx }, input) => updateSupporters(tx, input)),
     deleteJunctions: action(({ tx }, input) =>

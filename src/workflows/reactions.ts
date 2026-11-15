@@ -62,6 +62,9 @@ export const schedulerEventDependencies: Record<
     'tasks',
     'time_entries',
   ],
+  // Sessions aren't read yet; recording one only opens the prompt.
+  'scheduler.progress.recorded': [],
+  'scheduler.progress.logged': ['projects', 'goals'],
 }
 
 /** Reads each vault event can change. */
@@ -171,6 +174,12 @@ export function createReactions<Context extends ReactionContext>() {
 
     stopTracking: async (_name, _event, context) => {
       await stopTracking(context)
+    },
+
+    askProgress: async (_name, event, context) => {
+      const { sessions } =
+        event as unknown as SchedulerEvents['scheduler.progress.recorded']
+      context.store.getState().askProgress({ sessions })
     },
   }
 

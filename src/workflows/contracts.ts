@@ -58,6 +58,7 @@ export type ReactionName =
   | 'refreshAnnounced'
   | 'stopTrackingIfDeleted'
   | 'stopTracking'
+  | 'askProgress'
   | 'syncTracking'
 
 /** Which reactions run, in order, for each event. Mirrors the backend `CommandHandlers`. */

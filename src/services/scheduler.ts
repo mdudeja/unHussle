@@ -29,6 +29,7 @@ const paths: Record<keyof SchedulerCommands, string> = {
   'scheduler.settings.change': 'settings',
   'scheduler.occurrence.transition': 'occurrence',
   'scheduler.tracking.stop': 'tracking/stop',
+  'scheduler.progress.log': 'progress',
 }
 /** Builds a URL for a scheduler endpoint on the local database server. */
 const url = (path: string) => apiAddress(`scheduler/${path}`)

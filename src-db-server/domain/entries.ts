@@ -4,6 +4,7 @@ import type { TableWithId } from '@d/database/repositories/BaseRepository'
 import * as tables from '@d/database/schemas'
 import { normalizeTagTitle } from './supporters'
 import { toUrlParts } from '@d/database/repositories/helpers'
+import { RuleError } from './errors'
 
 const entityTables: { [K in EntryKind]: TableWithId } = {
   tasks: tables.tasks,
@@ -68,12 +69,12 @@ const isObject = (value: unknown): value is CustomData =>
 function mergeCustomData(stored: unknown, changes: unknown) {
   if (changes === null) return null
   if (!isObject(changes))
-    throw new Error('Custom data must be a JSON object')
+    throw new RuleError('Custom data must be a JSON object')
   const merged: CustomData = isObject(stored) ? { ...stored } : {}
   for (const [key, value] of Object.entries(changes)) {
     if (value === null) delete merged[key]
     else if (isObject(value)) merged[key] = value
-    else throw new Error(`Custom data "${key}" must be a JSON object`)
+    else throw new RuleError(`Custom data "${key}" must be a JSON object`)
   }
   return merged
 }

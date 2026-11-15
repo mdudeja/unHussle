@@ -1,6 +1,6 @@
 import type { AnySQLiteTable } from 'drizzle-orm/sqlite-core'
 
-export { ProgressStatus, Priority, AnchorType } from './enums'
+export { ProgressStatus, Priority, AnchorType, ProgressInput } from './enums'
 
 export type InferTableTypes<B, T extends AnySQLiteTable> = {
   Parent: B
@@ -25,3 +25,4 @@ export type * from '@c/types/WithSupporters.type'
 export type { TaskOccurrence } from '@d/database/schemas/scheduler.occurrences.schema'
 export type { SchedulerDayPlan } from '@d/database/schemas/scheduler.dayplans.schema'
 export type { SchedulerPlanItem } from '@d/database/schemas/scheduler.planItems.schema'
+export type { ProgressSession } from '@d/database/schemas/progress.sessions.schema'

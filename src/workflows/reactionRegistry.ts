@@ -10,6 +10,8 @@ export const reactionRegistry: ReactionRegistry = {
   'scheduler.settings.changed': ['refreshSchedule'],
   'scheduler.occurrence.changed': ['refreshSchedule', 'syncTracking'],
   'scheduler.tracking.stopped': ['refreshSchedule', 'syncTracking'],
+  'scheduler.progress.recorded': ['askProgress'],
+  'scheduler.progress.logged': ['refreshSchedule'],
   'resource.content.changed': ['refreshVault'],
   'vault.changed': ['refreshVault'],
   'entity.add': [...changed],

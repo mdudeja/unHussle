@@ -267,7 +267,9 @@ the rest of the app:
   tags, tasks or resources)
 - `Link`, with `getEntityItemRoute(kind, id)` for an item's page
 - `openEntityEditor(kind, id)`, which opens the app's edit dialog
-- `ProgressStatus`, and the `TaskListItem` and `ContainerDetail` types
+- `ItemProgress`, which shows a counting project's or goal's progress
+- `ProgressStatus`, `ProgressInput`, and the `TaskListItem`,
+  `ContainerDetail` and `CountProgress` types
 - a few icons: `ArrowDown`, `ArrowUp`, `CheckCircle2`, `ChevronLeft`,
   `ChevronRight`, `Loader2`, `Pencil`, `Play`, `Plus`, `Trash2`
 
@@ -323,6 +325,12 @@ Each `register` and `on` call returns a function that undoes it.
 `kind` is one of `tasks`, `projects`, `goals`, `areas`, `resources`, `tags`,
 `urls` or `time_entries`. Frontend query results are copies, so changing
 them has no effect on the app.
+
+Count progress is part of the app, so every extension reads and shows the
+same values. Projects and goals have `progress_done`, `progress_total`,
+`progress_unit` and `progress_input`. Completing work saves a session and
+sends `scheduler.progress.recorded`; `execute('scheduler.progress.log', ...)`
+records the value for a session.
 
 ## Rules
 

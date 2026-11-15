@@ -33,6 +33,7 @@ import { getStatusIcon } from '@/components/ui/custom/StatusView'
 import { getPriorityIcon } from '@/components/ui/custom/PriorityView'
 import TagsView from '@/components/ui/custom/TagsView'
 import UrlView from '@/components/ui/custom/UrlView'
+import { ItemProgress } from '@/components/ui/custom/item-progress'
 import { useCompleteAction } from '@/lib/entityActions/useCompleteAction'
 
 type WithStatus = { status?: ProgressStatus | null }
@@ -111,6 +112,7 @@ export const projectsList: EntityListConfig<HydratedProject> = {
           row.goal && { ...row.goal, kind: 'goals' },
         ]}
       />
+      <ItemProgress item={row} />
       {row.status === ProgressStatus.COMPLETED ? (
         <>
           <DateMeta label="Completed" millis={row.completed_at} />
@@ -147,6 +149,7 @@ export const goalsList: EntityListConfig<HydratedGoal> = {
   renderMeta: (row) => (
     <>
       <EntityRefs refs={[row.area && { ...row.area, kind: 'areas' }]} />
+      <ItemProgress item={row} />
       {row.status === ProgressStatus.COMPLETED ? (
         <>
           <DateMeta label="Completed" millis={row.completed_at} />

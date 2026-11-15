@@ -25,6 +25,8 @@ import {
   selectOccurrenceSchema,
   selectTimeEntriesSchema,
   stopTrackingSchema,
+  logProgressSchema,
+  selectProgressSessionSchema,
   transitionOccurrenceSchema,
 } from '@d/database/validation'
 import { operationIdHeader, traceOf } from './telemetry'
@@ -187,6 +189,23 @@ export function createSchedulerRoutes(
           ),
         ),
       { body: stopTrackingSchema, response: selectTimeEntriesSchema },
+    )
+
+    .post(
+      '/progress',
+      async ({ body, headers, request }) =>
+        Value.Parse(
+          Type.Array(selectProgressSessionSchema),
+          await runtime.commands.execute(
+            'scheduler.progress.log',
+            { ...body, operationId: headers[operationIdHeader] },
+            traceOf(request),
+          ),
+        ),
+      {
+        body: logProgressSchema,
+        response: Type.Array(selectProgressSessionSchema),
+      },
     )
 }
 

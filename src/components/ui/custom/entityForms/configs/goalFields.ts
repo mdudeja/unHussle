@@ -14,6 +14,7 @@ import {
 import { Goal, WithSupporters } from '@c/types/index'
 import type { FieldConfig, FieldOption } from '../types'
 import { priorityOptions, statusOptions } from '../utils'
+import { createCountProgressFields } from './progressFields'
 
 /** Generates the field definitions for creating and editing a goal, covering the inputs needed to capture and manage its core information. */
 export const createGoalFields = ({
@@ -74,6 +75,7 @@ export const createGoalFields = ({
       placeholder: 'No due date',
       icon: Calendar,
     },
+    ...createCountProgressFields<WithSupporters<Goal['Write']>>(),
     {
       name: 'progress',
       label: 'Progress (%)',
@@ -83,6 +85,8 @@ export const createGoalFields = ({
       step: 1,
       placeholder: '0',
       icon: TrendingUp,
+      // A counted goal shows its count instead.
+      visibleWhen: (values) => values.progress_total == null,
     },
     {
       name: 'tags',

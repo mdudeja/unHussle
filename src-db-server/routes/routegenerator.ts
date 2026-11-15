@@ -2,6 +2,7 @@ import {
   ReadModelsRepository,
   ReadInputError,
 } from '@d/database/repositories/readModels'
+import { RuleError } from '@d/domain/errors'
 import { referencesQuerySchema, taskPageQuerySchema } from './readModels'
 import {
   entityReferenceSchema,
@@ -161,7 +162,8 @@ export const routeGenerator = <
       if (error instanceof VaultConflict) {
         return status(409, { message })
       }
-      if (error instanceof ReadInputError) return status(400, { message })
+      if (error instanceof ReadInputError || error instanceof RuleError)
+        return status(400, { message })
       if (code === 'VALIDATION')
         return status(422, { message: 'Invalid request parameters' })
       if (error instanceof VaultError) {

@@ -17,6 +17,7 @@ export const commandHandlerRegistry: CommandHandlers = {
     'updateRow',
     'validateTask',
     'trackTaskInterval',
+    'recordTaskProgress',
     'updateSupporters',
     'updateGoalProjectStatus',
     'updateResourceLinks',
@@ -50,6 +51,7 @@ export const commandHandlerRegistry: CommandHandlers = {
   ],
   'entityCollection.add': [
     'createRow',
+    'validateCountProgress',
     'updateSupporters',
     'updateResourceLinks',
     'updateSupporterCounts',
@@ -57,6 +59,7 @@ export const commandHandlerRegistry: CommandHandlers = {
   ],
   'entityCollection.change': [
     'updateRow',
+    'validateCountProgress',
     'updateSupporters',
     'updateResourceLinks',
     'updateSupporterCounts',
