@@ -243,6 +243,7 @@ To work on the frontend in a browser, run `bun run server` in one terminal and
 | Script                                    | Purpose                                                  |
 | ----------------------------------------- | -------------------------------------------------------- |
 | `bun run tauri dev` / `tauri build`       | Desktop app (dev / bundle)                               |
+| `bun run build:arch`                      | `tauri build`, then an Arch Linux package                |
 | `bun run dev`                             | Build the sidecar binary, then start the Vite dev server |
 | `bun run debug`                           | Vite only (no sidecar build)                             |
 | `bun run server` / `server:test`          | Run the API against `.env.local` / `.env.test`           |
@@ -264,6 +265,18 @@ Environment variables (see `.env.template`):
 | `DB_SERVER_BUILD_DIR`        | build    | Where `build:server` writes the sidecar binary                      |
 | `EXTENSIONS_DIR`             | both     | Where extensions are discovered (default: `extensions`)             |
 | `BUNDLED_EXTENSIONS_DIR`     | server   | Built-in extensions (set by the app; `./extensions` in development) |
+
+### Installing on Arch Linux
+
+`bun run build:arch` writes
+`src-tauri/target/release/bundle/arch/unhussle-<version>-1-x86_64.pkg.tar.zst`.
+Install it with `sudo pacman -U <that file>`.
+
+To uninstall, run `unhussle-uninstall` or open **Uninstall unHussle** from the
+app menu. It asks whether to delete your data in
+`~/.local/share/tech.exitcodenone.unhussle` and then runs `pacman -R`. A plain
+`pacman -R unhussle` cannot ask, so it always keeps your data. A vault folder
+you moved elsewhere is never deleted.
 
 ### Documentation
 

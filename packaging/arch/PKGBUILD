@@ -1,0 +1,19 @@
+#!/bin/bash
+# Repackages the .deb that `tauri build` creates. Run scripts/package-arch.sh.
+pkgname=unhussle
+pkgver=${UNHUSSLE_VERSION:?Run scripts/package-arch.sh instead of makepkg directly}
+pkgrel=1
+pkgdesc='Turns everything on your plate into one next task'
+arch=('x86_64')
+depends=('webkit2gtk-4.1' 'gtk3')
+# db-server is a bun-compiled binary; stripping deletes the code appended to it.
+options=('!strip' '!debug')
+install=unhussle.install
+source=("unhussle_${pkgver}_amd64.deb" 'unhussle-uninstall' 'unhussle-uninstall.desktop')
+sha256sums=('SKIP' 'SKIP' 'SKIP')
+
+package() {
+  bsdtar -xf data.tar.gz -C "$pkgdir"
+  install -Dm755 unhussle-uninstall "$pkgdir/usr/bin/unhussle-uninstall"
+  install -Dm644 unhussle-uninstall.desktop "$pkgdir/usr/share/applications/unhussle-uninstall.desktop"
+}

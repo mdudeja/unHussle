@@ -1,0 +1,8 @@
+[Desktop Entry]
+Type=Application
+Name=Uninstall unHussle
+Comment=Remove unHussle and, if you choose, your data
+Exec=unhussle-uninstall --pause
+Icon=unhussle
+Terminal=true
+Categories=System;

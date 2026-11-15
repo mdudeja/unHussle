@@ -1,0 +1,55 @@
+#!/usr/bin/env bash
+# Removes the unhussle package, then deletes the user's data if they agree.
+set -euo pipefail
+
+readonly PACKAGE=unhussle
+readonly DATA_DIR="${XDG_DATA_HOME:-$HOME/.local/share}/tech.exitcodenone.unhussle"
+
+ask() {
+  local answer
+  read -rp "$1 [y/N] " answer
+  [[ $answer =~ ^[Yy]$ ]]
+}
+
+uninstall() {
+  if [[ $EUID -eq 0 ]]; then
+    echo 'Run this as your own user, not as root, so it can find your data.' >&2
+    return 1
+  fi
+  if pgrep -x "$PACKAGE" >/dev/null; then
+    echo 'unHussle is still open. Close it, then try again.' >&2
+    return 1
+  fi
+  if ! ask 'Uninstall unHussle?'; then
+    echo 'Cancelled. Nothing was changed.'
+    return 0
+  fi
+
+  local clear_data=false
+  if [[ -d $DATA_DIR ]] && ask "Also delete your data in $DATA_DIR? This cannot be undone."; then
+    clear_data=true
+  fi
+
+  sudo pacman -R "$PACKAGE"
+
+  if $clear_data; then
+    rm -rf -- "$DATA_DIR"
+    echo 'unHussle and your data were removed.'
+  else
+    echo "unHussle was removed. Your data is still in $DATA_DIR."
+  fi
+}
+
+# The menu entry passes --pause so the terminal stays open to show the result.
+# Everything runs inside functions, which bash reads in full before pacman
+# deletes this file.
+main() {
+  local status=0
+  uninstall || status=$?
+  if [[ ${1:-} == --pause ]]; then
+    read -rp 'Press Enter to close.'
+  fi
+  return "$status"
+}
+
+main "$@"

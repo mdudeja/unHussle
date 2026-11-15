@@ -1,0 +1,5 @@
+# pacman cannot ask questions or reach each user's home, so it only explains.
+post_remove() {
+  echo 'unHussle kept your data in ~/.local/share/tech.exitcodenone.unhussle.'
+  echo 'Delete that folder to remove it.'
+}
