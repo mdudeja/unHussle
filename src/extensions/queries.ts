@@ -1,6 +1,10 @@
 import type { DomainQueries } from '@c/extensions/sdk'
 import type { EntryKind, EntryRecord } from '@c/workflows/contracts'
-import { fetchReferences, fetchContainerDetail } from '@/services/readModels'
+import {
+  fetchReferences,
+  fetchContainerDetail,
+  fetchCollections,
+} from '@/services/readModels'
 import { fetchTaskContext } from '@/services/taskContext'
 import {
   dependencies,
@@ -36,6 +40,10 @@ export function extensionQueries(
     container: (kind, id, options) =>
       read(`related:${kind}:${id}:${JSON.stringify(options ?? {})}`, kind, () =>
         fetchContainerDetail(kind, id, options),
+      ),
+    collections: (kind, options) =>
+      read(`collections:${kind}:${JSON.stringify(options ?? {})}`, kind, () =>
+        fetchCollections(kind, options),
       ),
     taskContext: (id) =>
       read(`context:tasks:${id}`, 'tasks', () => fetchTaskContext(id)),

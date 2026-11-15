@@ -15,6 +15,7 @@ import {
   inArray,
   like,
   or,
+  type AnyColumn,
 } from 'drizzle-orm'
 import type { UnHussleDB } from '@d/database/UnHussleDB'
 import {
@@ -29,14 +30,21 @@ import {
   junctionTags,
   junctionUrls,
 } from '@d/database/schemas'
-import type { EntryKind } from '@c/workflows/contracts'
 import type {
-  ContainerDetail,
-  EntityReference,
-  ReadContainerKind,
-  ReadPage,
-  TaskPageOptions,
+  EntityCollectionKind,
+  EntryKind,
+} from '@c/workflows/contracts'
+import {
+  COLLECTION_PAGE_LIMIT,
+  type CollectionListItems,
+  type CollectionListOptions,
+  type ContainerDetail,
+  type EntityReference,
+  type ReadContainerKind,
+  type ReadPage,
+  type TaskPageOptions,
 } from '@c/types/readModels'
+import { ID_PATTERN } from '@c/extensions/manifest'
 import { taskMembershipPredicate } from './taskMembership'
 import { TasksRepository } from './tasks'
 import {
@@ -57,6 +65,12 @@ const tables = {
   urls,
   time_entries: timeEntries,
 }
+// Areas never end, so they have no status.
+const statusColumns: Partial<Record<EntityCollectionKind, AnyColumn>> = {
+  projects: projects.status,
+  goals: goals.status,
+}
+
 /** Represents an error raised when input cannot be read. */
 export class ReadInputError extends Error {}
 
@@ -145,6 +159,75 @@ export class ReadModelsRepository {
       })),
       total,
       nextCursor: rows.length > limit ? selected[selected.length - 1].id : null,
+    }
+  }
+
+  /**
+   * A page of projects, areas or goals in ID order, as their list pages
+   * show them. A status filter on areas is refused rather than ignored.
+   */
+  async collections<K extends EntityCollectionKind>(
+    kind: K,
+    options: CollectionListOptions = {},
+  ): Promise<ReadPage<CollectionListItems[K]>> {
+    const db = await this.database.getDb()
+    const limit = options.limit ?? COLLECTION_PAGE_LIMIT
+    if (!Number.isInteger(limit) || limit < 1 || limit > COLLECTION_PAGE_LIMIT)
+      throw new ReadInputError(
+        `Limit must be between 1 and ${COLLECTION_PAGE_LIMIT}`,
+      )
+    if (
+      options.customKey !== undefined &&
+      !new RegExp(ID_PATTERN).test(options.customKey)
+    )
+      throw new ReadInputError('The custom data key must be an extension ID')
+    const statusColumn = statusColumns[kind]
+    if (options.status !== undefined) {
+      if (!statusColumn) throw new ReadInputError(`${kind} have no status`)
+      if (!Object.values(ProgressStatus).includes(options.status as ProgressStatus))
+        throw new ReadInputError('Unknown status')
+    }
+
+    const table = tables[kind]
+    const where = and(
+      options.q
+        ? or(
+            like(table.title, `%${options.q}%`),
+            inArray(table.id, taggedIds(db, `%${options.q}%`)),
+          )
+        : undefined,
+      options.status && statusColumn
+        ? eq(statusColumn, options.status)
+        : undefined,
+      options.customKey
+        ? sql`json_type(${table.custom_data}, ${'$.' + options.customKey}) IS NOT NULL`
+        : undefined,
+    )
+    const total = db.select({ total: count() }).from(table).where(where).get()!
+      .total
+    const rows = db
+      .select({ id: table.id })
+      .from(table)
+      .where(
+        and(where, options.cursor ? gt(table.id, options.cursor) : undefined),
+      )
+      .orderBy(asc(table.id))
+      .limit(limit + 1)
+      .all()
+    const ids = rows.slice(0, limit).map(({ id }) => id)
+    const repository = {
+      projects: ProjectsRepository,
+      areas: AreasRepository,
+      goals: GoalsRepository,
+    }[kind]
+    const loaded = (
+      ids.length ? await new repository(this.database).getByIds(ids) : []
+    ) as CollectionListItems[K][]
+    const byId = new Map(loaded.map((row) => [row.id, row]))
+    return {
+      items: ids.flatMap((id) => byId.get(id) ?? []),
+      total,
+      nextCursor: rows.length > limit ? ids[ids.length - 1] : null,
     }
   }
 

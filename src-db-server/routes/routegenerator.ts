@@ -3,7 +3,11 @@ import {
   ReadInputError,
 } from '@d/database/repositories/readModels'
 import { RuleError } from '@d/domain/errors'
-import { referencesQuerySchema, taskPageQuerySchema } from './readModels'
+import {
+  collectionsQuerySchema,
+  referencesQuerySchema,
+  taskPageQuerySchema,
+} from './readModels'
 import {
   entityReferenceSchema,
   selectContainerDetailSchema,
@@ -11,7 +15,11 @@ import {
 import type { ReadContainerKind } from '@c/types/readModels'
 import { backendRuntime } from '@d/bootstrap'
 import { operationIdHeader, traceOf } from '@d/routes/telemetry'
-import { commandHeadForKind, type EntryKind } from '@c/workflows/contracts'
+import {
+  commandHeadForKind,
+  type EntityCollectionKind,
+  type EntryKind,
+} from '@c/workflows/contracts'
 import {
   areas,
   tags,
@@ -130,6 +138,11 @@ export type RouteGeneratorConfig<
   repository: IRepository<T>
 }
 
+const isCollectionKind = (kind: EntryKind): kind is EntityCollectionKind =>
+  ['projects', 'areas', 'goals'].includes(kind)
+const isContainerKind = (kind: EntryKind): kind is ReadContainerKind =>
+  isCollectionKind(kind) || kind === 'tags' || kind === 'urls'
+
 /** Generates a consistent set of API routes for managing and querying a configured entity type, including CRUD, search, pagination, references, and detail access with shared validation, logging, and error handling. */
 export const routeGenerator = <
   T extends { Read: unknown; Write: unknown; Update: unknown },
@@ -227,13 +240,26 @@ export const routeGenerator = <
     )
 
     .get(
+      '/collections',
+      ({ query }) => {
+        if (!isCollectionKind(config.kind)) throw new Error('NOT_FOUND')
+        return reads.collections(config.kind, query)
+      },
+      {
+        query: collectionsQuerySchema,
+        response: Type.Object({
+          items: Type.Array(config.schemas.select),
+          total: Type.Integer(),
+          nextCursor: Type.Union([Type.String(), Type.Null()]),
+        }),
+      },
+    )
+
+    .get(
       '/:id/detail',
       ({ params: { id }, query }) => {
-        if (
-          !['projects', 'areas', 'goals', 'tags', 'urls'].includes(config.kind)
-        )
-          throw new Error('NOT_FOUND')
-        return reads.detail(config.kind as ReadContainerKind, id, query)
+        if (!isContainerKind(config.kind)) throw new Error('NOT_FOUND')
+        return reads.detail(config.kind, id, query)
       },
       { query: taskPageQuerySchema, response: selectContainerDetailSchema },
     )

@@ -1,14 +1,17 @@
 /** Public frontend authoring surface (`unhussle/frontend`). */
 import type { ComponentType } from 'react'
 import type { Disposable, Extension } from '@c/extensions/sdk'
-import type { EntryKind } from '@c/workflows/contracts'
+import type { EntityCollectionKind, EntryKind } from '@c/workflows/contracts'
 import type {
   ContainerDetail,
+  CollectionListItems,
+  CollectionListOptions,
   ReadContainerKind,
+  ReadPage,
   TaskPageOptions,
 } from '@c/types/readModels'
 import { dependencies } from '@/workflows/execution'
-import { fetchContainerDetail } from '@/services/readModels'
+import { fetchContainerDetail, fetchCollections } from '@/services/readModels'
 import { useStore } from '@/store'
 import type { EntityKind } from '@/lib/entityActions'
 import {
@@ -26,6 +29,8 @@ export type {
   WorkflowDefinition,
 } from '@c/extensions/sdk'
 export type { ContainerDetail, TaskListItem } from '@c/types/readModels'
+export { COLLECTION_PAGE_LIMIT } from '@c/types/readModels'
+export type { CollectionListOptions } from '@c/types/readModels'
 export { ProgressInput, ProgressStatus } from '@c/types/enums'
 export type { CountProgress } from '@c/progress'
 
@@ -81,6 +86,24 @@ export function useExtensionContainers(requests: ContainerRequest[]) {
             fetchContainerDetail(kind, id, options),
           ),
         ),
+    }),
+  )
+}
+
+/**
+ * A page of projects, areas or goals, in ID order. Filter by title, status,
+ * or `customKey` (your extension ID) for items holding your `custom_data`.
+ * Refreshes when that kind changes.
+ */
+export function useExtensionCollections<K extends EntityCollectionKind>(
+  kind: K,
+  options: CollectionListOptions = {},
+) {
+  return readonly(
+    useWorkflowQuery<ReadPage<CollectionListItems[K]>>({
+      key: `collections:${kind}:${JSON.stringify(options)}`,
+      dependencies: dependencies(kind),
+      load: () => fetchCollections(kind, options),
     }),
   )
 }

@@ -8,6 +8,8 @@ import {
   updateTaskSchema,
 } from '@d/database/validation'
 import type { EntryRecord } from '@c/workflows/contracts'
+import { ReadModelsRepository } from '@d/database/repositories/readModels'
+import { ProgressStatus } from '@c/types/enums'
 
 test('the schemas only accept extension-keyed objects or null as custom data', () => {
   for (const custom_data of [{ kanban: { stage: 'Review' } }, { kanban: null }, null])
@@ -58,5 +60,57 @@ test('the domain refuses custom data that is not keyed objects, for any kind', a
       'Custom data "stage" must be a JSON object',
     )
   }
+  runtime.dispose()
+})
+
+test('a page of collections filters by custom data key and status, and refuses misfits', async () => {
+  const database = new UnHussleDB(':memory:')
+  const runtime = createBackendRuntime(database)
+  const add = async (
+    kind: 'projects' | 'goals',
+    title: string,
+    changes: Record<string, unknown> = {},
+  ) =>
+    runtime.commands.execute('entityCollection.add', {
+      kind,
+      action: 'create',
+      changes: { title, ...changes },
+    })
+  await add('projects', 'Dune', { custom_data: { tracker: { type: 'book' } } })
+  await add('projects', 'Garden', { custom_data: { kanban: { stage: 'Later' } } })
+  await add('projects', 'Emma', {
+    custom_data: { tracker: { type: 'book' } },
+    status: ProgressStatus.COMPLETED,
+  })
+  await add('goals', 'Read 1000 pages', {
+    custom_data: { tracker: { type: 'book' } },
+  })
+  const reads = new ReadModelsRepository(database)
+  const titles = async (
+    kind: 'projects' | 'goals',
+    options: Parameters<typeof reads.collections>[1],
+  ) => (await reads.collections(kind, options)).items.map(({ title }) => title).sort()
+
+  expect(await titles('projects', { customKey: 'tracker' })).toEqual(['Dune', 'Emma'])
+  expect(await titles('goals', { customKey: 'tracker' })).toEqual(['Read 1000 pages'])
+  expect(
+    await titles('projects', { customKey: 'tracker', status: ProgressStatus.COMPLETED }),
+  ).toEqual(['Emma'])
+
+  const first = await reads.collections('projects', { limit: 2 })
+  expect(first).toMatchObject({ total: 3 })
+  const rest = await reads.collections('projects', {
+    limit: 2,
+    cursor: first.nextCursor ?? undefined,
+  })
+  expect([...first.items, ...rest.items]).toHaveLength(3)
+  expect(rest.nextCursor).toBeNull()
+
+  await expect(reads.collections('areas', { status: 'planned' })).rejects.toThrow(
+    'areas have no status',
+  )
+  await expect(reads.collections('projects', { customKey: "x') --" })).rejects.toThrow(
+    'must be an extension ID',
+  )
   runtime.dispose()
 })

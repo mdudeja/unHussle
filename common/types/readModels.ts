@@ -26,6 +26,26 @@ export type TaskListItem = Task['Read'] & {
   timeEntries?: TimeEntry['Read'][]
 }
 export type ReadContainerKind = 'projects' | 'areas' | 'goals' | 'tags' | 'urls'
+
+/** The most collections one page returns. */
+export const COLLECTION_PAGE_LIMIT = 100
+/** Filters for a page of projects, areas or goals. */
+export type CollectionListOptions = {
+  /** Title or tag match. */
+  q?: string
+  /** Projects and goals only; areas have no status. */
+  status?: string
+  /** Holds `custom_data[customKey]`, such as an extension's ID. */
+  customKey?: string
+  cursor?: string
+  limit?: number
+}
+/** Each collection kind's list row, as its list page shows it. */
+export type CollectionListItems = {
+  projects: HydratedProject
+  areas: HydratedArea
+  goals: HydratedGoal
+}
 export type TaskPageOptions = {
   // base64-encoded JSON string of [scope, last.value, last.id]
   cursor?: string

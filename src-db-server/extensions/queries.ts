@@ -34,6 +34,7 @@ export function extensionQueries(database: UnHussleDB): DomainQueries {
     get: (kind, id) => repositories[kind].getById(id),
     references: (kind, options) => reads.references(kind, options),
     container: (kind, id, options) => reads.detail(kind, id, options),
+    collections: (kind, options) => reads.collections(kind, options),
     taskContext: async (id) => getTaskContext(await database.getDb(), id),
   }
 }

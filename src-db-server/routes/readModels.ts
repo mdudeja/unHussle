@@ -19,6 +19,13 @@ export const taskPageQuerySchema = t.Object({
   is_chore: t.Optional(t.String({ pattern: '^(true|false)$' })),
   is_quick: t.Optional(t.String({ pattern: '^(true|false)$' })),
 })
+export const collectionsQuerySchema = t.Object({
+  q: t.Optional(t.String({ maxLength: 500 })),
+  status: t.Optional(t.String()),
+  customKey: t.Optional(t.String({ maxLength: 100 })),
+  cursor: t.Optional(t.String()),
+  limit: t.Optional(t.Numeric({ minimum: 1, maximum: 100 })),
+})
 export const referencesQuerySchema = t.Object({
   q: t.Optional(t.String({ maxLength: 500 })),
   cursor: t.Optional(t.String()),

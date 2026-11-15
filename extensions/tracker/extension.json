@@ -1,0 +1,8 @@
+{
+  "id": "tracker",
+  "name": "Progress tracker",
+  "version": "1.0.0",
+  "description": "Tracks books, courses, lecture series and more, as projects or goals on a board.",
+  "frontend": "frontend.tsx",
+  "requires": ["kanban"]
+}

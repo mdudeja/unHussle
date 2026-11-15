@@ -1,6 +1,7 @@
 import type { Static, TSchema } from '@sinclair/typebox'
 import type { CommandDefinition } from '@c/workflows/composition'
 import type {
+  EntityCollectionKind,
   EntryKind,
   EntryRecord,
   MutationCommands,
@@ -11,6 +12,8 @@ import type { SchedulerCommands } from '@c/scheduler/contracts'
 import type { VaultCommands } from '@c/vault/contracts'
 import type {
   ContainerDetail,
+  CollectionListItems,
+  CollectionListOptions,
   EntityReference,
   ReadContainerKind,
   ReadPage,
@@ -69,6 +72,11 @@ export type DomainQueries = {
     id: string,
     options?: TaskPageOptions,
   ) => Promise<ContainerDetail | null>
+  /** A page of projects, areas or goals, filtered. */
+  collections: <K extends EntityCollectionKind>(
+    kind: K,
+    options?: CollectionListOptions,
+  ) => Promise<ReadPage<CollectionListItems[K]>>
   taskContext: (id: string) => Promise<TaskContext | null>
 }
 export type ApplicationServices = {

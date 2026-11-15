@@ -1,8 +1,10 @@
 import { apiAddress } from '@/lib/apiAddress'
 import { makeJSONRequest } from '@/lib/server'
-import type { EntryKind } from '@c/workflows/contracts'
+import type { EntityCollectionKind, EntryKind } from '@c/workflows/contracts'
 import type {
   ContainerDetail,
+  CollectionListItems,
+  CollectionListOptions,
   EntityReference,
   ReadContainerKind,
   ReadPage,
@@ -27,6 +29,16 @@ export const fetchContainerDetail = (
 ) =>
   makeJSONRequest<ContainerDetail>({
     url: `${address}/${kind}/${encodeURIComponent(id)}/detail?${params(options)}`,
+    method: 'GET',
+  })
+
+/** A page of projects, areas or goals in ID order, filtered. */
+export const fetchCollections = <K extends EntityCollectionKind>(
+  kind: K,
+  options: CollectionListOptions = {},
+) =>
+  makeJSONRequest<ReadPage<CollectionListItems[K]>>({
+    url: `${address}/${kind}/collections?${params(options)}`,
     method: 'GET',
   })
 

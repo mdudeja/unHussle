@@ -241,8 +241,8 @@ api.menus.register({ id: 'hello.run', label: 'Say hello', run: async () => {} })
 A menu either opens a view or runs a function. A view opens at
 `/extensions/<view id>`. Inside a view, read data with these hooks from
 `unhussle/frontend`: `useExtensionEntries(kind, page?)`,
-`useExtensionDetail(kind, id)`, `useExtensionSearch(kind, term)` and
-`useExtensionContainers(requests)`. Their results are read-only and refresh
+`useExtensionDetail(kind, id)`, `useExtensionSearch(kind, term)`,
+`useExtensionContainers(requests)` and `useExtensionCollections(kind, options)`. Their results are read-only and refresh
 when the data changes. To change data, copy it into local state, then save
 it through a command.
 
@@ -255,6 +255,18 @@ const boards = useExtensionContainers([
   { kind: 'tags', id: tagId, options: { limit: 100 } },
 ])
 ```
+
+`useExtensionCollections(kind, options)` loads a page of projects, areas or
+goals, in ID order, as `{ items, total, nextCursor }`. Pass `nextCursor`
+back as `cursor` for the next page. Filters:
+
+- `q` matches titles and tags;
+- `status`, for projects and goals (areas have none);
+- `customKey`, for items that hold `custom_data[key]`. Use your extension
+  ID.
+
+Pages hold up to `COLLECTION_PAGE_LIMIT` items. Backend extensions use
+`queries.collections(kind, options)`, which returns the same.
 
 A view has no API argument. To use `api` inside it, pass it through a React
 context from `activate`, as the Kanban extension does.
@@ -352,6 +364,7 @@ activate: (api) => {
 | `queries.get(kind, id)`                        | One entry, or `null`                                       |
 | `queries.references(kind, { q, ids, cursor })` | A page of `{ id, title }` references                       |
 | `queries.container(kind, id, options?)`        | A project, area, goal, tag or URL with a page of its tasks |
+| `queries.collections(kind, options?)`          | A page of projects, areas or goals, filtered               |
 | `queries.taskContext(id)`                      | A task with its related entries                            |
 | `execute(id, input)`                           | Runs a built-in command, fully typed                       |
 
@@ -429,6 +442,21 @@ view, a kanban board of tasks, and it shares its board with other extensions.
   It saves the stage in the task's `custom_data.kanban`.
 - `use-task-changes.ts` saves changes with `entity.change` and
   `entity.delete`, and tracks busy and failed cards.
+
+[`extensions/tracker/`](../extensions/tracker), the built-in Progress
+tracker, reuses Kanban's board and the app's count progress.
+
+- `extension.json` lists `"requires": ["kanban"]`.
+- `frontend.tsx` gets Kanban's exports, checks their version, and passes
+  them with `api` to the view through `api-context.ts`.
+- `items.ts` reads `custom_data.tracker` (type, rating, summary) from
+  projects and goals alike. `use-items.ts` loads them with
+  `useExtensionCollections`, and task counts for items that don't count
+  units.
+- `item-types.ts` and `use-item-types.ts` keep the editable types in
+  `api.settings`.
+- `tracker-view.tsx` puts the items on Kanban's `KanbanBoard`, with search,
+  filters and a summary. The dialogs add, finish and edit types.
 
 To try Sample, point the app at the examples folder:
 `EXTENSIONS_DIR=$PWD/examples/extensions bun run server`. Kanban is listed

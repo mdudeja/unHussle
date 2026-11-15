@@ -1,7 +1,7 @@
 import { Type, type Static } from '@sinclair/typebox'
 
 const RESERVED_IDS = ['kernel', 'unhussle']
-const ID_PATTERN = '^[a-z][a-z0-9_-]*$'
+export const ID_PATTERN = '^[a-z][a-z0-9_-]*$'
 
 /** Contents of `extension.json`; entry paths are relative to its folder. */
 export const extensionManifestSchema = Type.Object(

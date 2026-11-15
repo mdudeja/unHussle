@@ -9,10 +9,13 @@ export {
   ChevronLeft,
   ChevronRight,
   Loader2,
+  MoreHorizontal,
   Pencil,
   Play,
   Plus,
+  Search,
   Trash2,
+  X,
 } from 'lucide-react'
 export {
   AlertDialog,
@@ -43,7 +46,14 @@ export {
   DialogHeader,
   DialogTitle,
 } from '@/components/ui/dialog'
+export {
+  DropdownMenu,
+  DropdownMenuContent,
+  DropdownMenuItem,
+  DropdownMenuTrigger,
+} from '@/components/ui/dropdown-menu'
 export { Input } from '@/components/ui/input'
+export { Textarea } from '@/components/ui/textarea'
 export { Label } from '@/components/ui/label'
 export {
   Select,

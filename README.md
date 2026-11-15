@@ -656,6 +656,29 @@ one stage for each. Paused tasks show under in-progress stages.
 - Boards are saved in the database. Each source shows up to 100 tasks per
   status.
 
+### Progress tracker
+
+The built-in **Progress tracker** shows books, courses, lecture series and
+anything else you track on one board: Planned, In progress and Completed. It
+needs Kanban, so Preferences offers to turn Kanban on too.
+
+- **Track something** adds a project (one thing to finish, such as Dune) or a
+  goal (a target, such as 1000 pages this month). Give it a type, an optional
+  total, and the tasks that count for it, such as a daily "Read". With a
+  total, **Record** sets what you enter after each session: where you got to,
+  or how much you did. Goals start with how much you did; projects take their
+  type's choice.
+- With a total, the card shows the count ("140 / 350 pages"), recorded each
+  time you complete one of its tasks. Without one, it shows its finished
+  tasks, such as one task per lecture.
+- **Finish** saves an optional rating and summary, and can hand a recurring task
+  on to the next planned item of the same type. Dragging a card to Completed
+  asks the same.
+- **Edit types** changes the types, their unit and how progress is
+  recorded. Search and filters by type and by project or goal show as
+  removable chips.
+- **Stop tracking** takes an item off the board; the project or goal stays.
+
 ## Frontend (`src/`)
 
 ```text
