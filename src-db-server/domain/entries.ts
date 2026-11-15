@@ -56,13 +56,38 @@ function toRowValues(kind: EntryKind, changes: Record<string, unknown>) {
   return values
 }
 
+type CustomData = Record<string, unknown>
+
+const isObject = (value: unknown): value is CustomData =>
+  typeof value === 'object' && value !== null && !Array.isArray(value)
+
+/**
+ * Extension data is keyed by extension ID, each value an object. Changes
+ * merge key by key into the stored data; a `null` value removes that key.
+ */
+function mergeCustomData(stored: unknown, changes: unknown) {
+  if (changes === null) return null
+  if (!isObject(changes))
+    throw new Error('Custom data must be a JSON object')
+  const merged: CustomData = isObject(stored) ? { ...stored } : {}
+  for (const [key, value] of Object.entries(changes)) {
+    if (value === null) delete merged[key]
+    else if (isObject(value)) merged[key] = value
+    else throw new Error(`Custom data "${key}" must be a JSON object`)
+  }
+  return merged
+}
+
 /** Row persistence with server-owned fields stripped, shared by every mutation family. */
 export function createEntry(
   { repository }: TransactionContext,
   kind: EntryKind,
   changes: Record<string, unknown>,
 ) {
-  const row = repository(entityTables[kind]).insert(toRowValues(kind, changes))
+  const values = toRowValues(kind, changes)
+  if ('custom_data' in values)
+    values.custom_data = mergeCustomData(undefined, values.custom_data)
+  const row = repository(entityTables[kind]).insert(values)
   if (!row) throw new Error(`Failed to insert ${kind}`)
   return row as EntryRecord
 }
@@ -73,10 +98,14 @@ export function updateEntry(
   id: string,
   changes: Record<string, unknown>,
 ) {
-  const row = repository(entityTables[kind]).update(
-    id,
-    toRowValues(kind, changes),
-  )
+  const table = repository(entityTables[kind])
+  const values = toRowValues(kind, changes)
+  if ('custom_data' in values) {
+    const stored = table.get(id)
+    if (!stored) throw new Error('NOT_FOUND')
+    values.custom_data = mergeCustomData(stored.custom_data, values.custom_data)
+  }
+  const row = table.update(id, values)
   if (!row) throw new Error('NOT_FOUND')
   return row as EntryRecord
 }

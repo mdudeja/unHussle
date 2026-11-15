@@ -43,9 +43,6 @@ export function validateTask(
   if (!task) throw new Error('NOT_FOUND')
   if (task.status !== null && !isProgressStatus(task.status))
     throw new Error('Invalid task status')
-  const data: unknown = task.custom_data
-  if (data !== null && (typeof data !== 'object' || Array.isArray(data)))
-    throw new Error('Task custom data must be a JSON object')
   validateRecurrence(task)
   const error = validateTaskSchedule(task)
   if (error) throw new Error(error)

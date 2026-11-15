@@ -2,7 +2,7 @@ import { ProgressStatus, type TaskListItem } from 'unhussle/frontend'
 import type { Stage, StageStatus } from './boards'
 
 type Task = Pick<TaskListItem, 'status' | 'custom_data'>
-type Changes = { status?: StageStatus; custom_data: Record<string, unknown> }
+type Changes = { status?: StageStatus; custom_data: { kanban: { stage: string } } }
 
 /** The stage status a task shows under; `null` when the board hides it. */
 export function boardStatus(task: Task): StageStatus | null {
@@ -22,7 +22,8 @@ export function boardStatus(task: Task): StageStatus | null {
 export function columnFor(task: Task, stages: Stage[]) {
   const status = boardStatus(task)
   if (!status) return -1
-  const saved = task.custom_data?.stage
+  const saved = (task.custom_data?.kanban as { stage?: unknown } | undefined)
+    ?.stage
   const named = stages.findIndex(
     (stage) => stage.name === saved && stage.status === status,
   )
@@ -31,9 +32,12 @@ export function columnFor(task: Task, stages: Stage[]) {
     : stages.findIndex((stage) => stage.status === status)
 }
 
-/** Saves the stage; changes the status only when the stage needs another one. */
+/**
+ * Saves the stage under Kanban's own key; the server merges it into the rest.
+ * Changes the status only when the stage needs another one.
+ */
 export function moveChanges(task: Task, stage: Stage): Changes {
-  const changes = { custom_data: { ...task.custom_data, stage: stage.name } }
+  const changes = { custom_data: { kanban: { stage: stage.name } } }
   return boardStatus(task) === stage.status
     ? changes
     : { ...changes, status: stage.status }

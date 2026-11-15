@@ -57,15 +57,24 @@ const attachmentsSchema = {
   resources: t.Optional(t.Array(resourceRefSchema)),
 }
 
+// Extension data keyed by extension ID, such as `{ "kanban": { "stage": "Review" } }`.
+// A `null` value removes that extension's key.
+const customDataSchema = t.Optional(
+  t.Union([
+    t.Record(
+      t.String(),
+      t.Union([t.Record(t.String(), t.Unknown()), t.Null()]),
+    ),
+    t.Null(),
+  ]),
+)
+
 // Tasks
 export const insertTaskSchema = Type.Object({
   ...createInsertSchema(tasks, {
     status: t.Optional(t.Enum(ProgressStatus)),
     priority: t.Optional(t.Enum(Priority)),
-    // Keyed data for extensions, such as `{ "stage": "Review" }`.
-    custom_data: t.Optional(
-      t.Union([t.Record(t.String(), t.Unknown()), t.Null()]),
-    ),
+    custom_data: customDataSchema,
   }).properties,
   ...attachmentsSchema,
 })
@@ -91,6 +100,7 @@ const {
 } = createInsertSchema(resources).properties
 export const insertResourceSchema = Type.Object({
   ...resourceInsertProperties,
+  custom_data: customDataSchema,
   tags: t.Optional(t.Array(tagInputSchema)),
   links: t.Optional(t.Array(resourceLinkInputSchema)),
 })
@@ -135,6 +145,7 @@ export const rescanResultSchema = t.Object({
 export const insertAreaSchema = Type.Object({
   ...createInsertSchema(areas, {
     priority: t.Optional(t.Enum(Priority)),
+    custom_data: customDataSchema,
   }).properties,
   ...attachmentsSchema,
 })
@@ -146,10 +157,7 @@ export const insertGoalSchema = Type.Object({
   ...createInsertSchema(goals, {
     status: t.Optional(t.Enum(ProgressStatus)),
     priority: t.Optional(t.Enum(Priority)),
-    // Keyed data for extensions, such as `{ "stage": "Review" }`.
-    custom_data: t.Optional(
-      t.Union([t.Record(t.String(), t.Unknown()), t.Null()]),
-    ),
+    custom_data: customDataSchema,
   }).properties,
   ...attachmentsSchema,
 })
@@ -161,10 +169,7 @@ export const insertProjectSchema = Type.Object({
   ...createInsertSchema(projects, {
     status: t.Optional(t.Enum(ProgressStatus)),
     priority: t.Optional(t.Enum(Priority)),
-    // Keyed data for extensions, such as `{ "stage": "Review" }`.
-    custom_data: t.Optional(
-      t.Union([t.Record(t.String(), t.Unknown()), t.Null()]),
-    ),
+    custom_data: customDataSchema,
   }).properties,
   ...attachmentsSchema,
 })

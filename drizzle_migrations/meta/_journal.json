@@ -15,6 +15,13 @@
       "when": 1794551121976,
       "tag": "20261113062521_romantic_multiple_man",
       "breakpoints": true
+    },
+    {
+      "idx": 2,
+      "version": "6",
+      "when": 1794725775685,
+      "tag": "20261115065615_kanban_stage_key",
+      "breakpoints": true
     }
   ]
 }

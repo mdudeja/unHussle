@@ -624,8 +624,9 @@ pages show. Its stages are the columns, from left to right. Each stage matches
 a task status (Planned, In progress or Completed), and a board needs at least
 one stage for each. Paused tasks show under in-progress stages.
 
-- A task's stage is saved in its custom data as `{ "stage": "<name>" }`. A task
-  without a matching stage sits in the first stage of its status.
+- A task's stage is saved in its custom data as
+  `{ "kanban": { "stage": "<name>" } }`. A task without a matching stage sits
+  in the first stage of its status.
 - Drag a card to any column, or use its arrows to move it one column. Moving
   it to a stage with another status changes the task's status too.
 - **Start** moves a planned task to the first in-progress stage and starts its

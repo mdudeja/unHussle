@@ -372,7 +372,7 @@ view, a kanban board of tasks.
   `api.settings`.
 - `use-board-tasks.ts` reads each source with `useExtensionContainers`.
 - `placement.ts` decides each task's column and the changes a move makes.
-  It saves the stage in the task's `custom_data`.
+  It saves the stage in the task's `custom_data.kanban`.
 - `use-task-changes.ts` saves changes with `entity.change` and
   `entity.delete`, and tracks busy and failed cards.
 

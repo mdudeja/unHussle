@@ -16,7 +16,7 @@ const review: Stage = { name: 'Review', status: ProgressStatus.IN_PROGRESS }
 const stages = [...DEFAULT_STAGES.slice(0, 2), review, DEFAULT_STAGES[2]]
 const task = (status: ProgressStatus, stage?: string) => ({
   status,
-  custom_data: stage ? { stage, other: 1 } : null,
+  custom_data: stage ? { kanban: { stage }, other: {} } : null,
 })
 
 test('tasks sit in their saved stage, else the first stage of their status', () => {
@@ -30,35 +30,35 @@ test('tasks sit in their saved stage, else the first stage of their status', () 
   expect(columnFor(task(ProgressStatus.CANCELLED), stages)).toBe(-1)
 })
 
-test('moving saves the stage and changes the status only when needed', () => {
+test('moving saves only Kanban\'s stage and changes the status only when needed', () => {
   expect(
     moveChanges(task(ProgressStatus.PAUSED, 'In progress'), review),
   ).toEqual({
-    custom_data: { stage: 'Review', other: 1 },
+    custom_data: { kanban: { stage: 'Review' } },
   })
   expect(moveChanges(task(ProgressStatus.PLANNED), review)).toEqual({
-    custom_data: { stage: 'Review' },
+    custom_data: { kanban: { stage: 'Review' } },
     status: ProgressStatus.IN_PROGRESS,
   })
   expect(moveChanges(task(ProgressStatus.IN_PROGRESS), stages[0])).toEqual({
-    custom_data: { stage: 'Planned' },
+    custom_data: { kanban: { stage: 'Planned' } },
     status: ProgressStatus.PLANNED,
   })
 })
 
 test('starting moves planned tasks forward; completing moves to the first completed stage', () => {
   expect(startChanges(task(ProgressStatus.PLANNED), stages)).toEqual({
-    custom_data: { stage: 'In progress' },
+    custom_data: { kanban: { stage: 'In progress' } },
     status: ProgressStatus.IN_PROGRESS,
   })
   expect(startChanges(task(ProgressStatus.PAUSED, 'Review'), stages)).toEqual({
-    custom_data: { stage: 'Review', other: 1 },
+    custom_data: { kanban: { stage: 'Review' } },
     status: ProgressStatus.IN_PROGRESS,
   })
   expect(
     completeChanges(task(ProgressStatus.IN_PROGRESS, 'Review'), stages),
   ).toEqual({
-    custom_data: { stage: 'Completed', other: 1 },
+    custom_data: { kanban: { stage: 'Completed' } },
     status: ProgressStatus.COMPLETED,
   })
 })
