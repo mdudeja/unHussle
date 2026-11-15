@@ -77,8 +77,10 @@ accepts these only for an active extension and only for JSON values.
 
 ### Turning an extension on or off (`PUT /extensions/:id/enabled`)
 
-1. The manager saves `enabledExtensions`, then activates or disposes the
-   backend entry, and returns the new list.
+1. The manager checks `requires`, saves `enabledExtensions`, then activates
+   or disposes the backend entry and returns the new list. Turning one off
+   also turns off its dependents; restarting one restarts them. The list is
+   in dependency order.
 2. The settings card invalidates the `extensions` query.
 3. `useExtensionActivation` (mounted in `App`) passes the list to
    `extensionLoader.sync`.
@@ -86,12 +88,16 @@ accepts these only for an active extension and only for JSON values.
 ### Frontend loading
 
 1. `sync` computes the wanted IDs: enabled, `active`, and with a `frontend`
-   entry. It unloads the others and imports the missing ones from
-   `GET /extensions/:id/frontend.js?t=<now>`.
-2. The server bundles the entry on first request and caches it until that
+   entry. It unloads the others, dependents first, and imports the missing
+   ones from `GET /extensions/:id/frontend.js?t=<now>`. An entry waits for the
+   frontend entries it `requires` and is skipped if one failed to load.
+2. `register` passes `requires` and `exports` to the host, which keeps each
+   extension's provided exports until it is disposed. An entry with
+   `"exports": true` that doesn't provide them fails to register.
+3. The server bundles the entry on first request and caches it until that
    extension is disposed.
-3. Failures are kept per ID and shown in the settings card.
-4. `reset()` (used on rescan and folder changes) unloads everything and
+4. Failures are kept per ID and shown in the settings card.
+5. `reset()` (used on rescan and folder changes) unloads everything and
    makes in-flight imports stale, so old code is never registered.
 
 ES modules cannot be unloaded. Disposal removes registrations, and a
@@ -124,21 +130,23 @@ Consequences:
 
 ## Invariants the host enforces
 
-| Invariant                                                                | Where                        | Tested in                                           |
-| ------------------------------------------------------------------------ | ---------------------------- | --------------------------------------------------- |
-| Extension IDs follow the manifest rule; reserved IDs are refused         | `assertExtensionId`          | `src/__tests__/extensions.test.ts`                  |
-| Registration IDs start with `<id>.`                                      | `scope.assertId`             | `src/__tests__/extensions.test.ts`                  |
-| Extension commands call only extension-registered actions                | `registrations.command`      | `src-db-server/__tests__/extensions.test.ts`        |
-| Workflow steps are commands, not actions or workflows                    | `workflows.register`         | `src/__tests__/extensions.test.ts`                  |
-| Disposal undoes in reverse order and continues past a failing cleanup    | `dispose` in `host.register` | `src/__tests__/extensions.test.ts`                  |
-| Failed activation undoes partial work and frees the ID                   | `host.register`              | `src/__tests__/extensions.test.ts`                  |
-| Removing a provider revokes dependent plans; stale disposers are inert   | `register` tokens            | both `extensions.test.ts` files                     |
-| Disposed scopes reject every call                                        | `scope.check`                | both `extensions.test.ts` files                     |
-| Atomic plans roll back on throw, promise or bad output; `domain` expires | `domainBoundary.ts`          | `src-db-server/__tests__/extensions.test.ts`        |
-| Frontend query results are detached copies                               | `detach` option              | `src/__tests__/extensions.test.ts`                  |
-| Discovery, persistence, failure status, bundle contract                  | `manager.ts`                 | `src-db-server/__tests__/extension-manager.test.ts` |
-| Settings routes accept only active extensions and JSON values            | `manager.ts`                 | `src-db-server/__tests__/extension-manager.test.ts` |
-| The loader syncs to the list and ignores stale imports                   | `loader.ts`                  | `src/__tests__/extensions.test.ts`                  |
+| Invariant                                                                  | Where                           | Tested in                                                     |
+| -------------------------------------------------------------------------- | ------------------------------- | ------------------------------------------------------------- |
+| Extension IDs follow the manifest rule; reserved IDs are refused           | `assertExtensionId`             | `src/__tests__/extensions.test.ts`                            |
+| Registration IDs start with `<id>.`                                        | `scope.assertId`                | `src/__tests__/extensions.test.ts`                            |
+| Extension commands call only extension-registered actions                  | `registrations.command`         | `src-db-server/__tests__/extensions.test.ts`                  |
+| Workflow steps are commands, not actions or workflows                      | `workflows.register`            | `src/__tests__/extensions.test.ts`                            |
+| Disposal undoes in reverse order and continues past a failing cleanup      | `dispose` in `host.register`    | `src/__tests__/extensions.test.ts`                            |
+| Failed activation undoes partial work and frees the ID                     | `host.register`                 | `src/__tests__/extensions.test.ts`                            |
+| Removing a provider revokes dependent plans; stale disposers are inert     | `register` tokens               | both `extensions.test.ts` files                               |
+| Disposed scopes reject every call                                          | `scope.check`                   | both `extensions.test.ts` files                               |
+| Atomic plans roll back on throw, promise or bad output; `domain` expires   | `domainBoundary.ts`             | `src-db-server/__tests__/extensions.test.ts`                  |
+| Frontend query results are detached copies                                 | `detach` option                 | `src/__tests__/extensions.test.ts`                            |
+| Discovery, persistence, failure status, bundle contract                    | `manager.ts`                    | `src-db-server/__tests__/extension-manager.test.ts`           |
+| Settings routes accept only active extensions and JSON values              | `manager.ts`                    | `src-db-server/__tests__/extension-manager.test.ts`           |
+| The loader syncs to the list and ignores stale imports                     | `loader.ts`                     | `src/__tests__/extensions.test.ts`                            |
+| Requirements start first, cycles and missing IDs are invalid, off cascades | `manager.ts`, `dependencies.ts` | `extension-manager.test.ts`, `extension-dependencies.test.ts` |
+| Exports are provided while activating and read only through `requires`     | `application.ts`, `loader.ts`   | `src/__tests__/extensions.test.ts`                            |
 
 ## Adding a capability to the SDK
 

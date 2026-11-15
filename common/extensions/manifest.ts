@@ -16,6 +16,8 @@ export const extensionManifestSchema = Type.Object(
     requires: Type.Optional(
       Type.Array(Type.String({ pattern: ID_PATTERN }), { uniqueItems: true }),
     ),
+    /** The frontend entry must call `api.exports.provide` while activating. */
+    exports: Type.Optional(Type.Boolean()),
   },
   { additionalProperties: false },
 )

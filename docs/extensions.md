@@ -76,6 +76,7 @@ new code.
 | `backend`     | No       | Path to the backend entry, relative to the folder. Runs in the database server.                                                                    |
 | `frontend`    | No       | Path to the frontend entry, relative to the folder. Runs in the app window.                                                                        |
 | `requires`    | No       | IDs of extensions this one needs, such as `["kanban"]`. They must be on, and start first.                                                          |
+| `exports`     | No       | `true` when the frontend entry shares values with extensions that require it. It must then call `api.exports.provide`.                             |
 
 Each entry default-exports `{ activate }`. Entries cannot point outside the
 extension folder.
@@ -307,10 +308,41 @@ Each `register` and `on` call returns a function that undoes it.
 
 ### Frontend only
 
-| Member                     | Purpose            |
-| -------------------------- | ------------------ |
-| `api.menus.register(menu)` | Add a sidebar item |
-| `api.views.register(view)` | Add a page         |
+| Member                       | Purpose                                  |
+| ---------------------------- | ---------------------------------------- |
+| `api.menus.register(menu)`   | Add a sidebar item                       |
+| `api.views.register(view)`   | Add a page                               |
+| `api.exports.provide(value)` | Share values; only while `activate` runs |
+| `api.dependencies.get(id)`   | What a required extension provided       |
+
+### Sharing with other extensions (frontend)
+
+An extension can reuse another's components and helpers. The provider sets
+`"exports": true` and provides them while activating:
+
+```tsx
+activate: (api) => {
+  api.exports.provide({ version: 1, KanbanBoard })
+}
+```
+
+The consumer lists the provider in `requires` and reads them:
+
+```tsx
+activate: (api) => {
+  const kanban = api.dependencies.get<KanbanExports>('kanban')
+  if (kanban.version !== 1) throw new Error('Needs Kanban exports version 1')
+}
+```
+
+- Exports are values provided at runtime, not module imports, so shared
+  components keep their provider's context.
+- `version` is a whole number from 1. Bump it when the exports change shape.
+- Only IDs in `requires` can be read. Providers start first; when one stops,
+  everything that needs it stops first. If a provider fails to load, what
+  needs it isn't loaded and shows why.
+- Export a type for consumers to import as a type only; extensions can't
+  import each other's code.
 
 ### Services
 

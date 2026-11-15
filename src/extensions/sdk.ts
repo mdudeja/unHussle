@@ -98,8 +98,17 @@ export type ExtensionView = {
   label: string
   component: ComponentType
 }
+/**
+ * What an extension shares with the ones that require it. Bump `version`
+ * when its shape changes, so they can check they still fit.
+ */
+export type ProvidedExports = { version: number }
 export type FrontendContributions = {
   menus: { register: (menu: ExtensionMenu) => Disposable }
   views: { register: (view: ExtensionView) => Disposable }
+  /** Shares values while `activate` runs; needs `"exports": true`. */
+  exports: { provide: <T extends ProvidedExports>(value: T) => void }
+  /** What a required extension provided; only IDs in `requires`. */
+  dependencies: { get: <T extends ProvidedExports>(id: string) => T }
 }
 export type FrontendExtension = Extension<FrontendContributions>

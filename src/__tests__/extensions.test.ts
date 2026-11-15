@@ -299,10 +299,14 @@ test('imperative SDK reads return detached snapshots without mutating coordinato
   f.runtime.dispose()
 })
 
-const installed = (id: string, enabled = true): InstalledExtension => ({
+const installed = (
+  id: string,
+  enabled = true,
+  links: { requires?: string[]; exports?: boolean } = {},
+): InstalledExtension => ({
   folder: id,
   bundled: false,
-  manifest: { id, name: id, version: '1', frontend: 'frontend.tsx' },
+  manifest: { id, name: id, version: '1', frontend: 'frontend.tsx', ...links },
   enabled,
   status: enabled ? 'active' : 'disabled',
 })
@@ -378,5 +382,113 @@ test('workflow steps must be registered commands', () => {
       ],
     }),
   ).toThrow('needs a registered command')
+  f.runtime.dispose()
+})
+
+type BoardExports = { version: 1; Board: string }
+const provider: FrontendExtension = {
+  activate: (api) => {
+    api.exports.provide({ version: 1, Board: 'board' } satisfies BoardExports)
+  },
+}
+
+test('an extension with exports must provide them while activating', () => {
+  const f = fixture()
+  expect(() =>
+    f.runtime.extensions.register('silent', { activate: () => {} }, { exports: true }),
+  ).toThrow('activate must call api.exports.provide')
+  expect(() => f.runtime.extensions.register('undeclared', provider)).toThrow(
+    `Add "exports": true to undeclared's extension.json`,
+  )
+  let later!: Api
+  f.runtime.extensions.register(
+    'late',
+    {
+      activate: (api) => {
+        later = api
+        api.exports.provide({ version: 1 })
+      },
+    },
+    { exports: true },
+  )
+  expect(() => later.exports.provide({ version: 1 })).toThrow('while activating')
+  f.runtime.dispose()
+})
+
+test('dependencies give what a required extension provided, and only that', () => {
+  const f = fixture()
+  const offProvider = f.runtime.extensions.register('kanban', provider, {
+    exports: true,
+  })
+  let api!: Api
+  f.runtime.extensions.register(
+    'tracker',
+    { activate: (value) => void (api = value) },
+    { requires: ['kanban'] },
+  )
+  expect(api.dependencies.get<BoardExports>('kanban').Board).toBe('board')
+  expect(() => api.dependencies.get('sample')).toThrow(
+    `Add "sample" to tracker's requires`,
+  )
+  offProvider()
+  expect(() => api.dependencies.get('kanban')).toThrow(
+    'kanban is off or provides nothing',
+  )
+  f.runtime.dispose()
+})
+
+test('the loader starts providers first and stops what needs them first', async () => {
+  const f = fixture()
+  f.off()
+  const order: string[] = []
+  const entries: Record<string, FrontendExtension> = {
+    kanban: {
+      activate: (api) => {
+        order.push('start kanban')
+        api.exports.provide({ version: 1 })
+        return () => order.push('stop kanban')
+      },
+    },
+    tracker: {
+      activate: (api) => {
+        api.dependencies.get('kanban')
+        order.push('start tracker')
+        return () => order.push('stop tracker')
+      },
+    },
+  }
+  // The provider loads slower, but still starts first.
+  const loader = createExtensionLoader(f.runtime.extensions.register, async (url) => {
+    const id = url.includes('/kanban/') ? 'kanban' : 'tracker'
+    if (id === 'kanban') await new Promise((resolve) => setTimeout(resolve, 5))
+    return { default: entries[id] }
+  })
+  const kanban = installed('kanban', true, { exports: true })
+  const tracker = installed('tracker', true, { requires: ['kanban'] })
+  await loader.sync([kanban, tracker])
+  expect(loader.errors.snapshot()).toEqual({})
+  await loader.sync([installed('kanban', false), tracker])
+  expect(order).toEqual([
+    'start kanban',
+    'start tracker',
+    'stop tracker',
+    'stop kanban',
+  ])
+  f.runtime.dispose()
+})
+
+test('the loader skips what needs a provider that failed to load', async () => {
+  const f = fixture()
+  f.off()
+  const loader = createExtensionLoader(f.runtime.extensions.register, (url) =>
+    Promise.resolve(url.includes('/kanban/') ? {} : { default: provider }),
+  )
+  await loader.sync([
+    installed('kanban', true, { exports: true }),
+    installed('tracker', true, { requires: ['kanban'] }),
+  ])
+  expect(loader.errors.snapshot().tracker).toBe(
+    'Needs kanban, which failed to load',
+  )
   f.runtime.dispose()
 })
