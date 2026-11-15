@@ -31,6 +31,7 @@ import {
   announceTaskChanges,
 } from '@d/domain/tasks'
 import { logProgress, recordOccurrenceProgress } from '@d/domain/progress'
+import { startRecurringTask } from '@d/domain/collections'
 import type { PublicationContext } from './contracts'
 import {
   ScheduleConflict,
@@ -98,6 +99,7 @@ export type SchedulerActionName =
   | 'transitionOccurrence'
   | 'trackOccurrenceInterval'
   | 'stopTracking'
+  | 'startRecurringTask'
   | 'recordOccurrenceProgress'
   | 'logProgress'
 
@@ -361,6 +363,20 @@ export const schedulerActions: {
       state.now,
       state.publication,
     )
+  },
+
+  startRecurringTask: (_name, state, { tx }) => {
+    if (state.command !== 'scheduler.occurrence.transition')
+      throw new Error('startRecurringTask only handles occurrences')
+    const { id, status } = state.input
+    if (status !== ProgressStatus.IN_PROGRESS) return
+    const occurrence = tx
+      .select({ taskId: taskOccurrences.taskId })
+      .from(taskOccurrences)
+      .where(eq(taskOccurrences.id, id))
+      .get()
+    if (occurrence?.taskId)
+      startRecurringTask(tx, occurrence.taskId, state.publication, state.now)
   },
 
   recordOccurrenceProgress: (_name, state, { tx }) => {
