@@ -75,6 +75,7 @@ new code.
 | `description` | No       | Shown in Preferences.                                                                                                                              |
 | `backend`     | No       | Path to the backend entry, relative to the folder. Runs in the database server.                                                                    |
 | `frontend`    | No       | Path to the frontend entry, relative to the folder. Runs in the app window.                                                                        |
+| `requires`    | No       | IDs of extensions this one needs, such as `["kanban"]`. They must be on, and start first.                                                          |
 
 Each entry default-exports `{ activate }`. Entries cannot point outside the
 extension folder.
@@ -353,6 +354,11 @@ records the value for a session.
   be registered again later.
 - **If `activate` throws,** everything it registered is undone. The
   extension shows "Could not start" with the error in Preferences.
+- **Requirements** in `requires` start first. An extension that needs a
+  missing ID, or sits in a cycle, can't be turned on. Turning one on needs
+  what it requires to be on; Preferences offers to turn those on too.
+  Turning one off also turns off the extensions that need it, and
+  restarting one restarts them.
 - **A folder with a missing or invalid `extension.json`** shows "Not a
   valid extension" with the reason.
 - After an extension is turned off, its `api` throws "Extension is

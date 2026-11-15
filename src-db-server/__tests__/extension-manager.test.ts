@@ -167,3 +167,106 @@ test('the folder must be an absolute path to a directory', async () => {
   )
   f.runtime.dispose()
 })
+
+const manifest = (id: string, requires?: string[]) =>
+  JSON.stringify({ id, name: id[0].toUpperCase() + id.slice(1), version: '1', requires })
+
+async function dependencyFixture() {
+  const f = await fixture()
+  folder(f.root, 'tracker', { 'extension.json': manifest('tracker', ['kanban']) })
+  folder(f.root, 'kanban', { 'extension.json': manifest('kanban') })
+  folder(f.root, 'stats', { 'extension.json': manifest('stats', ['tracker']) })
+  await f.runtime.extensionManager.rescan()
+  const byId = (list: { extensions: { manifest?: { id: string } }[] }) =>
+    Object.fromEntries(
+      list.extensions.map((e) => [e.manifest?.id ?? 'none', e]),
+    ) as Record<string, { enabled: boolean; status: string; error?: string }>
+  return { ...f, manager: f.runtime.extensionManager, byId }
+}
+
+test('extensions are listed and started after what they need', async () => {
+  const f = await dependencyFixture()
+  const ids = f.manager.list().extensions.map((e) => e.manifest?.id)
+  expect(ids.indexOf('kanban')).toBeLessThan(ids.indexOf('tracker'))
+  expect(ids.indexOf('tracker')).toBeLessThan(ids.indexOf('stats'))
+  f.runtime.dispose()
+})
+
+test('missing and circular requirements make an extension invalid', async () => {
+  const f = await fixture()
+  folder(f.root, 'lonely', { 'extension.json': manifest('lonely', ['gone']) })
+  folder(f.root, 'chicken', { 'extension.json': manifest('chicken', ['egg']) })
+  folder(f.root, 'egg', { 'extension.json': manifest('egg', ['chicken']) })
+  folder(f.root, 'nest', { 'extension.json': manifest('nest', ['egg']) })
+  const list = await f.runtime.extensionManager.rescan()
+  const error = (id: string) =>
+    list.extensions.find((e) => e.manifest?.id === id)?.error
+  expect(error('lonely')).toBe(`Needs "gone", which isn't installed`)
+  expect(error('chicken')).toBe('Dependency cycle: chicken -> egg -> chicken')
+  expect(error('nest')).toBe(`Needs "egg", which can't load`)
+  await expect(f.runtime.extensionManager.setEnabled('nest', true)).rejects.toThrow(
+    `Nest: Needs "egg"`,
+  )
+  f.runtime.dispose()
+})
+
+test('turning on needs requirements on; turning off also turns off dependents', async () => {
+  const f = await dependencyFixture()
+  await expect(f.manager.setEnabled('stats', true)).rejects.toThrow(
+    'Turn on Kanban, Tracker first. Stats needs them.',
+  )
+  await f.manager.setEnabled('kanban', true)
+  await f.manager.setEnabled('tracker', true)
+  let list = f.byId(await f.manager.setEnabled('stats', true))
+  expect(list.stats).toMatchObject({ enabled: true, status: 'active' })
+
+  list = f.byId(await f.manager.setEnabled('kanban', false))
+  for (const id of ['kanban', 'tracker', 'stats'])
+    expect(list[id]).toMatchObject({ enabled: false, status: 'disabled' })
+
+  // The cascade is saved, so a restart keeps them off.
+  f.runtime.dispose()
+  const restarted = createBackendRuntime(f.database, { vaultDir: f.root })
+  list = f.byId(await restarted.extensionManager.rescan())
+  expect(list.tracker.enabled).toBe(false)
+  restarted.dispose()
+})
+
+test('dependents restart with their provider and fail while it is down', async () => {
+  const f = await dependencyFixture()
+  folder(f.root, 'flaky', {
+    'extension.json': JSON.stringify({
+      id: 'flaky',
+      name: 'Flaky',
+      version: '1',
+      backend: 'backend.ts',
+    }),
+    'backend.ts': 'export default { activate: () => {} }',
+  })
+  folder(f.root, 'reader', { 'extension.json': manifest('reader', ['flaky']) })
+  await f.manager.rescan()
+  await f.manager.setEnabled('flaky', true)
+  await f.manager.setEnabled('reader', true)
+
+  writeFileSync(
+    join(f.root, 'flaky', 'backend.ts'),
+    'export default { activate: () => { throw new Error("boom") } }',
+  )
+  let list = f.byId(await f.manager.rescan())
+  expect(list.flaky.status).toBe('failed')
+  expect(list.reader).toMatchObject({
+    status: 'failed',
+    error: "Needs Flaky, which didn't start",
+  })
+
+  writeFileSync(
+    join(f.root, 'flaky', 'backend.ts'),
+    'export default { activate: () => {} }',
+  )
+  list = f.byId(await f.manager.rescan())
+  expect(list.reader.status).toBe('active')
+  // Re-saving the provider restarts what needs it.
+  list = f.byId(await f.manager.setEnabled('flaky', true))
+  expect(list.reader.status).toBe('active')
+  f.runtime.dispose()
+})

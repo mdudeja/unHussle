@@ -626,6 +626,10 @@ and optional backend and frontend entries. They add commands, workflows, event
 listeners, settings, sidebar menus and pages. They run unsandboxed and stay off
 until turned on in **Preferences > Extensions**.
 
+An extension can list others it `requires`. Preferences shows what each one
+needs and what uses it, turns requirements on first, and turns dependents off
+with their provider.
+
 - Writing one: [docs/extensions.md](docs/extensions.md)
 - How the host works: [docs/extensions-architecture.md](docs/extensions-architecture.md)
 - Working example: `examples/extensions/sample/` (commands, workflows,

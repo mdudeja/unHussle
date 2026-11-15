@@ -19,6 +19,13 @@ import {
   type ExtensionManifest,
   type InstalledExtension,
 } from '@c/extensions/manifest'
+import {
+  dependencyIssues,
+  dependentsOf,
+  requirementsOf,
+  sortByDependencies,
+  type DependencyNode,
+} from '@c/extensions/dependencies'
 import type { BackendExtension } from '@d/extensions/sdk'
 import type { UnHussleDB } from '@d/database/UnHussleDB'
 import type { createBackendExtensions } from '@d/extensions/application'
@@ -74,6 +81,25 @@ async function readManifest(folder: string): Promise<ExtensionManifest> {
 
 type Entry = InstalledExtension & { path: string }
 
+const nodeOf = ({ manifest }: Entry): DependencyNode | undefined =>
+  manifest && { id: manifest.id, requires: manifest.requires }
+
+/**
+ * Marks extensions whose requirements can't be met as invalid, and orders
+ * the rest so each starts after what it needs.
+ */
+function withDependencies(entries: Entry[]) {
+  const issues = dependencyIssues(entries.flatMap((entry) => nodeOf(entry) ?? []))
+  for (const entry of entries) {
+    const issue = entry.manifest && issues.get(entry.manifest.id)
+    if (issue) {
+      entry.status = 'invalid'
+      entry.error = issue
+    }
+  }
+  return sortByDependencies(entries, nodeOf)
+}
+
 /** Discovers extension folders and activates the ones the user enabled. */
 export function createExtensionManager(
   database: UnHussleDB,
@@ -100,6 +126,34 @@ export function createExtensionManager(
       throw new ExtensionError(`Extension "${id}" is not active`)
     return entry
   }
+
+  const nodes = () => entries.flatMap((entry) => nodeOf(entry) ?? [])
+  const nameOf = (entry: Entry) => entry.manifest?.name ?? entry.folder
+
+  /** Starts an extension once everything it needs is running. */
+  const start = async (entry: Entry) => {
+    if (entry.status === 'invalid') return
+    for (const id of entry.manifest?.requires ?? []) {
+      const required = find(id)
+      const problem = !required.enabled
+        ? 'is off'
+        : required.status !== 'active'
+          ? "didn't start"
+          : undefined
+      if (problem) {
+        entry.status = 'failed'
+        entry.error = `Needs ${nameOf(required)}, which ${problem}`
+        return
+      }
+    }
+    await activate(entry)
+  }
+
+  /** Turned-on extensions that need this one, in start order. */
+  const enabledDependents = (id: string) =>
+    dependentsOf(nodes(), id)
+      .map(find)
+      .filter((entry) => entry.enabled)
 
   const deactivate = (entry: Entry) => {
     const id = entry.manifest?.id
@@ -203,32 +257,55 @@ export function createExtensionManager(
     const settings = await readAppSettings(database)
     defaultRoot ??= defaultExtensionsRoot(database.filePath)
     directory = settings.extensionsDir ?? defaultRoot
-    entries = await scan(settings.enabledExtensions ?? [])
-    for (const entry of entries) if (entry.enabled) await activate(entry)
+    entries = withDependencies(await scan(settings.enabledExtensions ?? []))
+    for (const entry of entries) if (entry.enabled) await start(entry)
     return list()
   }
 
   return {
     list,
     rescan,
+    /**
+     * Turning on needs what it requires to be on already. Turning off also
+     * turns off what needs it. Dependents restart with their provider.
+     */
     setEnabled: async (id: string, enabled: boolean) => {
       const entry = find(id)
+      if (enabled) {
+        if (entry.status === 'invalid')
+          throw new ExtensionError(`${nameOf(entry)}: ${entry.error}`)
+        const off = requirementsOf(nodes(), id)
+          .map(find)
+          .filter((required) => !required.enabled)
+        if (off.length)
+          throw new ExtensionError(
+            `Turn on ${off.map(nameOf).join(', ')} first. ${nameOf(entry)} needs ${off.length > 1 ? 'them' : 'it'}.`,
+          )
+      }
+      const dependents = enabledDependents(id)
+      const changed = enabled ? [entry] : [entry, ...dependents]
+      const ids = changed.map((item) => item.manifest!.id)
       await updateAppSettings(database, (settings) => {
         const others = (settings.enabledExtensions ?? []).filter(
-          (value) => value !== id,
+          (value) => !ids.includes(value),
         )
         return {
           ...settings,
           enabledExtensions: enabled ? [...others, id] : others,
         }
       })
-      entry.enabled = enabled
-      deactivate(entry)
-      if (enabled) await activate(entry)
-      else {
-        entry.status = 'disabled'
-        entry.error = undefined
-      }
+      for (const item of [entry, ...dependents].reverse()) deactivate(item)
+      if (enabled) {
+        entry.enabled = true
+        await start(entry)
+        for (const dependent of dependents) await start(dependent)
+      } else
+        for (const item of changed) {
+          item.enabled = false
+          if (item.status === 'invalid') continue
+          item.status = 'disabled'
+          item.error = undefined
+        }
       return list()
     },
     setDirectory: async (path: string) => {

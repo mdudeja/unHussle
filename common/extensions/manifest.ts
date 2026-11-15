@@ -12,6 +12,10 @@ export const extensionManifestSchema = Type.Object(
     description: Type.Optional(Type.String()),
     backend: Type.Optional(Type.String({ minLength: 1 })),
     frontend: Type.Optional(Type.String({ minLength: 1 })),
+    /** IDs of extensions that must be on, and start first. */
+    requires: Type.Optional(
+      Type.Array(Type.String({ pattern: ID_PATTERN }), { uniqueItems: true }),
+    ),
   },
   { additionalProperties: false },
 )

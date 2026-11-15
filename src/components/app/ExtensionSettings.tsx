@@ -3,6 +3,11 @@ import { isTauri } from '@tauri-apps/api/core'
 import { open } from '@tauri-apps/plugin-dialog'
 import { FolderInput, RefreshCw } from 'lucide-react'
 import type { InstalledExtension } from '@c/extensions/manifest'
+import {
+  dependentsOf,
+  requirementsOf,
+  type DependencyNode,
+} from '@c/extensions/dependencies'
 import { Button } from '@/components/ui/button'
 import { Card, CardContent, CardHeader, CardTitle } from '@/components/ui/card'
 import { Switch } from '@/components/ui/switch'
@@ -24,6 +29,11 @@ import { useWorkflowRuntime } from '@/workflows/hooks'
 import { useSchedulerAction } from '@/workflows/schedulerHooks'
 
 type Manifest = NonNullable<InstalledExtension['manifest']>
+/** Turning one on or off, with the others that change with it. */
+type Change = { manifest: Manifest; with: Manifest[] }
+
+const names = (manifests: Manifest[]) =>
+  manifests.map(({ name }) => name).join(', ')
 
 /** The extensions folder, and turning each extension in it on or off. */
 export function ExtensionSettings() {
@@ -31,7 +41,21 @@ export function ExtensionSettings() {
   const list = useInstalledExtensions()
   const loadErrors = useExtensionLoadErrors()
   const action = useSchedulerAction()
-  const [confirming, setConfirming] = useState<Manifest | null>(null)
+  const [enabling, setEnabling] = useState<Change | null>(null)
+  const [disabling, setDisabling] = useState<Change | null>(null)
+
+  const installed = list.data?.extensions ?? []
+  const manifests = installed.flatMap(({ manifest }) => manifest ?? [])
+  const nodes: DependencyNode[] = manifests
+  const byId = (ids: string[]) =>
+    ids.flatMap((id) => manifests.find((manifest) => manifest.id === id) ?? [])
+  const enabledIds = new Set(
+    installed.filter((e) => e.enabled).map((e) => e.manifest?.id),
+  )
+  const offRequirements = (id: string) =>
+    byId(requirementsOf(nodes, id).filter((other) => !enabledIds.has(other)))
+  const onDependents = (id: string) =>
+    byId(dependentsOf(nodes, id).filter((other) => enabledIds.has(other)))
 
   const refresh = () => runtime.queries.invalidate(['extensions'])
   // Reloading code from disk: drop loaded frontend entries first.
@@ -41,10 +65,15 @@ export function ExtensionSettings() {
     await refresh()
   }
 
-  const setEnabled = (id: string, enabled: boolean) =>
+  // What an extension needs goes on first; the server turns dependents off.
+  const apply = ({ manifest, with: others }: Change, enabled: boolean) =>
     action.run(async () => {
-      await extensionService.setEnabled(id, enabled)
-      await refresh()
+      try {
+        for (const { id } of enabled ? [...others, manifest] : [manifest])
+          await extensionService.setEnabled(id, enabled)
+      } finally {
+        await refresh()
+      }
     })
 
   const move = () =>
@@ -77,9 +106,29 @@ export function ExtensionSettings() {
                     loadError={
                       extension.manifest && loadErrors[extension.manifest.id]
                     }
+                    needs={byId(extension.manifest?.requires ?? [])}
+                    usedBy={byId(
+                      manifests
+                        .filter((m) =>
+                          m.requires?.includes(extension.manifest?.id ?? ''),
+                        )
+                        .map((m) => m.id),
+                    )}
                     busy={action.busy}
-                    onEnable={setConfirming}
-                    onDisable={(id) => setEnabled(id, false)}
+                    onEnable={(manifest) =>
+                      setEnabling({
+                        manifest,
+                        with: offRequirements(manifest.id),
+                      })
+                    }
+                    onDisable={(manifest) => {
+                      const change = {
+                        manifest,
+                        with: onDependents(manifest.id),
+                      }
+                      if (change.with.length) setDisabling(change)
+                      else void apply(change, false)
+                    }}
                   />
                 ))}
               </ul>
@@ -120,16 +169,20 @@ export function ExtensionSettings() {
         )}
       </CardContent>
       <AlertDialog
-        open={confirming !== null}
+        open={enabling !== null}
         onOpenChange={(isOpen) => {
-          if (!isOpen) setConfirming(null)
+          if (!isOpen) setEnabling(null)
         }}
       >
-        {confirming && (
+        {enabling && (
           <AlertDialogContent>
             <AlertDialogHeader>
-              <AlertDialogTitle>Turn on {confirming.name}?</AlertDialogTitle>
+              <AlertDialogTitle>
+                Turn on {enabling.manifest.name}?
+              </AlertDialogTitle>
               <AlertDialogDescription>
+                {enabling.with.length > 0 &&
+                  `It needs ${names(enabling.with)}, so that turns on too. `}
                 Extensions can read and change all your data. Only turn on
                 extensions you trust.
               </AlertDialogDescription>
@@ -139,11 +192,44 @@ export function ExtensionSettings() {
               <Button
                 type="button"
                 onClick={() => {
-                  void setEnabled(confirming.id, true)
-                  setConfirming(null)
+                  void apply(enabling, true)
+                  setEnabling(null)
                 }}
               >
-                Turn on
+                {enabling.with.length ? 'Turn on all' : 'Turn on'}
+              </Button>
+            </AlertDialogFooter>
+          </AlertDialogContent>
+        )}
+      </AlertDialog>
+      <AlertDialog
+        open={disabling !== null}
+        onOpenChange={(isOpen) => {
+          if (!isOpen) setDisabling(null)
+        }}
+      >
+        {disabling && (
+          <AlertDialogContent>
+            <AlertDialogHeader>
+              <AlertDialogTitle>
+                Turn off {disabling.manifest.name}?
+              </AlertDialogTitle>
+              <AlertDialogDescription>
+                Also turns off {names(disabling.with)}, because{' '}
+                {disabling.with.length > 1 ? 'they need' : 'it needs'} it.
+              </AlertDialogDescription>
+            </AlertDialogHeader>
+            <AlertDialogFooter>
+              <AlertDialogCancel>Back</AlertDialogCancel>
+              <Button
+                type="button"
+                variant="destructive"
+                onClick={() => {
+                  void apply(disabling, false)
+                  setDisabling(null)
+                }}
+              >
+                Turn off all
               </Button>
             </AlertDialogFooter>
           </AlertDialogContent>
@@ -156,19 +242,25 @@ export function ExtensionSettings() {
 function ExtensionItem({
   extension,
   loadError,
+  needs,
+  usedBy,
   busy,
   onEnable,
   onDisable,
 }: {
   extension: InstalledExtension
   loadError?: string
+  needs: Manifest[]
+  usedBy: Manifest[]
   busy: boolean
   onEnable: (manifest: Manifest) => void
-  onDisable: (id: string) => void
+  onDisable: (manifest: Manifest) => void
 }) {
   const { manifest } = extension
-  const error =
-    extension.status === 'failed'
+  const invalid = extension.status === 'invalid'
+  const error = invalid
+    ? `Can't turn on: ${extension.error}. Fix the extension, then rescan.`
+    : extension.status === 'failed'
       ? `Could not start: ${extension.error}. Fix the extension, then rescan.`
       : loadError &&
         `Could not load: ${loadError}. Fix the extension, then rescan.`
@@ -194,6 +286,12 @@ function ExtensionItem({
         {manifest.description && (
           <p className="text-muted-foreground">{manifest.description}</p>
         )}
+        {needs.length > 0 && (
+          <p className="text-muted-foreground">Needs: {names(needs)}</p>
+        )}
+        {usedBy.length > 0 && (
+          <p className="text-muted-foreground">Used by: {names(usedBy)}</p>
+        )}
         {error && (
           <p role="alert" className="text-destructive">
             {error}
@@ -203,9 +301,9 @@ function ExtensionItem({
       <Switch
         aria-label={`Turn ${manifest.name} on or off`}
         checked={extension.enabled}
-        disabled={busy}
+        disabled={busy || (invalid && !extension.enabled)}
         onCheckedChange={(checked) =>
-          checked ? onEnable(manifest) : onDisable(manifest.id)
+          checked ? onEnable(manifest) : onDisable(manifest)
         }
       />
     </li>
