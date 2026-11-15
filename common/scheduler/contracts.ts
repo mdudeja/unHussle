@@ -12,8 +12,8 @@ import type {
 export const scheduleCues = ['fresh', 'break', 'wrap', 'more'] as const
 export type ScheduleCue = (typeof scheduleCues)[number]
 
-export const planRuleNames = [
-  // Pickers: each claims candidates in its own order; earlier rules win capacity.
+// Pickers: each claims candidates in its own order; earlier rules win capacity.
+export const pickerRules = [
   'keepActive',
   'preScheduled',
   'recurringOccurrences',
@@ -24,13 +24,18 @@ export const planRuleNames = [
   'dueDateRanking',
   'oldestFirst',
   'wrapChores',
-  // Arrangers: reorder the stack without changing its membership.
+] as const
+
+// Arrangers: reorder the stack without changing its membership.
+export const arrangerRules = [
   'starterTask',
   'easyReturn',
   'quickOrFunBetweenLong',
   'choresLast',
   'restorePins',
 ] as const
+
+export const planRuleNames = [...pickerRules, ...arrangerRules] as const
 export type PlanRuleName = (typeof planRuleNames)[number]
 export type PlanRuleRegistry = Record<ScheduleCue, PlanRuleName[]>
 

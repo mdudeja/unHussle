@@ -196,7 +196,9 @@ export function buildDay(
     return fits
   }
 
-  /** Attempts to place a plan entry and its related group into the day’s plan when ordering, capacity, and work limits allow, recording conflicts for required placements that cannot fit. */
+  /** Attempts to place a plan entry and its related group into the day’s plan
+   * when ordering, capacity, and work limits allow, recording conflicts for
+   * required placements that cannot fit. */
   const place = (entry: PlanEntry, required: boolean, reason?: string) => {
     if (placed.has(entry.id) || !order.has(entry.id)) return
     const group = (anchors.groups.get(entry.id) ?? [entry])
