@@ -17,6 +17,18 @@ export const extensionManifestSchema = Type.Object(
 )
 export type ExtensionManifest = Static<typeof extensionManifestSchema>
 
+/** Extension settings must be JSON values. */
+export const jsonValueSchema = Type.Recursive((self) =>
+  Type.Union([
+    Type.Null(),
+    Type.Boolean(),
+    Type.Number(),
+    Type.String(),
+    Type.Array(self),
+    Type.Record(Type.String(), self),
+  ]),
+)
+
 export function assertExtensionId(id: string) {
   if (!new RegExp(ID_PATTERN).test(id) || RESERVED_IDS.includes(id))
     throw new Error(
@@ -32,9 +44,13 @@ export const extensionStatusSchema = Type.Union([
 ])
 export type ExtensionStatus = Static<typeof extensionStatusSchema>
 
-/** One folder in the extensions directory; `manifest` is absent when invalid. */
+/**
+ * One extension folder; `manifest` is absent when invalid. `bundled` ones
+ * come with the app; the others are in the user's extensions folder.
+ */
 export const installedExtensionSchema = Type.Object({
   folder: Type.String(),
+  bundled: Type.Boolean(),
   manifest: Type.Optional(extensionManifestSchema),
   enabled: Type.Boolean(),
   status: extensionStatusSchema,

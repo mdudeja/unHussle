@@ -1,27 +1,18 @@
 import { createExtensionHost } from '@c/extensions/host'
-import type { JsonValue } from '@c/extensions/sdk'
 import type { SpanScope } from '@c/workflows/telemetry'
-import type { SessionStorage } from '@/workflows/tracking'
 import type { createFrontendExecution } from '@/workflows/execution'
 import { extensionQueries } from '@/extensions/queries'
+import { extensionService } from '@/services/extensions'
 import type {
   FrontendContributions,
   ExtensionMenu,
   ExtensionView,
 } from '@/extensions/sdk'
 
-const storageKey = (owner: string, key: string) =>
-  `unhussle.extension.${owner}.${key}`
-
 /** Frontend host plus the menu/view store the sidebar and router render. */
 export function createFrontendExtensions(
   execution: ReturnType<typeof createFrontendExecution>,
-  storage?: SessionStorage,
 ) {
-  const requireStorage = () => {
-    if (!storage) throw new Error('Extension settings need browser storage')
-    return storage
-  }
   const menus = new Map<string, ExtensionMenu>()
   const views = new Map<string, ExtensionView>()
   const listeners = new Set<() => void>()
@@ -46,14 +37,11 @@ export function createFrontendExtensions(
     telemetry: execution.telemetry,
     on: (name, listener) =>
       execution.events.on(name, (_name, payload) => listener(payload)),
+    // The server keeps settings per extension, next to backend ones.
     settings: {
-      get: async (owner, key) => {
-        const value = requireStorage().getItem(storageKey(owner, key))
-        return value === null ? undefined : (JSON.parse(value) as JsonValue)
-      },
-      set: async (owner, key, value) => {
-        requireStorage().setItem(storageKey(owner, key), JSON.stringify(value))
-      },
+      get: (owner, key) => extensionService.getSetting(owner, key),
+      set: (owner, key, value) =>
+        extensionService.setSetting(owner, key, value),
     },
     logger: execution.logger,
     extra: (scope) => {

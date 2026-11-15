@@ -24,6 +24,7 @@ import {
   thematicBreakPlugin,
   toolbarPlugin,
   UndoRedo,
+  StrikeThroughSupSubToggles,
   type MDXEditorMethods,
 } from '@mdxeditor/editor'
 import '@mdxeditor/editor/style.css'
@@ -181,6 +182,7 @@ export function ResourceEditor({ initial }: { initial: ResourceContent }) {
                   <InsertTable />
                   <InsertCodeBlock />
                   <InsertThematicBreak />
+                  <StrikeThroughSupSubToggles />
                 </DiffSourceToggleWrapper>
               ),
             }),

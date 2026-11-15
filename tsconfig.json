@@ -28,7 +28,7 @@
     "noFallthroughCasesInSwitch": true,
     "noErrorTruncation": true
   },
-  "include": ["src", "src-db-server", "common", "scripts", "examples"],
+  "include": ["src", "src-db-server", "common", "scripts", "examples", "extensions"],
   "references": [
     {
       "path": "./tsconfig.node.json"

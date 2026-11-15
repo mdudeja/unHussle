@@ -72,7 +72,7 @@ export function ExtensionSettings() {
               <ul className="space-y-3">
                 {list.data.extensions.map((extension) => (
                   <ExtensionItem
-                    key={extension.folder}
+                    key={`${extension.bundled}:${extension.folder}`}
                     extension={extension}
                     loadError={
                       extension.manifest && loadErrors[extension.manifest.id]
@@ -186,7 +186,10 @@ function ExtensionItem({
       <div>
         <p className="font-medium">
           {manifest.name}{' '}
-          <span className="text-muted-foreground">{manifest.version}</span>
+          <span className="text-muted-foreground">
+            {manifest.version}
+            {extension.bundled && ' · Built in'}
+          </span>
         </p>
         {manifest.description && (
           <p className="text-muted-foreground">{manifest.description}</p>

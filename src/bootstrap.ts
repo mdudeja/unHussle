@@ -11,11 +11,7 @@ export function createFrontendRuntime(
   ...args: Parameters<typeof createFrontendExecution>
 ) {
   const execution = createFrontendExecution(...args)
-  const extensions = createFrontendExtensions(
-    execution,
-    args[1]?.storage ??
-      (typeof localStorage === 'undefined' ? undefined : localStorage),
-  )
+  const extensions = createFrontendExtensions(execution)
   return {
     ...execution,
     extensions,

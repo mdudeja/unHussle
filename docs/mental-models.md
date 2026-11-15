@@ -371,7 +371,8 @@ broken integrity rule. They are not a security boundary.
 
 ### Start reading
 
-1. `examples/extensions/sample/`: a complete extension.
+1. `examples/extensions/sample/`: a complete extension. The built-in
+   `extensions/kanban/` is a full view built on the SDK.
 2. `common/extensions/host.ts`: the scope and lease.
 3. `src-db-server/extensions/manager.ts`: discovery and switching on and
    off.

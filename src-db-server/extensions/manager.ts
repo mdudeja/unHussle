@@ -14,6 +14,7 @@ import type { Logger } from '@c/Logger'
 import type { Disposable } from '@c/extensions/sdk'
 import {
   extensionManifestSchema,
+  jsonValueSchema,
   type ExtensionList,
   type ExtensionManifest,
   type InstalledExtension,
@@ -22,7 +23,11 @@ import type { BackendExtension } from '@d/extensions/sdk'
 import type { UnHussleDB } from '@d/database/UnHussleDB'
 import type { createBackendExtensions } from '@d/extensions/application'
 import { bundleEntry } from '@d/extensions/bundle'
-import { readAppSettings, updateAppSettings } from '@d/extensions/settings'
+import {
+  extensionSettings,
+  readAppSettings,
+  updateAppSettings,
+} from '@d/extensions/settings'
 
 const MANIFEST_FILE = 'extension.json'
 
@@ -76,6 +81,7 @@ export function createExtensionManager(
   logger: Logger,
 ) {
   const active = new Map<string, Disposable>()
+  const settings = extensionSettings(database)
   const frontendBundles = new Map<string, Promise<string>>()
   let defaultRoot: string | undefined
   let bundleDir: string | undefined
@@ -85,6 +91,13 @@ export function createExtensionManager(
   const find = (id: string) => {
     const entry = entries.find((entry) => entry.manifest?.id === id)
     if (!entry) throw new ExtensionError(`No extension with ID "${id}"`)
+    return entry
+  }
+
+  const requireActive = (id: string) => {
+    const entry = find(id)
+    if (entry.status !== 'active')
+      throw new ExtensionError(`Extension "${id}" is not active`)
     return entry
   }
 
@@ -128,39 +141,54 @@ export function createExtensionManager(
     }
   }
 
-  const scan = async (enabled: string[]) => {
-    mkdirSync(directory, { recursive: true })
-    const seen = new Map<string, string>()
-    const next: Entry[] = []
-    const folders = readdirSync(directory, { withFileTypes: true })
+  const subfolders = (root: string) =>
+    readdirSync(root, { withFileTypes: true })
       .filter((item) => item.isDirectory())
       .map((item) => item.name)
       .sort()
-    for (const folder of folders) {
-      const path = join(directory, folder)
-      try {
-        const manifest = await readManifest(path)
-        const other = seen.get(manifest.id)
-        if (other)
-          throw new Error(`ID "${manifest.id}" is already used by ${other}`)
-        seen.set(manifest.id, folder)
-        next.push({
-          folder,
-          path,
-          manifest,
-          enabled: enabled.includes(manifest.id),
-          status: 'disabled',
-        })
-      } catch (error) {
-        next.push({
-          folder,
-          path,
-          enabled: false,
-          status: 'invalid',
-          error: message(error),
-        })
+
+  /** Bundled extensions are read first, so they keep their IDs. */
+  const scan = async (enabled: string[]) => {
+    mkdirSync(directory, { recursive: true })
+    const bundledRoot = process.env.BUNDLED_EXTENSIONS_DIR
+    const roots = [
+      ...(bundledRoot && existsSync(bundledRoot)
+        ? [{ root: bundledRoot, bundled: true }]
+        : []),
+      ...(bundledRoot && resolve(bundledRoot) === resolve(directory)
+        ? []
+        : [{ root: directory, bundled: false }]),
+    ]
+    const seen = new Map<string, string>()
+    const next: Entry[] = []
+    for (const { root, bundled } of roots)
+      for (const folder of subfolders(root)) {
+        const path = join(root, folder)
+        try {
+          const manifest = await readManifest(path)
+          const other = seen.get(manifest.id)
+          if (other)
+            throw new Error(`ID "${manifest.id}" is already used by ${other}`)
+          seen.set(manifest.id, bundled ? `built-in ${folder}` : folder)
+          next.push({
+            folder,
+            path,
+            bundled,
+            manifest,
+            enabled: enabled.includes(manifest.id),
+            status: 'disabled',
+          })
+        } catch (error) {
+          next.push({
+            folder,
+            path,
+            bundled,
+            enabled: false,
+            status: 'invalid',
+            error: message(error),
+          })
+        }
       }
-    }
     return next
   }
 
@@ -215,6 +243,17 @@ export function createExtensionManager(
         extensionsDir: path,
       }))
       return rescan()
+    },
+    /** Settings of an active extension, for its frontend entry. */
+    getSetting: async (id: string, key: string) => {
+      requireActive(id)
+      return settings.get(id, key)
+    },
+    setSetting: async (id: string, key: string, value: unknown) => {
+      requireActive(id)
+      if (!Value.Check(jsonValueSchema, value))
+        throw new ExtensionError('Settings must be JSON values')
+      return settings.set(id, key, value)
     },
     /** The bundled frontend entry of an active extension. */
     frontendBundle: (id: string) => {

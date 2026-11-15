@@ -15,7 +15,8 @@ How the host works inside is covered in
 1. Find the extensions folder. It is shown in **Preferences > Extensions**.
    By default it is the `extensions` folder next to the database folder. A folder
    chosen with **Choose another folder** comes first, then the
-   `EXTENSIONS_DIR` environment variable, then the default.
+   `EXTENSIONS_DIR` environment variable, then the default. Extensions that
+   come with the app are listed there too, marked **Built in**.
 2. Create a folder for your extension, such as `hello/`.
 3. Add `hello/extension.json`:
 
@@ -220,9 +221,10 @@ api.log.info('Started')
 
 - Listeners run after a change is saved. If one throws, the error is
   logged and the change still stands.
-- Settings must be JSON values. Backend settings are saved in the
-  database. Frontend settings are saved in the app window's local storage.
-  They are separate, and both remain after the extension is turned off.
+- Settings must be JSON values. They are saved in the database, per
+  extension. The backend and frontend entries share them: a key saved on one
+  side can be read on the other. They remain after the extension is turned
+  off. The frontend can only read and save them while the extension is on.
 - Log lines are prefixed with your extension ID. Keep user content out of
   logs.
 
@@ -237,9 +239,42 @@ api.menus.register({ id: 'hello.run', label: 'Say hello', run: async () => {} })
 A menu either opens a view or runs a function. A view opens at
 `/extensions/<view id>`. Inside a view, read data with these hooks from
 `unhussle/frontend`: `useExtensionEntries(kind, page?)`,
-`useExtensionDetail(kind, id)` and `useExtensionSearch(kind, term)`. Their
-results are read-only. To change data, copy it into local state, then save
+`useExtensionDetail(kind, id)`, `useExtensionSearch(kind, term)` and
+`useExtensionContainers(requests)`. Their results are read-only and refresh
+when the data changes. To change data, copy it into local state, then save
 it through a command.
+
+`useExtensionContainers` loads several projects, areas, goals, tags or URLs
+in one query, each with a page of its tasks, as their pages show them:
+
+```ts
+const boards = useExtensionContainers([
+  { kind: 'projects', id: projectId, options: { status: 'planned' } },
+  { kind: 'tags', id: tagId, options: { limit: 100 } },
+])
+```
+
+A view has no API argument. To use `api` inside it, pass it through a React
+context from `activate`, as the Kanban extension does.
+
+### App components (frontend)
+
+`unhussle/frontend` also exports the app's own components, so views look like
+the rest of the app:
+
+- `Button`, `Badge`, `Card*`, `Dialog*`, `AlertDialog*`, `Input`, `Label`,
+  `Select*` and `EntityRefsInput` (search and pick projects, areas, goals,
+  tags, tasks or resources)
+- `Link`, with `getEntityItemRoute(kind, id)` for an item's page
+- `openEntityEditor(kind, id)`, which opens the app's edit dialog
+- `ProgressStatus`, and the `TaskListItem` and `ContainerDetail` types
+- a few icons: `ArrowDown`, `ArrowUp`, `CheckCircle2`, `ChevronLeft`,
+  `ChevronRight`, `Loader2`, `Pencil`, `Play`, `Plus`, `Trash2`
+
+The app's styles are built ahead of time. A Tailwind class in your markup
+only works if the app already uses it. Build with these components and common
+layout classes (`flex`, `gap-2`, `text-muted-foreground`), and check how your
+view looks.
 
 ## API reference
 
@@ -315,7 +350,7 @@ them has no effect on the app.
 - After an extension is turned off, its `api` throws "Extension is
   disposed". Work that already started is not cancelled.
 
-## Example
+## Examples
 
 [`examples/extensions/sample/`](../examples/extensions/sample) is a complete
 extension:
@@ -326,6 +361,22 @@ extension:
 - `frontend.tsx` registers a command, a view and a menu.
 - `sample-task-view.tsx` lists tasks with `useExtensionEntries`.
 
-To try it, point the app at the examples folder:
-`EXTENSIONS_DIR=$PWD/examples/extensions bun run server`. Then turn
-**Sample** on in Preferences.
+[`extensions/kanban/`](../extensions/kanban) is a built-in extension: it
+comes with the app and stays off until the user turns it on. It is a full
+view, a kanban board of tasks.
+
+- `extension.json` declares a frontend entry only.
+- `frontend.tsx` registers the view and its menu, and passes `api` to the
+  view through `api-context.ts`.
+- `boards.ts` describes and checks boards. `use-boards.ts` saves them with
+  `api.settings`.
+- `use-board-tasks.ts` reads each source with `useExtensionContainers`.
+- `placement.ts` decides each task's column and the changes a move makes.
+  It saves the stage in the task's `custom_data`.
+- `use-task-changes.ts` saves changes with `entity.change` and
+  `entity.delete`, and tracks busy and failed cards.
+
+To try Sample, point the app at the examples folder:
+`EXTENSIONS_DIR=$PWD/examples/extensions bun run server`. Kanban is listed
+whenever `BUNDLED_EXTENSIONS_DIR` points at the repo's `extensions` folder.
+Then turn the extension on in Preferences.

@@ -4,6 +4,9 @@
 @import 'shadcn/tailwind.css';
 @import '@fontsource-variable/inter';
 
+/* Classes used by the bundled extensions. */
+@source '../../extensions';
+
 @custom-variant dark (&:is(.dark *));
 
 @utility no-scrollbar {

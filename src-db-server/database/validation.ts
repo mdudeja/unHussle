@@ -62,6 +62,10 @@ export const insertTaskSchema = Type.Object({
   ...createInsertSchema(tasks, {
     status: t.Optional(t.Enum(ProgressStatus)),
     priority: t.Optional(t.Enum(Priority)),
+    // Keyed data for extensions, such as `{ "stage": "Review" }`.
+    custom_data: t.Optional(
+      t.Union([t.Record(t.String(), t.Unknown()), t.Null()]),
+    ),
   }).properties,
   ...attachmentsSchema,
 })
@@ -142,6 +146,10 @@ export const insertGoalSchema = Type.Object({
   ...createInsertSchema(goals, {
     status: t.Optional(t.Enum(ProgressStatus)),
     priority: t.Optional(t.Enum(Priority)),
+    // Keyed data for extensions, such as `{ "stage": "Review" }`.
+    custom_data: t.Optional(
+      t.Union([t.Record(t.String(), t.Unknown()), t.Null()]),
+    ),
   }).properties,
   ...attachmentsSchema,
 })
@@ -153,6 +161,10 @@ export const insertProjectSchema = Type.Object({
   ...createInsertSchema(projects, {
     status: t.Optional(t.Enum(ProgressStatus)),
     priority: t.Optional(t.Enum(Priority)),
+    // Keyed data for extensions, such as `{ "stage": "Review" }`.
+    custom_data: t.Optional(
+      t.Union([t.Record(t.String(), t.Unknown()), t.Null()]),
+    ),
   }).properties,
   ...attachmentsSchema,
 })

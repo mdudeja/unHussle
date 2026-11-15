@@ -2,14 +2,32 @@
 import type { ComponentType } from 'react'
 import type { Disposable, Extension } from '@c/extensions/sdk'
 import type { EntryKind } from '@c/workflows/contracts'
-import { useEntryList, useEntryDetail, useEntrySearch } from '@/workflows/hooks'
+import type {
+  ContainerDetail,
+  ReadContainerKind,
+  TaskPageOptions,
+} from '@c/types/readModels'
+import { dependencies } from '@/workflows/execution'
+import { fetchContainerDetail } from '@/services/readModels'
+import { useStore } from '@/store'
+import type { EntityKind } from '@/lib/entityActions'
+import {
+  useEntryList,
+  useEntryDetail,
+  useEntrySearch,
+  useWorkflowQuery,
+} from '@/workflows/hooks'
+export * from '@/extensions/ui'
+export { getEntityItemRoute } from '@/lib/entityRoutes'
 export type {
   ApplicationServices,
   JsonValue,
   WorkflowDefinition,
 } from '@c/extensions/sdk'
+export type { ContainerDetail, TaskListItem } from '@c/types/readModels'
+export { ProgressStatus } from '@c/types/enums'
 
-type ReadonlyData<T> = T extends object
+export type ReadonlyData<T> = T extends object
   ? { readonly [K in keyof T]: ReadonlyData<T[K]> }
   : T
 
@@ -33,6 +51,41 @@ export function useExtensionSearch<T extends { id: string }>(
 ) {
   return readonly(useEntrySearch<T>(kind, term))
 }
+
+export type ContainerRequest = {
+  kind: ReadContainerKind
+  id: string
+  options?: TaskPageOptions
+}
+/**
+ * Several containers with a page of their tasks each, in request order.
+ * Refreshes when any task or collection changes.
+ */
+export function useExtensionContainers(requests: ContainerRequest[]) {
+  return readonly(
+    useWorkflowQuery<ContainerDetail[]>({
+      key: `related-many:${JSON.stringify(requests)}`,
+      dependencies: [
+        ...new Set(
+          requests.flatMap(({ kind }) => [
+            ...dependencies(kind),
+            ...dependencies('tasks'),
+          ]),
+        ),
+      ],
+      load: () =>
+        Promise.all(
+          requests.map(({ kind, id, options }) =>
+            fetchContainerDetail(kind, id, options),
+          ),
+        ),
+    }),
+  )
+}
+
+/** Opens the app's edit dialog for an item. */
+export const openEntityEditor = (kind: EntityKind, id: string) =>
+  useStore.getState().openEditor(kind, id)
 
 export type ExtensionMenu = { id: string; label: string } & (
   | { viewId: string; run?: never }

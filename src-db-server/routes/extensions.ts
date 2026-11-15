@@ -39,6 +39,19 @@ export function createExtensionRoutes(
       },
     )
 
+    .get('/:id/settings/:key', async ({ params }) => ({
+      value: await manager.getSetting(params.id, params.key),
+    }))
+
+    .put(
+      '/:id/settings/:key',
+      async ({ params, body }) => {
+        await manager.setSetting(params.id, params.key, body.value)
+        return { value: body.value }
+      },
+      { body: t.Object({ value: t.Unknown() }) },
+    )
+
     .get(
       '/:id/frontend.js',
       async ({ params }) =>

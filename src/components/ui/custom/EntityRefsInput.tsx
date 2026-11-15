@@ -10,7 +10,8 @@ import { cn } from '@/lib/utils'
 import { useWorkflowQuery } from '@/workflows/hooks'
 import { dependencies } from '@/bootstrap'
 
-export type RefKind = 'resources' | 'tasks' | 'projects' | 'areas' | 'goals'
+export type RefKind =
+  'resources' | 'tasks' | 'projects' | 'areas' | 'goals' | 'tags'
 
 /** A linked item; `kind` is kept when the input offers several kinds. */
 export type EntityRef = { id: string; title: string; kind?: RefKind }
@@ -21,6 +22,7 @@ const kindLabels: Record<RefKind, string> = {
   projects: 'Project',
   areas: 'Area',
   goals: 'Goal',
+  tags: 'Tag',
 }
 
 const SEARCH_DEBOUNCE_MS = 200

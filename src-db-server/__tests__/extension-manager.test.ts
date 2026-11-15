@@ -98,6 +98,60 @@ test('frontend bundles use host modules and need an active extension', async () 
   f.runtime.dispose()
 })
 
+test('settings of an active extension are saved as JSON in the database', async () => {
+  const f = await fixture()
+  const manager = f.runtime.extensionManager
+  await expect(manager.getSetting('sample', 'boards')).rejects.toThrow(
+    'not active',
+  )
+  await manager.setEnabled('sample', true)
+  expect(await manager.getSetting('sample', 'boards')).toBeUndefined()
+  await manager.setSetting('sample', 'boards', [{ id: 'one' }])
+  await expect(
+    manager.setSetting('sample', 'boards', () => {}),
+  ).rejects.toThrow('JSON values')
+  await expect(manager.getSetting('missing', 'boards')).rejects.toThrow(
+    'No extension',
+  )
+  f.runtime.dispose()
+
+  const restarted = createBackendRuntime(f.database, { vaultDir: f.root })
+  await restarted.extensionManager.rescan()
+  expect(
+    await restarted.extensionManager.getSetting('sample', 'boards'),
+  ).toEqual([{ id: 'one' }])
+  restarted.dispose()
+})
+
+test('bundled extensions are listed first, start off and keep their IDs', async () => {
+  const bundled = mkdtempSync(join(tmpdir(), 'unhussle-bundled-test-'))
+  roots.push(bundled)
+  cpSync(SAMPLE, join(bundled, 'builtin'), { recursive: true })
+  process.env.BUNDLED_EXTENSIONS_DIR = bundled
+  try {
+    const f = await fixture()
+    const { extensions } = await f.runtime.extensionManager.rescan()
+    expect(
+      extensions.map(({ folder, bundled, status }) => [
+        folder,
+        bundled,
+        status,
+      ]),
+    ).toEqual([
+      ['builtin', true, 'disabled'],
+      ['sample', false, 'invalid'],
+    ])
+    expect(extensions[1].error).toContain('already used by built-in builtin')
+    await f.runtime.extensionManager.setEnabled('sample', true)
+    expect(
+      (await f.runtime.extensionManager.setDirectory(bundled)).extensions,
+    ).toMatchObject([{ folder: 'builtin', bundled: true, enabled: true }])
+    f.runtime.dispose()
+  } finally {
+    delete process.env.BUNDLED_EXTENSIONS_DIR
+  }
+})
+
 test('the folder must be an absolute path to a directory', async () => {
   const f = await fixture()
   const manager = f.runtime.extensionManager

@@ -236,16 +236,17 @@ To work on the frontend in a browser, run `bun run server` in one terminal and
 
 Environment variables (see `.env.template`):
 
-| Variable                     | Used by  | Meaning                                                 |
-| ---------------------------- | -------- | ------------------------------------------------------- |
-| `DB_FILE_URL`                | server   | SQLite file (the desktop app sets it)                   |
-| `DB_MIGRATIONS_DIR`          | server   | Migrations folder (the desktop app sets it)             |
-| `VITE_DB_SERVER_PORT`        | both     | API port, default `3456`                                |
-| `VITE_LOG_LEVEL`, `NODE_ENV` | both     | Logging level / environment                             |
-| `VITE_SEARCH_RESULTS_COUNT`  | server   | Max rows per `/search/:term` (default 20)               |
-| `VITE_FETCH_LIMIT_<KIND>`    | frontend | Page size per list (e.g. `VITE_FETCH_LIMIT_TASKS`)      |
-| `DB_SERVER_BUILD_DIR`        | build    | Where `build:server` writes the sidecar binary          |
-| `EXTENSIONS_DIR`             | both     | Where extensions are discovered (default: `extensions`) |
+| Variable                     | Used by  | Meaning                                                             |
+| ---------------------------- | -------- | ------------------------------------------------------------------- |
+| `DB_FILE_URL`                | server   | SQLite file (the desktop app sets it)                               |
+| `DB_MIGRATIONS_DIR`          | server   | Migrations folder (the desktop app sets it)                         |
+| `VITE_DB_SERVER_PORT`        | both     | API port, default `3456`                                            |
+| `VITE_LOG_LEVEL`, `NODE_ENV` | both     | Logging level / environment                                         |
+| `VITE_SEARCH_RESULTS_COUNT`  | server   | Max rows per `/search/:term` (default 20)                           |
+| `VITE_FETCH_LIMIT_<KIND>`    | frontend | Page size per list (e.g. `VITE_FETCH_LIMIT_TASKS`)                  |
+| `DB_SERVER_BUILD_DIR`        | build    | Where `build:server` writes the sidecar binary                      |
+| `EXTENSIONS_DIR`             | both     | Where extensions are discovered (default: `extensions`)             |
+| `BUNDLED_EXTENSIONS_DIR`     | server   | Built-in extensions (set by the app; `./extensions` in development) |
 
 ### Documentation
 
@@ -449,7 +450,7 @@ routes/
   routegenerator.ts  generic CRUD routes per kind; mutations execute commands
   <kind>.ts          one routeGenerator call per kind; tags/urls add GET /:id/items
   scheduler.ts       /scheduler reads + commands
-  extensions.ts      /extensions list, rescan, enable, folder, frontend bundles
+  extensions.ts      /extensions list, rescan, enable, folder, settings, frontend bundles
   events.ts          SSE forwarder (numbered frames, replay buffer, resync)
   telemetry.ts       http spans, x-operation-id header, GET /telemetry
 workflows/           see docs/workflows.md
@@ -609,7 +610,28 @@ until turned on in **Preferences > Extensions**.
 
 - Writing one: [docs/extensions.md](docs/extensions.md)
 - How the host works: [docs/extensions-architecture.md](docs/extensions-architecture.md)
-- Working example: `examples/extensions/sample/`
+- Working example: `examples/extensions/sample/` (commands, workflows,
+  events)
+- Built in: `extensions/kanban/` (a full view). Built-in extensions come
+  with the app and are off until turned on.
+
+### Kanban
+
+The built-in **Kanban** extension shows tasks as cards in columns. Turn it on
+in **Preferences > Extensions**. A board pulls
+tasks from one or more projects, areas, goals and tags, the same tasks their
+pages show. Its stages are the columns, from left to right. Each stage matches
+a task status (Planned, In progress or Completed), and a board needs at least
+one stage for each. Paused tasks show under in-progress stages.
+
+- A task's stage is saved in its custom data as `{ "stage": "<name>" }`. A task
+  without a matching stage sits in the first stage of its status.
+- Drag a card to any column, or use its arrows to move it one column. Moving
+  it to a stage with another status changes the task's status too.
+- **Start** moves a planned task to the first in-progress stage and starts its
+  timer. **Complete** moves it to the first completed stage.
+- Boards are saved in the database. Each source shows up to 100 tasks per
+  status.
 
 ## Frontend (`src/`)
 

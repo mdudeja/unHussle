@@ -1,4 +1,3 @@
-import { Type } from '@sinclair/typebox'
 import { Value } from '@sinclair/typebox/value'
 import type { Logger } from '@c/Logger'
 import type { TraceMeta } from '@c/workflows/runtime'
@@ -18,7 +17,7 @@ import type {
   JsonValue,
   SupportedCommands,
 } from '@c/extensions/sdk'
-import { assertExtensionId } from '@c/extensions/manifest'
+import { assertExtensionId, jsonValueSchema } from '@c/extensions/manifest'
 import { AppEvents, FrontendEvents } from '@c/workflows/contracts'
 
 export type ExtensionScope = {
@@ -40,17 +39,6 @@ export type ScopedRegistrations<C> = {
     boundary?: CommandBoundary<C>,
   ) => Disposable
 }
-
-const jsonSchema = Type.Recursive((self) =>
-  Type.Union([
-    Type.Null(),
-    Type.Boolean(),
-    Type.Number(),
-    Type.String(),
-    Type.Array(self),
-    Type.Record(Type.String(), self),
-  ]),
-)
 
 /** Owns extension lifetimes; compilation and execution stay in the registry. */
 export function createExtensionHost<
@@ -268,7 +256,7 @@ export function createExtensionHost<
           },
           set: (key, value) => {
             scope.check()
-            if (!Value.Check(jsonSchema, value))
+            if (!Value.Check(jsonValueSchema, value))
               throw new Error('Settings must be JSON values')
             return options.settings.set(id, key, value)
           },

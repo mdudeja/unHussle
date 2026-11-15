@@ -57,6 +57,11 @@ fn start_db_server(app: &AppHandle) -> Result<DbServerProcess, String> {
         .path()
         .resolve("resources/drizzle_migrations", BaseDirectory::Resource)
         .map_err(|e| format!("Failed to get resource directory: {}", e))?;
+    // Extensions that come with the app; each stays off until the user enables it.
+    let bundled_extensions_path = app
+        .path()
+        .resolve("resources/extensions", BaseDirectory::Resource)
+        .map_err(|e| format!("Failed to get resource directory: {}", e))?;
 
     // Resources are markdown files in the vault; the user can move it later.
     let vault_path = app
@@ -83,6 +88,10 @@ fn start_db_server(app: &AppHandle) -> Result<DbServerProcess, String> {
         .env("DB_FILE_URL", db_path.to_str().unwrap())
         .env("DB_MIGRATIONS_DIR", migrations_path.to_str().unwrap())
         .env("VAULT_DIR", vault_path.to_str().unwrap())
+        .env(
+            "BUNDLED_EXTENSIONS_DIR",
+            bundled_extensions_path.to_str().unwrap(),
+        )
         .env("VITE_DB_SERVER_PORT", port.to_string())
         .env("DB_SERVER_SHUTDOWN_TOKEN", &shutdown_token);
 

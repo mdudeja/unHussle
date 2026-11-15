@@ -1,4 +1,4 @@
-import { expect, mock, test } from 'bun:test'
+import { expect, mock, spyOn, test } from 'bun:test'
 import { Type } from '@sinclair/typebox'
 import { createStore } from 'zustand/vanilla'
 import { useStore } from '@/store'
@@ -7,6 +7,7 @@ import type { EventHandlers } from '@/workflows/eventStream'
 import type { FrontendExtension } from '@/extensions/sdk'
 import sampleFrontendExtension from '../../examples/extensions/sample/frontend'
 import { createExtensionLoader } from '@/extensions/loader'
+import { extensionService } from '@/services/extensions'
 import type { InstalledExtension } from '@c/extensions/manifest'
 
 type Api = Parameters<FrontendExtension['activate']>[0]
@@ -46,6 +47,15 @@ function fixture() {
     time_entries: service,
   }
   const storage = new Map<string, string>()
+  const settings = new Map<string, unknown>()
+  spyOn(extensionService, 'getSetting').mockImplementation(
+    async (id, key) => settings.get(`${id}.${key}`) as never,
+  )
+  spyOn(extensionService, 'setSetting').mockImplementation(
+    async (id, key, value) => {
+      settings.set(`${id}.${key}`, value)
+    },
+  )
   const runtime = createFrontendRuntime(
     createStore(() => useStore.getInitialState()),
     {
@@ -291,6 +301,7 @@ test('imperative SDK reads return detached snapshots without mutating coordinato
 
 const installed = (id: string, enabled = true): InstalledExtension => ({
   folder: id,
+  bundled: false,
   manifest: { id, name: id, version: '1', frontend: 'frontend.tsx' },
   enabled,
   status: enabled ? 'active' : 'disabled',

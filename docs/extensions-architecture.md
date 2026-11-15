@@ -21,13 +21,14 @@ plans itself.
 | `src-db-server/extensions/settings.ts`           | `app_settings` read/update helpers; per-extension settings                    |
 | `src-db-server/extensions/bundle.ts`             | `Bun.build` of an entry with shared modules mapped to a global                |
 | `src-db-server/extensions/manager.ts`            | Discovery, enabled state, backend activation, cached frontend bundles         |
-| `src-db-server/routes/extensions.ts`             | HTTP: list, rescan, enable, change folder, frontend bundle                    |
+| `src-db-server/routes/extensions.ts`             | HTTP: list, rescan, enable, change folder, settings, frontend bundle          |
 | `src-db-server/extensions/sdk.ts`                | `unhussle/backend` (types only)                                               |
-| `src/extensions/application.ts`                  | Frontend host adapter; menus/views store and local-storage settings           |
+| `src/extensions/application.ts`                  | Frontend host adapter; menus/views store; settings through the server         |
 | `src/extensions/queries.ts`                      | Frontend `services.queries` through the query coordinator                     |
 | `src/extensions/loader.ts`                       | Sets the shared-module global; imports and registers enabled frontend entries |
 | `src/extensions/hooks.ts`                        | Installed list query, activation effect, load errors                          |
-| `src/extensions/sdk.ts`                          | `unhussle/frontend`: types and read-only query hooks                          |
+| `src/extensions/sdk.ts`                          | `unhussle/frontend`: types, read-only query hooks, editor opener              |
+| `src/extensions/ui.ts`                           | App components and icons re-exported through `unhussle/frontend`              |
 | `src/components/app/ExtensionContributions.tsx`  | Sidebar menus and the `/extensions/:id` view page                             |
 | `src/components/app/ExtensionSettings.tsx`       | Preferences card: folder, rescan, on/off with confirmation                    |
 | `src-db-server/bootstrap.ts`, `src/bootstrap.ts` | Composition roots; executors never import the host                            |
@@ -39,29 +40,42 @@ samples import exactly as external extensions do.
 
 Persistence lives in `app_settings.settings` (JSON, so no migration):
 
-| Key                 | Meaning                           |
-| ------------------- | --------------------------------- |
-| `extensionsDir`     | Folder chosen by the user         |
-| `enabledExtensions` | IDs the user turned on            |
-| `extensions[id]`    | That extension's backend settings |
+| Key                 | Meaning                   |
+| ------------------- | ------------------------- |
+| `extensionsDir`     | Folder chosen by the user |
+| `enabledExtensions` | IDs the user turned on    |
+| `extensions[id]`    | That extension's settings |
 
-The folder is resolved as `extensionsDir`, then `EXTENSIONS_DIR`, then
-`extensions`. A newly discovered extension is off.
+The user's folder is resolved as `extensionsDir`, then `EXTENSIONS_DIR`, then
+`extensions`. A newly discovered extension is off, built-in ones included.
+
+Built-in extensions live in the repo's `extensions` folder. Tauri copies it
+into the app's resources (`bundle.resources` in `tauri.conf.json`), and
+`src-tauri/src/lib.rs` passes that path to the sidecar as
+`BUNDLED_EXTENSIONS_DIR`. In development, `.env.local` sets it to
+`./extensions`. To add a built-in extension, add a folder there.
+
+Both sides share `extensions[id]`. The frontend reads and writes it through
+`GET` and `PUT /extensions/:id/settings/:key` (`{ value }`). The manager
+accepts these only for an active extension and only for JSON values.
 
 ## Flows
 
-**Server start**
+### Server start
 
 1. `server.ts` calls `extensionManager.rescan()`.
-2. The manager reads settings, then scans the folder in alphabetical order.
-   Each subfolder becomes one `InstalledExtension`: valid, or `invalid` with
-   a reason. A duplicate ID marks the later folder invalid.
+2. The manager reads settings, then scans `BUNDLED_EXTENSIONS_DIR` and then
+   the user's folder, each in alphabetical order. Each subfolder becomes one
+   `InstalledExtension` (`bundled` tells which folder it came from): valid,
+   or `invalid` with a reason. A duplicate ID marks the later folder
+   invalid, so built-in IDs win. If the user picks the built-in folder, it
+   is scanned once.
 3. For each enabled entry, the manager bundles its `backend`, writes the
    bundle to a temp file, imports it, deletes the file, and calls
    `host.register(id, default)`. A throw sets `failed` with the message and
    never stops the server.
 
-**Turning an extension on or off** (`PUT /extensions/:id/enabled`)
+### Turning an extension on or off (`PUT /extensions/:id/enabled`)
 
 1. The manager saves `enabledExtensions`, then activates or disposes the
    backend entry, and returns the new list.
@@ -69,7 +83,7 @@ The folder is resolved as `extensionsDir`, then `EXTENSIONS_DIR`, then
 3. `useExtensionActivation` (mounted in `App`) passes the list to
    `extensionLoader.sync`.
 
-**Frontend loading**
+### Frontend loading
 
 1. `sync` computes the wanted IDs: enabled, `active`, and with a `frontend`
    entry. It unloads the others and imports the missing ones from
@@ -99,6 +113,12 @@ Consequences:
   is a change to the extension contract, so check the samples still load.
 - Adding a shared module means adding it to `sharedModules` and to both
   globals in the same change.
+- Extensions cannot resolve the app's other packages, such as `lucide-react`
+  or `react-router`. Whatever a view needs from them is re-exported from
+  `src/extensions/ui.ts`.
+- Tailwind compiles the app's classes at build time. `src/styles/App.css`
+  adds the repo's `extensions` folder as a source, so built-in extensions
+  work. Other extensions only get classes the app already uses.
 - `Bun.build` and `import()` of an on-disk file both work inside the
   `--compile`d sidecar.
 
@@ -117,6 +137,7 @@ Consequences:
 | Atomic plans roll back on throw, promise or bad output; `domain` expires | `domainBoundary.ts`          | `src-db-server/__tests__/extensions.test.ts`        |
 | Frontend query results are detached copies                               | `detach` option              | `src/__tests__/extensions.test.ts`                  |
 | Discovery, persistence, failure status, bundle contract                  | `manager.ts`                 | `src-db-server/__tests__/extension-manager.test.ts` |
+| Settings routes accept only active extensions and JSON values            | `manager.ts`                 | `src-db-server/__tests__/extension-manager.test.ts` |
 | The loader syncs to the list and ignores stale imports                   | `loader.ts`                  | `src/__tests__/extensions.test.ts`                  |
 
 ## Adding a capability to the SDK
