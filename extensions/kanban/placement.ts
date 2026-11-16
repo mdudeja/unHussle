@@ -1,8 +1,12 @@
 import { ProgressStatus, type TaskListItem } from 'unhussle/frontend'
 import type { Stage, StageStatus } from './boards'
 
-type Task = Pick<TaskListItem, 'status' | 'custom_data'>
-type Changes = { status?: StageStatus; custom_data: { kanban: { stage: string } } }
+type Task = Pick<TaskListItem, 'status' | 'custom_data' | 'title'>
+type Changes = {
+  title: string
+  status?: StageStatus
+  custom_data: { kanban: { stage: string } }
+}
 
 /** The stage status a task shows under; `null` when the board hides it. */
 export function boardStatus(task: Task): StageStatus | null {
@@ -37,7 +41,16 @@ export function columnFor(task: Task, stages: Stage[]) {
  * Changes the status only when the stage needs another one.
  */
 export function moveChanges(task: Task, stage: Stage): Changes {
-  const changes = { custom_data: { kanban: { stage: stage.name } } }
+  const stageNameRegex = /^\s*\[.*?\]\s*/
+  const hasStageInTitle = stageNameRegex.test(task.title)
+  const originalTitle = hasStageInTitle
+    ? task.title.replace(stageNameRegex, '')
+    : task.title
+  const newTitle = `[${stage.name}] ${originalTitle}`
+  const changes = {
+    title: stage.status === ProgressStatus.COMPLETED ? originalTitle : newTitle,
+    custom_data: { kanban: { stage: stage.name } },
+  }
   return boardStatus(task) === stage.status
     ? changes
     : { ...changes, status: stage.status }
